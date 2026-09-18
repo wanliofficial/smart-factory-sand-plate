@@ -1,9 +1,9 @@
 {
-  "name": "auto-plant-sandbox",
+  "name": "everything-connected",
   "private": true,
-  "version": "2.0.0",
+  "version": "1.0.0",
   "type": "module",
-  "description": "汽车工厂三维数字沙盘 · Vite 8 + React 19 + three.js（7 车间 + 办公楼 / 车流 / 人流）",
+  "description": "万物联动 / Everything Connected — GPU-driven immersive 3D AIoT digital world",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -12,7 +12,8 @@
   "dependencies": {
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "three": "^0.186.0"
+    "three": "^0.186.0",
+    "vgpu": "^0.5.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.1.1",

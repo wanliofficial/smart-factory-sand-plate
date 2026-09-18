@@ -1,9 +1,5 @@
-import Sandbox from './components/Sandbox.jsx'
+import EverythingConnected from './components/EverythingConnected.jsx'
 
 export default function App() {
-  return (
-    <div className="app">
-      <Sandbox />
-    </div>
-  )
+  return <EverythingConnected />
 }
