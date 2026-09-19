@@ -98,6 +98,7 @@ export default function Sandbox() {
             <p>SMART AUTOMOTIVE PLANT DIGITAL TWIN</p>
           </div>
         </div>
+        <a className="back-home back-home--light" href="#/">← 返回首页</a>
         <div className="stat">
           <span className="stat__dot" />
           <span>实时在线</span>

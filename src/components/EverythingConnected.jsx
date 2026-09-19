@@ -40,6 +40,7 @@ export default function EverythingConnected() {
   return (
     <div className="ec-container">
       <canvas ref={canvasRef} className="ec-canvas" />
+      <a className="back-home" href="#/">← 返回首页</a>
       <HUD stats={stats} />
       <InfoPanel node={selectedNode} onClose={() => setSelectedNode(null)} />
       {!webgpuSupported && (
