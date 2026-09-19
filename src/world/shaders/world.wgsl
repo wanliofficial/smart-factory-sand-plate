@@ -93,26 +93,10 @@ fn acesFilm(x: vec3f) -> vec3f {
   return clamp((x * (a * x + b)) / (x * (c * x + d) + e), vec3f(0.0), vec3f(1.0));
 }
 
-// Starfield background
-fn starfield(rd: vec3f, t: f32) -> vec3f {
+// Starfield background — 星点由粒子层 BACKGROUND 粒子负责（圆形 sprite，无格点混叠），
+// 这里只保留星云底纹
+fn starfield(ro: vec3f, rd: vec3f, t: f32) -> vec3f {
   var col = vec3f(0.0);
-
-  // Layer 1: distant stars
-  let uv = vec2f(atan2(rd.z, rd.x) / PI, asin(rd.y) / (PI * 0.5));
-  let g1 = floor(uv * 400.0);
-  let s1 = step(0.996, hash21(g1));
-  let b1 = hash21(g1 + vec2f(13.7, 73.1));
-  col += s1 * b1 * vec3f(0.8, 0.9, 1.0) * 0.8;
-
-  // Layer 2: brighter stars
-  let g2 = floor(uv * 150.0);
-  let s2 = step(0.9985, hash21(g2 + vec2f(42.0, 17.0)));
-  let b2 = hash21(g2 + vec2f(91.3, 27.9));
-  col += s2 * b2 * vec3f(0.9, 0.95, 1.0) * 1.5;
-
-  // Twinkle
-  let twinkle = 0.7 + 0.3 * sin(t * 2.0 + hash21(g1) * 100.0);
-  col *= twinkle;
 
   // Nebula
   let neb = fbm3(rd * 1.5 + vec3f(t * 0.002, 0.0, 0.0));
@@ -134,11 +118,11 @@ fn earthSDF(p: vec3f, t: f32) -> f32 {
   let continents = fbm3(n * 2.8 + vec3f(0.0, 0.0, t * 0.005));
   let elev = smoothstep(0.4, 0.6, continents) * 0.02;
 
-  // Grid indentation (creates wireframe look)
+  // Grid indentation (creates wireframe look) — abs() 防 pow 负底数 NaN 破坏 SDF
   let lat = abs(n.y);
   let lon = atan2(n.z, n.x) / PI;
-  let latLine = pow(sin(lat * PI * 18.0), 200.0);
-  let lonLine = pow(sin(lon * 18.0), 200.0);
+  let latLine = pow(abs(sin(lat * PI * 18.0)), 200.0);
+  let lonLine = pow(abs(sin(lon * PI * 18.0)), 200.0);
   let grid = max(latLine, lonLine) * 0.002;
 
   return d - elev + grid;
@@ -146,30 +130,30 @@ fn earthSDF(p: vec3f, t: f32) -> f32 {
 
 // Digital Earth surface color
 fn earthSurface(n: vec3f, t: f32) -> vec3f {
-  var col = vec3f(0.015, 0.03, 0.08); // deep ocean
+  var col = vec3f(0.02, 0.045, 0.11); // deep ocean
 
   // Continents
   let continentNoise = fbm3(n * 2.8 + vec3f(0.0, 0.0, t * 0.005));
   let isLand = smoothstep(0.42, 0.55, continentNoise);
-  col = mix(col, vec3f(0.04, 0.1, 0.2), isLand * 0.7);
-  col = mix(col, vec3f(0.06, 0.14, 0.25), isLand * smoothstep(0.55, 0.7, continentNoise) * 0.5);
+  col = mix(col, vec3f(0.06, 0.16, 0.32), isLand * 0.8);
+  col = mix(col, vec3f(0.1, 0.24, 0.42), isLand * smoothstep(0.55, 0.7, continentNoise) * 0.6);
 
-  // Grid lines
+  // Grid lines — 指数调低加粗；必须 abs()，pow 负底数是未定义行为（NaN 会污染半条线）
   let lat = abs(n.y);
   let lon = atan2(n.z, n.x) / PI;
-  let latGrid = pow(sin(lat * PI * 18.0), 80.0);
-  let lonGrid = pow(sin(lon * 18.0), 80.0);
+  let latGrid = pow(abs(sin(lat * PI * 18.0)), 24.0);
+  let lonGrid = pow(abs(sin(lon * PI * 18.0)), 24.0);
   let grid = max(latGrid, lonGrid) * (0.3 + isLand * 0.5);
-  col += grid * vec3f(0.0, 0.5, 1.0) * 0.6;
+  col += grid * vec3f(0.0, 0.5, 1.0) * 2.0;
 
-  // City lights (clustered bright spots on land)
-  let lightNoise = fbm3(n * 25.0 + vec3f(t * 0.003));
-  let lights = smoothstep(0.55, 0.72, lightNoise) * isLand;
-  col += lights * vec3f(1.0, 0.85, 0.5) * 0.9;
+  // City lights (clustered bright spots on land) — 降频避免高频噪声在球影下混叠
+  let lightNoise = fbm3(n * 12.0 + vec3f(t * 0.003));
+  let lights = smoothstep(0.5, 0.65, lightNoise) * isLand;
+  col += lights * vec3f(1.0, 0.85, 0.5) * 2.2;
 
   // Data flow patterns
   let flow = fbm3(n * 6.0 + vec3f(0.0, t * 0.04, t * 0.025));
-  let flowLines = pow(flow, 4.0) * 0.25;
+  let flowLines = pow(flow, 4.0) * 0.45;
   col += flowLines * vec3f(0.0, 0.7, 1.0);
 
   // Equator highlight
@@ -274,7 +258,7 @@ fn aiCoreVolumetric(ro: vec3f, rd: vec3f, t: f32) -> vec3f {
   let oc = ro - center;
 
   let b = dot(oc, rd);
-  let c = dot(oc, oc) - 1.8 * 1.8;
+  let c = dot(oc, oc) - 1.5 * 1.5;
   let h = b * b - c;
   if (h < 0.0) { return vec3f(0.0); }
 
@@ -284,11 +268,11 @@ fn aiCoreVolumetric(ro: vec3f, rd: vec3f, t: f32) -> vec3f {
   let thickness = exit - entry;
 
   var total = vec3f(0.0);
-  let steps = 8.0;
+  let steps = 12.0;
   for (var i = 0.0; i < steps; i += 1.0) {
     let p = ro + rd * (entry + thickness * (i / steps));
     let d = length(p - center);
-    let density = exp(-d * 2.2) * 0.12;
+    let density = exp(-d * 3.2) * 0.10;
     var col = vec3f(0.0, 0.8, 1.0);
     // Inner core is brighter and whiter
     col = mix(col, vec3f(0.8, 1.0, 1.0), exp(-d * 5.0) * 0.8);
@@ -329,7 +313,7 @@ fn raymarch(ro: vec3f, rd: vec3f, t: f32) -> vec4f {
   var col = vec3f(0.0);
 
   // Background stars
-  col += starfield(rd, t);
+  col += starfield(ro, rd, t);
 
   // AI Core volumetric (behind earth)
   col += aiCoreVolumetric(ro, rd, t);
@@ -362,10 +346,10 @@ fn raymarch(ro: vec3f, rd: vec3f, t: f32) -> vec4f {
   if (hitEarth) {
     var surfCol = earthSurface(normalize(hitPos), t);
 
-    // Lighting
+    // Lighting — 抬高环境光底，否则背光面整片死黑
     let lightDir = normalize(vec3f(0.6, 0.8, 0.4));
     let diff = max(0.0, dot(hitNormal, lightDir));
-    surfCol *= 0.25 + diff * 0.75;
+    surfCol *= 0.45 + diff * 0.55;
 
     // Rim light
     let rim = pow(1.0 - max(0.0, dot(hitNormal, -rd)), 3.0);
@@ -415,7 +399,12 @@ fn raymarch(ro: vec3f, rd: vec3f, t: f32) -> vec4f {
   coord.x *= cam.aspect;
 
   let fov = 1.2;
-  let rd = normalize(vec3f(coord * fov, -1.0));
+  // 与其他图层一致的相机基：始终朝向原点（forward = normalize(-ro)）
+  let forward = normalize(-cam.ro);
+  let right = normalize(cross(forward, vec3f(0.0, 1.0, 0.0)));
+  let up = cross(right, forward);
+  // vgpu 效果的 uv.y 向下（屏幕坐标），翻 y 使世界 +up 投影到画面上方，与粒子层一致
+  let rd = normalize(right * (coord.x * fov) - up * (coord.y * fov) + forward);
   let ro = cam.ro;
 
   let col = raymarch(ro, rd, cam.time);

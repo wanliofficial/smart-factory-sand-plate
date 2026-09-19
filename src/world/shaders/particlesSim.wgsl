@@ -65,34 +65,33 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
       // Energy flicker
       p.energy = 0.15 + 0.35 * (0.5 + 0.5 * sin(t * (1.0 + p.seed * 2.0) + p.seed * 10.0));
     }
-    case 1u: { // DATA_FLOW: move along great circle arcs
-      // Seed-based movement: each particle has an implicit path
-      // We use the seed to determine two "anchor" directions and move between them
+    case 1u: { // DATA_FLOW: orbit along a randomly tilted great circle
+      // 旧实现用两个 seed 锚点做 slerp，锚点分布不均导致粒子在少数区域聚簇成白带；
+      // 改为每颗粒子一条独立轨道：法线由 seed 决定，相位匀速推进，全球均匀覆盖
       let seed = p.seed;
-      let a = normalize(vec3f(
-        sin(seed * 17.0),
-        cos(seed * 7.3),
-        sin(seed * 11.0 + 1.5)
+      var n = normalize(vec3f(
+        sin(seed * 127.1) + 0.31,
+        cos(seed * 311.7) + 0.17,
+        sin(seed * 74.7 + 2.0)
       ));
-      let b = normalize(vec3f(
-        sin(seed * 23.0 + 2.0),
-        cos(seed * 13.7 + 1.0),
-        sin(seed * 19.0 + 0.5)
-      ));
+      var axis = vec3f(1.0, 0.0, 0.0);
+      if (abs(n.x) > 0.9) { axis = vec3f(0.0, 1.0, 0.0); }
+      let u = normalize(cross(n, axis));
+      let v = cross(n, u);
 
-      // Progress oscillates back and forth (or wraps)
-      let speed = 0.03 + p.seed * 0.08;
-      var progress = fract(t * speed + p.seed * 100.0);
+      let theta = t * (0.05 + seed * 0.15) + seed * 628.0;
+      // 轨道半径摊薄到 1.03~1.22：壳越厚，掠射方向的线密度越低，盘缘茧环越淡
+      let arcR = params.earthRadius * (1.03 + fract(seed * 7.0) * 0.19);
+      p.position = arcR * (u * cos(theta) + v * sin(theta));
 
-      let arcPos = slerp(a * params.earthRadius * 1.02, b * params.earthRadius * 1.02, progress);
-      p.position = arcPos;
+      let progress = fract(theta / (PI * 2.0));
 
       // Energy pulses at certain points
       let pulse = 0.6 + 0.4 * sin(progress * PI * 8.0);
       p.energy = 0.3 + pulse * 0.6;
 
       // Size varies with energy
-      p.size = 1.5 + p.energy * 2.0;
+      p.size = 0.012 + p.energy * 0.02;
     }
     case 2u: { // AI_CORE: orbit around AI core
       let center = vec3f(0.0, params.aiCoreY, 0.0);
@@ -112,7 +111,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
 
       // Energy
       p.energy = 0.3 + 0.6 * (0.5 + 0.5 * sin(t * (1.5 + p.seed * 2.0) + p.seed * 30.0));
-      p.size = 1.5 + p.energy * 2.5;
+      p.size = 0.015 + p.energy * 0.025;
     }
     case 3u: { // BACKGROUND: slow drift of distant stars
       // Very slow rotation

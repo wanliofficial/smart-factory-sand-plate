@@ -25,7 +25,7 @@ import particlesSimWgsl from './shaders/particlesSim.wgsl';
 const FLOATS_PER_ITEM = 16
 const BYTES_PER_ITEM = 64
 
-export async function createWorld({ canvas, onStats, onSelectNode }) {
+export async function createWorld({ canvas, onStats, onSelectNode, debugCapture }) {
   const vgpu = await import('vgpu')
   const { init, surface, effect, draw, target, frameLoop, clock, sampler, bundle } = vgpu
 
@@ -438,6 +438,9 @@ export async function createWorld({ canvas, onStats, onSelectNode }) {
 
   const gpuClock = clock(gpu)
   let disposed = false
+  let debugFrame = 0
+  let debugCaptureState = 'idle' // 'idle' | 'paused' | 'capturing'
+  let debugReadFrame = -1
   let fpsFrames = 0
   let fpsLast = 0
   let currentFps = 60
@@ -502,11 +505,12 @@ export async function createWorld({ canvas, onStats, onSelectNode }) {
     })
 
     // Composite (非 MSAA，用于后处理)
+    const smokeLayer = globalThis.process?.env?.SMOKE_LAYER || ''
     frame.pass({ target: compositeTarget, clear: CLEAR }, (p) => {
-      p.draw(worldEffect)
-      p.draw(particleDraw)
-      p.draw(connDraw)
-      p.draw(nodeDraw)
+      if (!smokeLayer || smokeLayer === 'world') p.draw(worldEffect)
+      if (!smokeLayer || smokeLayer === 'particles') p.draw(particleDraw)
+      if (!smokeLayer || smokeLayer === 'conns') p.draw(connDraw)
+      if (!smokeLayer || smokeLayer === 'nodes') p.draw(nodeDraw)
     })
 
     // Bright pass
@@ -527,6 +531,31 @@ export async function createWorld({ canvas, onStats, onSelectNode }) {
 
     // Post → 屏幕
     frame.pass({ target: canvasSurface, clear: CLEAR }, (p) => p.draw(postEffect))
+
+    // 调试取帧：D3D12/Vulkan 下 GPU 队列持续满载时 mapAsync 永不完成，因此先提交几个
+    // 空帧让队列排空，再从帧回调内提交读回（回调外提交会挂起）。复制已入队，之后恢复
+    // 渲染也不影响捕获结果（FIFO 保证复制读的是暂停前的合成结果）。
+    if (debugCapture) {
+      if (debugFrame === 2 && debugCaptureState === 'idle') {
+        debugCaptureState = 'paused'
+        debugReadFrame = debugFrame + 3
+      }
+      if (debugCaptureState === 'paused' && debugFrame >= debugReadFrame) {
+        debugCaptureState = 'capturing'
+        compositeTarget.color
+          .readFloats({ mipLevel: 0, region: 'all' })
+          .then((floats) => {
+            debugCaptureState = 'idle'
+            if (!disposed) debugCapture({ floats, size: [...size] })
+          })
+          .catch((e) => console.error('[debugCapture] read failed:', e?.message || e))
+      }
+      if (debugCaptureState === 'paused') {
+        debugFrame++
+        return
+      }
+    }
+    debugFrame++
   })
 
   function dispose() {

@@ -60,6 +60,7 @@ struct VSOut {
   @location(1) color: vec3f,
   @location(2) traffic: f32,
   @location(3) flow: f32,
+  @location(4) dim: f32,
 }
 
 // For each connection instance, we draw a ribbon (quad) along the arc
@@ -110,6 +111,18 @@ struct VSOut {
   out.traffic = conn.traffic;
   out.flow = fract(cam.time * conn.flowSpeed * 0.3 + conn.flowOffset);
 
+  // 背侧弧段遮挡减淡，避免远侧连线糊在地球盘面上
+  var dim = 1.0;
+  let fwd = normalize(-cam.ro);
+  let rel = p - cam.ro;
+  let tAxis = dot(rel, fwd);
+  let depthCenter = dot(-cam.ro, fwd);
+  if (tAxis > depthCenter) {
+    let perp = length(rel - fwd * tAxis);
+    dim *= 1.0 - (1.0 - smoothstep(0.85, 1.25, perp)) * 0.85;
+  }
+  out.dim = dim;
+
   return out;
 }
 
@@ -118,6 +131,7 @@ struct VSOut {
   @location(1) color: vec3f,
   @location(2) traffic: f32,
   @location(3) flow: f32,
+  @location(4) dim: f32,
 ) -> @location(0) vec4f {
   // Fade edges
   let edge = 1.0 - abs(uv.y - 0.5) * 2.0;
@@ -131,11 +145,12 @@ struct VSOut {
   let pulsePos = pmod(uv.x - flow, pulseSpacing) / pulseSpacing;
   let pulse = exp(-pulsePos * pulsePos * 30.0) * traffic;
 
-  var col = color * (0.25 + traffic * 0.35);
-  col += pulse * color * 2.5;
-  col += pulse * vec3f(1.0, 1.0, 1.0) * 1.5;
+  var col = color * (0.12 + traffic * 0.2);
+  col += pulse * color * 1.5;
+  col += pulse * vec3f(1.0, 1.0, 1.0) * 1.0;
+  col *= dim;
 
-  let alpha = edgeSoft * ends * (0.4 + traffic * 0.4 + pulse * 1.5);
+  let alpha = edgeSoft * ends * (0.25 + traffic * 0.3 + pulse * 1.0) * dim;
 
   return vec4f(col, alpha);
 }

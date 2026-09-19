@@ -85,8 +85,9 @@ struct VSOut {
   let focal = cam.resolution.y * 0.6;
   let pxSize = node.size * 0.04 * focal / max(depth, 0.1);
   let screenSize = pxSize / cam.resolution.y * 2.0;
+  let sizeXY = vec2f(screenSize * cam.resolution.y / cam.resolution.x, screenSize);
 
-  out.position = vec4f(screenPos + corner * screenSize * 3.0, 0.0, 1.0);
+  out.position = vec4f(screenPos + corner * sizeXY, 0.0, 1.0);
   out.local = corner;
   out.color = nodeColor(node.nodeType);
   out.size = node.size;
@@ -114,18 +115,18 @@ struct VSOut {
   var alpha = 0.0;
 
   // Outer glow
-  let outerGlow = pow(1.0 - dist, 2.0) * 0.4;
+  let outerGlow = pow(1.0 - dist, 2.0) * 0.12;
   alpha += outerGlow * (0.5 + pulse * 0.5);
   col *= 0.5 + pulse * 0.5;
 
   // Core
   let coreDist = smoothstep(0.4, 0.1, dist);
-  alpha += coreDist * 0.9;
+  alpha += coreDist * 0.35;
   col = mix(col, vec3f(1.0, 1.0, 1.0), coreDist * 0.5);
 
   // Pulse ring
   let ringRadius = 0.5 + pulse * 0.4;
-  let ring = smoothstep(0.05, 0.0, abs(dist - ringRadius)) * 0.6;
+  let ring = smoothstep(0.05, 0.0, abs(dist - ringRadius)) * 0.15;
   alpha += ring * pulse;
   col += ring * color * 2.0;
 

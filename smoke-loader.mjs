@@ -1,7 +1,7 @@
 // Node ESM loader: serve .wgsl through the same Vite-plugin transform, and
 // alias the browser 'vgpu' package to 'vgpu/node' (Dawn) for headless runs.
 import fs from 'node:fs/promises';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { transformWgsl } from '@vgpu/wgsl/loader-vite';
 
 export async function resolve(specifier, context, next) {
@@ -18,7 +18,7 @@ export async function resolve(specifier, context, next) {
 
 export async function load(url, context, next) {
   if (context.format === 'wgsl-custom') {
-    const path = pathToFileURL(url).pathname.startsWith('/') ? new URL(url).pathname : url;
+    const path = fileURLToPath(url);
     const source = await fs.readFile(path, 'utf8');
     const out = await transformWgsl({ source, id: path });
     return { format: 'module', shortCircuit: true, source: out.code };

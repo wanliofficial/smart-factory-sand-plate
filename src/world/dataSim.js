@@ -360,14 +360,14 @@ export function generateParticles(totalCount = 50000, majorNodes, connections) {
   const particles = []
   const rand = mulberry32(777)
 
-  // 30% 大气粒子（围绕地球）
-  const atmoCount = Math.floor(totalCount * 0.30)
+  // 22% 大气粒子（围绕地球，薄雾环）
+  const atmoCount = Math.floor(totalCount * 0.22)
   for (let i = 0; i < atmoCount; i++) {
     const u = rand()
     const v = rand()
     const theta = 2 * Math.PI * u
     const phi = Math.acos(2 * v - 1)
-    const r = EARTH_RADIUS * (1.02 + rand() * 0.08)
+    const r = EARTH_RADIUS * (1.06 + rand() * 0.14)
     const x = -r * Math.sin(phi) * Math.cos(theta)
     const y = r * Math.cos(phi)
     const z = r * Math.sin(phi) * Math.sin(theta)
@@ -377,14 +377,14 @@ export function generateParticles(totalCount = 50000, majorNodes, connections) {
       velocity: [0, 0, 0],
       color: [0.2, 0.6, 1.0],
       energy: rand() * 0.5 + 0.1,
-      size: 1.0 + rand() * 2.0,
+      size: 0.006 + rand() * 0.012,
       seed: rand(),
       type: PARTICLE_TYPE.ATMOSPHERE,
     })
   }
 
-  // 40% 数据流粒子（沿着连接运动）
-  const flowCount = Math.floor(totalCount * 0.40)
+  // 36% 数据流粒子（沿着连接运动）
+  const flowCount = Math.floor(totalCount * 0.36)
   for (let i = 0; i < flowCount; i++) {
     const conn = connections[Math.floor(rand() * connections.length)]
     const t = rand()
@@ -394,14 +394,14 @@ export function generateParticles(totalCount = 50000, majorNodes, connections) {
     const p = slerp(from, to, t)
     // 稍微抬离球面
     const np = normalize3(p)
-    const r = EARTH_RADIUS * (1.015 + rand() * 0.01)
+    const r = EARTH_RADIUS * (1.015 + rand() * 0.055)
 
     particles.push({
       position: [np[0] * r, np[1] * r, np[2] * r],
       velocity: [0, 0, 0],
       color: connColor(conn.type),
       energy: rand() * 0.5 + 0.3,
-      size: 1.5 + rand() * 2.0,
+      size: 0.012 + rand() * 0.02,
       seed: rand(),
       type: PARTICLE_TYPE.DATA_FLOW,
       connIndex: connections.indexOf(conn),
@@ -410,8 +410,8 @@ export function generateParticles(totalCount = 50000, majorNodes, connections) {
     })
   }
 
-  // 15% AI Core 粒子
-  const aiCount = Math.floor(totalCount * 0.15)
+  // 14% AI Core 粒子
+  const aiCount = Math.floor(totalCount * 0.14)
   const aiCenter = [0, 2.2, 0]
   for (let i = 0; i < aiCount; i++) {
     const u = rand()
@@ -428,20 +428,20 @@ export function generateParticles(totalCount = 50000, majorNodes, connections) {
       velocity: [0, 0, 0],
       color: [0.0, 0.9, 1.0],
       energy: rand() * 0.6 + 0.2,
-      size: 1.5 + rand() * 2.5,
+      size: 0.015 + rand() * 0.025,
       seed: rand(),
       type: PARTICLE_TYPE.AI_CORE,
     })
   }
 
-  // 15% 背景星尘
+  // 15% 背景星尘（全屏星点，是唯一的远景星星）
   const bgCount = totalCount - atmoCount - flowCount - aiCount
   for (let i = 0; i < bgCount; i++) {
     const u = rand()
     const v = rand()
     const theta = 2 * Math.PI * u
     const phi = Math.acos(2 * v - 1)
-    const r = 5.0 + rand() * 5.0
+    const r = 7.0 + rand() * 6.0
     const x = r * Math.sin(phi) * Math.cos(theta)
     const y = r * Math.cos(phi)
     const z = r * Math.sin(phi) * Math.sin(theta)
@@ -450,8 +450,8 @@ export function generateParticles(totalCount = 50000, majorNodes, connections) {
       position: [x, y, z],
       velocity: [0, 0, 0],
       color: [0.8, 0.9, 1.0],
-      energy: rand() * 0.3 + 0.05,
-      size: 0.5 + rand() * 1.5,
+      energy: rand() * 0.4 + 0.35,
+      size: 0.008 + rand() * 0.016,
       seed: rand(),
       type: PARTICLE_TYPE.BACKGROUND,
     })
