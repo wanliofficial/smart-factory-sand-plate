@@ -1,0 +1,2996 @@
+<!doctype html>
+<html lang="zh-CN" data-page-node-id="6zA6bkKFvxDYWqQe1HzBQZ">
+  <head data-page-node-id="hpWNojt0umcDMg3E6J9ttD">
+    <meta charset="UTF-8" data-page-node-id="Qb0lrg4WezmGrYyZ7Igqag" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" data-page-node-id="aCFSyZaeR4m55JJRuWXfU8" />
+    <meta name="theme-color" content="#04030c" data-page-node-id="Tb64Vt31wstCOqrTvmCMjP" />
+    <title>纠缠之隙：量子跃迁观测台 · Quantum Jump Observatory</title>
+
+    <!-- CDN：three.js 0.186（ESM + 后期处理 addons）与 GSAP 3（全局 gsap） -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/",
+          "gsap": "https://cdn.jsdelivr.net/npm/gsap@3/index.js"
+        }
+      }
+    </script>
+
+    <style>
+      /* ===================================================================
+         纠缠之隙 · 深空量子赛博风（near-black 深蓝紫 + 电光青 + 品红紫 + 琥珀金）
+         =================================================================== */
+      :root {
+        --qm-cyan: #00f0ff;
+        --qm-magenta: #b026ff;
+        --qm-amber: #ffc24a;
+        --qm-violet: #7a5cff;
+        --qm-ink: #dfe9ff;
+        --qm-muted: rgba(150, 178, 230, 0.56);
+        --qm-dim: rgba(122, 152, 208, 0.36);
+        --qm-line: rgba(0, 240, 255, 0.16);
+        --qm-line-2: rgba(176, 38, 255, 0.16);
+        --qm-panel: rgba(7, 10, 28, 0.5);
+        --qm-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      html, body {
+        width: 100%; height: 100%;
+        overflow: hidden;
+        background: #04030c;
+        color: var(--qm-ink);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC',
+          'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        user-select: none;
+      }
+
+      canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+      #qm-canvas { position: fixed; inset: 0; }
+
+      /* ---------- 全屏后期层（纯 CSS 叠加：暗角 / 扫描线 / 噪点 / 坍缩闪光） ---------- */
+      .qm-fx { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+
+      .qm-vignette {
+        background: radial-gradient(ellipse at 50% 46%,
+          rgba(4, 3, 12, 0) 30%,
+          rgba(3, 1, 10, 0.42) 66%,
+          rgba(1, 0, 5, 0.92) 100%);
+      }
+
+      .qm-scan {
+        background: repeating-linear-gradient(180deg,
+          rgba(170, 235, 255, 0.05) 0 1px,
+          rgba(0, 0, 0, 0) 1px 3px);
+        mix-blend-mode: screen;
+        opacity: 0.55;
+        animation: qm-scan-move 9s linear infinite;
+      }
+      @keyframes qm-scan-move { from { transform: translateY(0); } to { transform: translateY(3px); } }
+
+      .qm-grain {
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='180' height='180' filter='url(%23n)' opacity='0.6'/></svg>");
+        opacity: 0.05;
+        mix-blend-mode: overlay;
+        animation: qm-grain-move 0.7s steps(2) infinite;
+      }
+      @keyframes qm-grain-move {
+        0% { transform: translate(0, 0); }
+        50% { transform: translate(-2px, 1px); }
+        100% { transform: translate(1px, -2px); }
+      }
+
+      #qm-flash {
+        z-index: 6;
+        opacity: 0;
+        mix-blend-mode: screen;
+        background: radial-gradient(circle at 50% 50%,
+          rgba(0, 240, 255, 0.55) 0%,
+          rgba(176, 38, 255, 0.3) 36%,
+          rgba(122, 92, 255, 0.12) 58%,
+          rgba(0, 0, 0, 0) 76%);
+      }
+
+      .qm-ui { position: fixed; z-index: 10; pointer-events: none; }
+
+      /* ---------- 站点导航（与 crystal / gears 同族） ---------- */
+      .qm-nav { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 30; }
+      .qm-nav-list {
+        display: flex; align-items: center; gap: 5px;
+        margin: 0; padding: 6px; list-style: none;
+        border: 1px solid var(--qm-line);
+        border-radius: 999px;
+        background: rgba(5, 8, 24, 0.58);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5), inset 0 0 22px rgba(0, 240, 255, 0.05);
+      }
+      .qm-nav-item {
+        display: flex; align-items: center; gap: 9px;
+        padding: 8px 17px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        color: var(--qm-muted);
+        text-decoration: none;
+        transition: all 0.22s ease;
+        white-space: nowrap;
+      }
+      .qm-nav-item:hover {
+        color: #eafcff;
+        border-color: rgba(0, 240, 255, 0.28);
+        background: rgba(0, 240, 255, 0.06);
+      }
+      .qm-nav-item.is-active {
+        color: #f2ffff;
+        border-color: rgba(0, 240, 255, 0.42);
+        background: linear-gradient(135deg, rgba(0, 240, 255, 0.16), rgba(176, 38, 255, 0.16));
+        box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
+      }
+      .qm-nav-icon { font-size: 12px; opacity: 0.9; }
+      .qm-nav-text { display: flex; flex-direction: column; line-height: 1.14; }
+      .qm-nav-zh { font-size: 11.5px; letter-spacing: 0.05em; }
+      .qm-nav-en { font-size: 7.5px; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.5; }
+
+      /* ---------- 左上：标题 / 状态 ---------- */
+      .qm-brand { position: fixed; top: 22px; left: 24px; z-index: 20; display: flex; gap: 13px; }
+      .qm-brand-mark {
+        width: 40px; height: 40px; flex: 0 0 40px;
+        display: grid; place-items: center;
+        font-size: 17px; color: var(--qm-cyan);
+        border: 1px solid rgba(0, 240, 255, 0.34);
+        background: radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.16), rgba(6, 8, 24, 0.6));
+        box-shadow: 0 0 22px rgba(0, 240, 255, 0.22), inset 0 0 14px rgba(0, 240, 255, 0.12);
+        animation: qm-mark-pulse 3.6s ease-in-out infinite;
+      }
+      @keyframes qm-mark-pulse {
+        0%, 100% { box-shadow: 0 0 16px rgba(0, 240, 255, 0.16), inset 0 0 12px rgba(0, 240, 255, 0.1); }
+        50% { box-shadow: 0 0 30px rgba(0, 240, 255, 0.34), inset 0 0 18px rgba(0, 240, 255, 0.2); }
+      }
+      .qm-kicker {
+        font-family: var(--qm-mono);
+        font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase;
+        color: rgba(0, 240, 255, 0.62);
+      }
+      .qm-brand h1 {
+        margin-top: 3px;
+        font-size: clamp(1.25rem, 1.7vw, 1.72rem);
+        font-weight: 600; letter-spacing: 0.09em;
+        background: linear-gradient(100deg, #ffffff 0%, #b8f6ff 34%, var(--qm-cyan) 62%, var(--qm-magenta) 100%);
+        -webkit-background-clip: text; background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 18px rgba(0, 240, 255, 0.28));
+      }
+      .qm-sub {
+        margin-top: 3px;
+        font-family: var(--qm-mono);
+        font-size: 8.5px; letter-spacing: 0.2em; text-transform: uppercase;
+        color: var(--qm-dim);
+      }
+      .qm-status {
+        margin-top: 10px; display: inline-flex; align-items: center; gap: 8px;
+        padding: 5px 12px;
+        font-family: var(--qm-mono); font-size: 10px; letter-spacing: 0.16em;
+        color: #d6f4ff;
+        border: 1px solid rgba(0, 240, 255, 0.24);
+        background: rgba(0, 240, 255, 0.06);
+        backdrop-filter: blur(10px);
+        transition: color 0.3s, border-color 0.3s, background 0.3s;
+      }
+      .qm-status::before {
+        content: ''; width: 6px; height: 6px; border-radius: 50%;
+        background: var(--qm-cyan); box-shadow: 0 0 10px var(--qm-cyan);
+        animation: qm-blink 1.9s ease-in-out infinite;
+      }
+      @keyframes qm-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.28; } }
+      .qm-status.is-warn { color: #ffe6b4; border-color: rgba(255, 194, 74, 0.5); background: rgba(255, 194, 74, 0.08); }
+      .qm-status.is-warn::before { background: var(--qm-amber); box-shadow: 0 0 10px var(--qm-amber); }
+      .qm-status.is-hot { color: #ffd9ff; border-color: rgba(176, 38, 255, 0.55); background: rgba(176, 38, 255, 0.12); }
+      .qm-status.is-hot::before { background: var(--qm-magenta); box-shadow: 0 0 10px var(--qm-magenta); }
+
+      /* ---------- 右上：观测数据面板 ---------- */
+      .qm-panel {
+        position: fixed; top: 22px; right: 24px; width: 304px; z-index: 20;
+        padding: 12px 14px 13px;
+        background: var(--qm-panel);
+        border: 1px solid var(--qm-line);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.46), inset 0 0 30px rgba(0, 240, 255, 0.035);
+      }
+      .qm-panel::before, .qm-panel::after {
+        content: ''; position: absolute; width: 15px; height: 15px;
+        border: 1px solid rgba(0, 240, 255, 0.55); opacity: 0.75;
+      }
+      .qm-panel::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+      .qm-panel::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+
+      .qm-panel-title {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        padding-bottom: 9px; margin-bottom: 4px;
+        border-bottom: 1px solid var(--qm-line);
+        font-family: var(--qm-mono); font-size: 9.5px; letter-spacing: 0.22em;
+        color: rgba(0, 240, 255, 0.72); text-transform: uppercase;
+      }
+      .qm-panel-title b { font-weight: 500; color: rgba(150, 178, 230, 0.4); letter-spacing: 0.14em; }
+
+      .qm-row {
+        display: flex; align-items: baseline; gap: 8px;
+        padding: 5.5px 0;
+        border-bottom: 1px dashed rgba(0, 240, 255, 0.07);
+        font-size: 11px;
+      }
+      .qm-row-label { flex: 1; color: var(--qm-muted); letter-spacing: 0.04em; }
+      .qm-row-value {
+        font-family: var(--qm-mono); font-size: 13px; letter-spacing: 0.02em;
+        color: #eaf6ff; font-variant-numeric: tabular-nums;
+        text-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+      }
+      .qm-row-value.is-warm { color: #ffd79a; text-shadow: 0 0 12px rgba(255, 194, 74, 0.45); }
+      .qm-row-value.is-hot { color: #f0c8ff; text-shadow: 0 0 12px rgba(176, 38, 255, 0.5); }
+      .qm-row-unit {
+        font-family: var(--qm-mono); font-size: 8.5px; letter-spacing: 0.14em;
+        color: var(--qm-dim); text-transform: uppercase; min-width: 30px; text-align: right;
+      }
+
+      .qm-meter { position: relative; height: 3px; margin: 6px 0 2px; background: rgba(0, 240, 255, 0.09); overflow: hidden; }
+      .qm-meter-fill {
+        position: absolute; inset: 0 auto 0 0; width: 0%;
+        background: linear-gradient(90deg, var(--qm-cyan), var(--qm-magenta));
+        box-shadow: 0 0 12px rgba(0, 240, 255, 0.6);
+      }
+      .qm-chip {
+        display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+        vertical-align: middle; margin-right: 5px;
+        background: var(--qm-cyan); box-shadow: 0 0 10px currentColor;
+      }
+
+      .qm-levels { display: flex; align-items: center; gap: 5px; margin-top: 7px; }
+      .qm-level-dot {
+        position: relative; flex: 1; height: 14px;
+        border: 1px solid rgba(0, 240, 255, 0.2);
+        background: rgba(0, 240, 255, 0.04);
+        transition: all 0.28s ease;
+      }
+      .qm-level-dot::after {
+        content: attr(data-n);
+        position: absolute; inset: 0; display: grid; place-items: center;
+        font-family: var(--qm-mono); font-size: 8px; color: var(--qm-dim);
+      }
+      .qm-level-dot.is-on {
+        border-color: rgba(0, 240, 255, 0.75);
+        background: linear-gradient(180deg, rgba(0, 240, 255, 0.34), rgba(176, 38, 255, 0.18));
+        box-shadow: 0 0 14px rgba(0, 240, 255, 0.35);
+      }
+      .qm-level-dot.is-on::after { color: #f4fdff; }
+
+      .qm-bell { margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--qm-line); }
+      .qm-bell-head {
+        display: flex; align-items: baseline; justify-content: space-between;
+        font-family: var(--qm-mono); font-size: 9.5px; letter-spacing: 0.18em;
+        color: rgba(0, 240, 255, 0.72); text-transform: uppercase;
+      }
+      .qm-bell-track {
+        position: relative; height: 9px; margin: 10px 0 16px;
+        border: 1px solid rgba(0, 240, 255, 0.16);
+        background: linear-gradient(90deg, rgba(0, 240, 255, 0.08), rgba(176, 38, 255, 0.08));
+      }
+      .qm-bell-fill {
+        position: absolute; inset: 0 auto 0 0; width: 0%;
+        background: linear-gradient(90deg, rgba(0, 240, 255, 0.55), rgba(176, 38, 255, 0.75));
+        box-shadow: 0 0 14px rgba(0, 240, 255, 0.5);
+        transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .qm-bell-mark { position: absolute; top: -4px; bottom: -4px; width: 1px; background: rgba(255, 194, 74, 0.75); }
+      .qm-bell-mark.is-quantum { background: rgba(176, 38, 255, 0.9); box-shadow: 0 0 10px rgba(176, 38, 255, 0.8); }
+      .qm-bell-mark span {
+        position: absolute; top: 13px; left: 50%; transform: translateX(-50%);
+        font-family: var(--qm-mono); font-size: 8px; letter-spacing: 0.1em; white-space: nowrap;
+        color: rgba(255, 194, 74, 0.85);
+      }
+      .qm-bell-mark.is-quantum span { color: rgba(214, 160, 255, 0.95); }
+      .qm-bell-needle {
+        position: absolute; top: -6px; bottom: -6px; left: 0; width: 2px;
+        background: #ffffff; box-shadow: 0 0 12px rgba(255, 255, 255, 0.9);
+        transition: left 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      #qm-bell-spark { display: block; width: 100%; height: 44px; }
+      .qm-verdict {
+        margin-top: 7px; padding-top: 7px; border-top: 1px dashed rgba(0, 240, 255, 0.09);
+        font-family: var(--qm-mono); font-size: 9.5px; line-height: 1.7; letter-spacing: 0.1em;
+        color: var(--qm-muted);
+      }
+      .qm-verdict.is-broken { color: var(--qm-amber); }
+      .qm-verdict.is-quantum { color: #d9a6ff; }
+
+      /* ---------- 左下：操作提示 ---------- */
+      .qm-hint {
+        position: fixed; left: 24px; bottom: 20px; z-index: 20; max-width: 336px;
+        font-size: 10.5px; line-height: 1.95; color: var(--qm-muted);
+        padding: 11px 13px;
+        border-left: 1px solid var(--qm-line);
+        background: linear-gradient(90deg, rgba(5, 8, 24, 0.42), rgba(5, 8, 24, 0));
+        backdrop-filter: blur(6px);
+      }
+      .qm-hint b { color: #b9f4ff; font-weight: 500; }
+      .qm-kbd {
+        display: inline-block; min-width: 15px; text-align: center;
+        padding: 0 4px; margin: 0 1px;
+        font-family: var(--qm-mono); font-size: 9px;
+        color: #cdeeff; border: 1px solid rgba(0, 240, 255, 0.26);
+        background: rgba(0, 240, 255, 0.07);
+      }
+
+      /* ---------- 底部中央：能量注入旋钮 ---------- */
+      .qm-knob-box {
+        position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%);
+        width: 214px; z-index: 26; pointer-events: auto;
+        touch-action: none; cursor: grab;
+      }
+      .qm-knob-box.is-drag { cursor: grabbing; }
+      .qm-knob-halo {
+        position: absolute; inset: -12%; border-radius: 50%;
+        background: radial-gradient(circle, rgba(0, 240, 255, 0.16) 0%, rgba(176, 38, 255, 0.08) 42%, rgba(0, 0, 0, 0) 70%);
+        pointer-events: none;
+      }
+      .qm-knob { display: block; width: 100%; height: auto; filter: drop-shadow(0 0 14px rgba(0, 240, 255, 0.28)); }
+      .qm-knob-ticks line { stroke: rgba(0, 240, 255, 0.42); }
+      .qm-knob-ticks line.is-major { stroke: rgba(190, 245, 255, 0.85); }
+      .qm-knob-rim { fill: none; stroke: rgba(0, 240, 255, 0.2); stroke-width: 1; }
+      .qm-knob-track { fill: none; stroke: rgba(0, 240, 255, 0.12); stroke-width: 7; }
+      .qm-knob-arc { fill: none; stroke: var(--qm-cyan); stroke-width: 7; stroke-linecap: round; }
+      .qm-knob-core {
+        fill: rgba(6, 10, 26, 0.72);
+        stroke: rgba(0, 240, 255, 0.24); stroke-width: 1;
+      }
+      .qm-knob-ptr { stroke: #ffffff; stroke-width: 2.4; stroke-linecap: round; }
+      .qm-knob-face {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 1px; pointer-events: none;
+      }
+      .qm-knob-face .qm-knob-num {
+        font-family: var(--qm-mono); font-size: 30px; line-height: 1;
+        color: #f2feff; text-shadow: 0 0 18px rgba(0, 240, 255, 0.65);
+        font-variant-numeric: tabular-nums;
+      }
+      .qm-knob-face .qm-knob-num i { font-style: normal; font-size: 12px; color: var(--qm-cyan); margin-left: 1px; }
+      .qm-knob-face small {
+        font-family: var(--qm-mono); font-size: 8.5px; letter-spacing: 0.16em;
+        color: var(--qm-muted); text-transform: uppercase;
+      }
+      .qm-knob-cap {
+        margin-top: -4px; text-align: center;
+        font-family: var(--qm-mono); font-size: 8.5px; letter-spacing: 0.32em; text-transform: uppercase;
+        color: var(--qm-dim);
+      }
+
+      /* ---------- 科普气泡 ---------- */
+      .qm-tip {
+        position: fixed; z-index: 45; width: 246px;
+        padding: 10px 12px;
+        background: rgba(6, 9, 24, 0.88);
+        border: 1px solid rgba(0, 240, 255, 0.3);
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5), inset 0 0 22px rgba(0, 240, 255, 0.06);
+        backdrop-filter: blur(12px);
+        opacity: 0; transform: translate(-50%, -112%) scale(0.96);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        pointer-events: none;
+      }
+      .qm-tip.is-on { opacity: 1; transform: translate(-50%, -124%) scale(1); }
+      .qm-tip-title {
+        font-size: 11px; letter-spacing: 0.06em; color: #a8f4ff; margin-bottom: 5px;
+      }
+      .qm-tip-body { font-size: 10.5px; line-height: 1.78; color: rgba(196, 214, 246, 0.82); }
+
+      /* ---------- 四角刻度 ---------- */
+      .qm-corner { position: fixed; width: 15px; height: 15px; z-index: 12; pointer-events: none; opacity: 0.42; }
+      .qm-corner::before, .qm-corner::after { content: ''; position: absolute; background: rgba(0, 240, 255, 0.55); }
+      .qm-corner::before { width: 100%; height: 1px; }
+      .qm-corner::after { width: 1px; height: 100%; }
+      .qm-corner.tl { top: 16px; left: 16px; }
+      .qm-corner.tr { top: 16px; right: 16px; }
+      .qm-corner.bl { bottom: 16px; left: 16px; }
+      .qm-corner.br { bottom: 16px; right: 16px; }
+      .qm-corner.tr::before, .qm-corner.br::before { right: 0; }
+      .qm-corner.tr::after, .qm-corner.br::after { right: 0; }
+      .qm-corner.bl::before, .qm-corner.br::before { bottom: 0; }
+      .qm-corner.bl::after, .qm-corner.br::after { bottom: 0; }
+
+      /* ---------- 启动遮罩 ---------- */
+      #qm-boot {
+        position: fixed; inset: 0; z-index: 60;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+        background: radial-gradient(circle at 50% 50%, #0a0524 0%, #03020c 62%, #010106 100%);
+        transition: opacity 0.9s ease;
+      }
+      #qm-boot.is-hidden { opacity: 0; pointer-events: none; }
+      .qm-boot-ring {
+        width: 56px; height: 56px; border-radius: 50%;
+        border: 1px solid rgba(0, 240, 255, 0.18);
+        border-top-color: var(--qm-cyan);
+        border-right-color: rgba(176, 38, 255, 0.7);
+        animation: qm-spin 1.15s linear infinite;
+      }
+      @keyframes qm-spin { to { transform: rotate(360deg); } }
+      .qm-boot-text {
+        font-family: var(--qm-mono); font-size: 9.5px; letter-spacing: 0.34em; text-transform: uppercase;
+        color: rgba(150, 205, 250, 0.72);
+      }
+      .qm-boot-sub { font-family: var(--qm-mono); font-size: 8.5px; letter-spacing: 0.2em; color: var(--qm-dim); }
+
+      /* ---------- 适配 ---------- */
+      @media (max-width: 1360px) {
+        .qm-panel { width: 276px; }
+      }
+      @media (max-width: 1240px) {
+        .qm-nav-en { display: none; }
+        .qm-nav-item { padding: 8px 12px; }
+        .qm-brand { top: 84px; }
+        .qm-panel { top: 84px; }
+      }
+      @media (max-width: 1024px) {
+        .qm-hint { max-width: 258px; font-size: 10px; }
+        .qm-knob-box { width: 176px; }
+        .qm-knob-face .qm-knob-num { font-size: 25px; }
+      }
+      @media (max-width: 860px) {
+        .qm-panel { width: 216px; padding: 10px 11px; }
+        .qm-row { font-size: 10px; padding: 4px 0; }
+        .qm-row-value { font-size: 11.5px; }
+        .qm-hide-sm { display: none; }
+        .qm-brand h1 { font-size: 1.15rem; }
+        .qm-sub { display: none; }
+        .qm-hint { display: none; }
+      }
+      @media (max-height: 720px) {
+        .qm-knob-box { width: 158px; bottom: 8px; }
+        .qm-knob-face .qm-knob-num { font-size: 22px; }
+      }
+    </style>
+  </head>
+  <body data-page-node-id="TVfLnmiQ6hMQIfVn1KbnSM">
+    <canvas id="qm-canvas" data-page-node-id="c3AVhrZpK3Cs69jNNqeBl5"></canvas>
+
+    <!-- 后期叠加层 -->
+    <div class="qm-fx qm-vignette" data-page-node-id="8zVTr34xUp6mMq2I03me5j"></div>
+    <div class="qm-fx qm-scan" data-page-node-id="17reBd5oF8waqu4Xgjibq2"></div>
+    <div class="qm-fx qm-grain" data-page-node-id="BF2VFqyE5CdxOO8wR7bJcM"></div>
+    <div id="qm-flash" class="qm-fx" data-page-node-id="dOi7B4FBHZC6v1GsOm7GDj"></div>
+
+    <i class="qm-corner tl" data-page-node-id="Fb7dtGFeSbkQ4z4HzOOKVo"></i><i class="qm-corner tr" data-page-node-id="JjGCPHYjYzOTEZ7asybm9i"></i>
+    <i class="qm-corner bl" data-page-node-id="LFYsG4ZBcPxnKsVNO3xly5"></i><i class="qm-corner br" data-page-node-id="fPALoxM59gxljBeYiNzec7"></i>
+
+    <!-- 站点导航（第六个场景） -->
+    <nav class="qm-nav" data-page-node-id="56Rc3Yd7NvhLuxYQtsNHhn">
+      <ul class="qm-nav-list" data-page-node-id="XMYouT1Yf4QzNb4c7VN3FY">
+        <li data-page-node-id="PS4GVMM5BuhAYYzzpo5fAG">
+          <a class="qm-nav-item" href="../index.html" data-page-node-id="J0dxVHC4hFiCmWunYr0H9H">
+            <span class="qm-nav-icon" data-page-node-id="ToUQ7BvaEWJ4lshBy1AdOn">◈</span>
+            <span class="qm-nav-text" data-page-node-id="1WGf0axp34XlrP1MG3Fij9">
+              <span class="qm-nav-zh" data-page-node-id="jWWAnLVfwuP54qV9BXwChC">万物联动</span>
+              <span class="qm-nav-en" data-page-node-id="pBPtTt3PwXrwoHvAM7isVU">Digital Twin World</span>
+            </span>
+          </a>
+        </li>
+        <li data-page-node-id="2d9fjDVrQgn1uDQ2GHmd90">
+          <a class="qm-nav-item" href="../park/index.html" data-page-node-id="ljUkeXbuq3XfcLgiXbo4NU">
+            <span class="qm-nav-icon" data-page-node-id="emQ4ArOv3IwdV0nt3u2Sne">▣</span>
+            <span class="qm-nav-text" data-page-node-id="DqfWrmbhTBJQg0bKikHbEc">
+              <span class="qm-nav-zh" data-page-node-id="sFTL5yvRp8MFDrLSrPfOWt">万里科技园</span>
+              <span class="qm-nav-en" data-page-node-id="2gWkyUZWkHkI64Qdw2raGP">Smart Plant Sandbox</span>
+            </span>
+          </a>
+        </li>
+        <li data-page-node-id="GuxxNEXdhHl5YjiYd2le9e">
+          <a class="qm-nav-item" href="../energy/index.html" data-page-node-id="nGAyS6WD64tc9LR6vFBco6">
+            <span class="qm-nav-icon" data-page-node-id="gW9pN34nQhnvx4i3FLIEaL">⚡</span>
+            <span class="qm-nav-text" data-page-node-id="Q9Xrq9dLq5X8dOGW4S8eCq">
+              <span class="qm-nav-zh" data-page-node-id="7Ttg1HNK7482HWjzBYyxSt">数智能源管理平台</span>
+              <span class="qm-nav-en" data-page-node-id="CMf5pXwVERVE70u18Rhy3t">Energy Management</span>
+            </span>
+          </a>
+        </li>
+        <li data-page-node-id="u1HFny2YjYaQTHZBtyYIYT">
+          <a class="qm-nav-item" href="../crystal/index.html" data-page-node-id="1RqVicUG9SDta1q8sDCLEN">
+            <span class="qm-nav-icon" data-page-node-id="wuYQJBc9Lngq80wCuQdYAn">❖</span>
+            <span class="qm-nav-text" data-page-node-id="so4Iq4t8iUyjk3rpKzMJNA">
+              <span class="qm-nav-zh" data-page-node-id="xbTlcSCbfoVV2yfReUuQZY">晶体共振矩阵</span>
+              <span class="qm-nav-en" data-page-node-id="4M8Uw5oRfHT4M3fdgBiwh3">Crystal Resonance</span>
+            </span>
+          </a>
+        </li>
+        <li data-page-node-id="T6m6NNbNml3KoJDL06Dpow">
+          <a class="qm-nav-item" href="../gears/index.html" data-page-node-id="LSDOQ7vnbmiWoF1cauNGl6">
+            <span class="qm-nav-icon" data-page-node-id="ZiVxhefUOhfsYL5qrUgyZp">⧗</span>
+            <span class="qm-nav-text" data-page-node-id="K1i3tBa6Ik2GRXjVAUli2Y">
+              <span class="qm-nav-zh" data-page-node-id="sYtbTjxsVX6WGY1h3QlHgj">逆时空齿轮轴</span>
+              <span class="qm-nav-en" data-page-node-id="Kj0KnA1tFzR3jdzBcKRkay">Gear Axis</span>
+            </span>
+          </a>
+        </li>
+        <li data-page-node-id="fN0o5cD9mz5X1T0ux1O51N">
+          <a class="qm-nav-item is-active" href="./index.html" aria-current="page" data-page-node-id="1wMvUEH6SJDBVQnUE17UXF">
+            <span class="qm-nav-icon" data-page-node-id="LxEXt7zJAu7IieSR0QWYZ3">❋</span>
+            <span class="qm-nav-text" data-page-node-id="CAUuIRhp3NxlJJyCLE1fan">
+              <span class="qm-nav-zh" data-page-node-id="OPRFTbpzvpaWl88AfPedcX">纠缠之隙</span>
+              <span class="qm-nav-en" data-page-node-id="psEYuSbne9OhHNAju7zYuF">Quantum Observatory</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="qm-nav-item" href="../city/index.html">
+            <span class="qm-nav-icon">⬡</span>
+            <span class="qm-nav-text">
+              <span class="qm-nav-zh">万象织网</span>
+              <span class="qm-nav-en">Point Cloud City</span>
+            </span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- 左上：标题 -->
+    <header class="qm-brand" data-page-node-id="Al7an9L1DdnkYcaT7nixJ9">
+      <div class="qm-brand-mark" data-page-node-id="1scgxR5S6WmpAEkR5oW9dF">❋</div>
+      <div class="qm-brand-text" data-page-node-id="mndVcqKg0UaQ4R9z2zWsMt">
+        <div class="qm-kicker" data-page-node-id="up4R559gdDqddDM2LvRG1o">Scene 06 / Quantum Entanglement Observatory</div>
+        <h1 data-page-node-id="7mEC7Jff2enjFEvnDnEH5T">纠缠之隙</h1>
+        <p class="qm-sub" data-page-node-id="x0aHa0mxIUgxHR9TQIMp9x">ENTANGLEMENT GAP · 量子跃迁观测台 MK-VI</p>
+        <div id="qm-status" class="qm-status" data-page-node-id="Ae7UKIJdEgFZp9hmbvmnXm">待机 · STANDBY</div>
+      </div>
+    </header>
+
+    <!-- 右上：观测数据面板 -->
+    <section class="qm-panel" data-page-node-id="z4bDhNRdUgsqIJrN7Qk9eo">
+      <div class="qm-panel-title" data-page-node-id="3EcigI5r24BpfD9iA9T6WL"><span data-page-node-id="eFE13EqQJt3gYENNpFsQyk">观测数据 / OBSERVATION</span><b data-page-node-id="nzXzrDL8sVWQwI7ZscLCPK">S-06</b></div>
+
+      <div class="qm-row" data-page-node-id="YoxD5gDmAjhTwyTbJZu6K6">
+        <span class="qm-row-label" data-page-node-id="nkM0uF3hLnmqb2Ta6KwhUH">自旋关联度 E(a,b)</span>
+        <span id="qm-corr" class="qm-row-value" data-page-node-id="eeT7fi7XWS5XBebUTMkkGB">0.000</span>
+      </div>
+      <div class="qm-row" data-page-node-id="yzC4tmjh6iv8dmOR5ng7K0">
+        <span class="qm-row-label" data-page-node-id="aZMnpY4xqRH46KkOkxpOAo">测量基 a / b</span>
+        <span id="qm-basis" class="qm-row-value" data-page-node-id="m8JrOqqdvuxCoMyMVkZZaf">0° / 45°</span>
+      </div>
+      <div class="qm-row" data-page-node-id="ZU0QSSfgxAhlP5muHJcJOz">
+        <span class="qm-row-label" data-page-node-id="G1OUiwS9LFXOF0T1TKX0M8">能量弦震颤</span>
+        <span id="qm-tremble" class="qm-row-value" data-page-node-id="qYtxs7jpg9duKLBSQCQoU3">0.00</span>
+        <span class="qm-row-unit" data-page-node-id="HYXbLEhI9PKwBjAj4dqV5I">Hz·k</span>
+      </div>
+
+      <div class="qm-row" data-page-node-id="0qKbFOWQ8GjaXqAUnRm6hr">
+        <span class="qm-row-label" data-page-node-id="acI703m2KyRgqvGLAxtNoy">当前能级 n</span>
+        <span id="qm-level" class="qm-row-value" data-page-node-id="7fZa6VAg7K36x6Ic6DnJ1M">1</span>
+        <span id="qm-shell" class="qm-row-unit" data-page-node-id="ON2SCyX97tQhgayJ2hoceN">1.15 a₀</span>
+      </div>
+      <div id="qm-levels" class="qm-levels" data-page-node-id="aPcvzGc4VzX8AOs7jWA7qQ"></div>
+      <div class="qm-meter" data-page-node-id="m68KT2JoISUiiSXNQNWZAC"><div id="qm-energy-bar" class="qm-meter-fill" data-page-node-id="A1dtnQXFLDarR2w4BndzHA"></div></div>
+
+      <div class="qm-row qm-hide-sm" data-page-node-id="auBfOXiZiOvIgR8ubhcikJ">
+        <span class="qm-row-label" data-page-node-id="XGZtF59XxVowdECDXOFITP">注入能量</span>
+        <span id="qm-energy" class="qm-row-value" data-page-node-id="heProMOVknFs6ONZz6ADVB">0.0</span>
+        <span class="qm-row-unit" data-page-node-id="LGSLVJwTDADABvQ1mLkpYw">τ</span>
+      </div>
+      <div class="qm-row" data-page-node-id="gMpw0V4mmhq74fUEqA2uds">
+        <span class="qm-row-label" data-page-node-id="giFUXBHclLYloKOfne9SKo">光子释放</span>
+        <span class="qm-row-value" data-page-node-id="UHshClW0kmTjt4hsWW4sos"><span id="qm-photon-chip" class="qm-chip" data-page-node-id="ipxsMm0c8HmBAZE3KETszr"></span><span id="qm-photon-count" data-page-node-id="i06eUMmWJrR2EZUHuUSuc8">0</span></span>
+      </div>
+      <div class="qm-row qm-hide-sm" data-page-node-id="flmuGg86KWDAJILdBmwp4X">
+        <span class="qm-row-label" data-page-node-id="Q4ZezxTLfXLrrpclzsSw99">末次光子波长</span>
+        <span id="qm-photon-lambda" class="qm-row-value" data-page-node-id="7MwHa6PwjsDhaYXZGb9mKJ">—</span>
+        <span class="qm-row-unit" data-page-node-id="JD9MBgQW0AZIMR3zXcoURk">nm</span>
+      </div>
+
+      <div class="qm-bell" data-page-node-id="41IT0qY2x12QirHOSmkWzi">
+        <div class="qm-bell-head" data-page-node-id="jtS4TOMRrXVF9uC6UuajBc"><span data-page-node-id="y7aDUBBkhGPL77jAJAobnx">贝尔不等式测试</span><span id="qm-measures" data-page-node-id="gv7dhDCBVSRLKsnEbPkRKM">N = 0</span></div>
+        <div class="qm-bell-track" data-page-node-id="h4EB4mGAe1im3AOJtccmpu">
+          <div id="qm-bell-fill" class="qm-bell-fill" data-page-node-id="zFlw0bg86F5VKrVR3ZPypH"></div>
+          <i class="qm-bell-mark" style="left: 70.71%" data-page-node-id="GsiuThfCUTgslGgAC2nsjy"><span data-page-node-id="HsPG8JLAjnRGgER7fnXkmC">|S|≤2 局域</span></i>
+          <i class="qm-bell-mark is-quantum" style="left: 100%" data-page-node-id="RBmrdduECS5MrTGkVwQTch"><span data-page-node-id="UVbkVpvOpsi8yaPAOqdj32">2√2</span></i>
+          <i id="qm-bell-needle" class="qm-bell-needle" data-page-node-id="NUTmovOvMwEozzeuFHphrz"></i>
+        </div>
+        <canvas id="qm-bell-spark" width="560" height="88" data-page-node-id="dDKCqIry3kXcLDYQ5CjDK3"></canvas>
+        <div id="qm-verdict" class="qm-verdict" data-page-node-id="fBxdOBEoAlbNuTVlXBNi6R">等待测量 · 拖动粒子 A 后松开即完成一次联合测量</div>
+      </div>
+
+      <div class="qm-row qm-hide-sm" style="border-bottom: 0; padding-bottom: 0" data-page-node-id="Oi0CnnYzAKzAXMzTyDHIRx">
+        <span class="qm-row-label" data-page-node-id="80YvYV8CP7HD6Ja265h5xj">观测台帧率</span>
+        <span id="qm-fps" class="qm-row-value" data-page-node-id="NknPiHhTWZFonsRMoZSMsl">60</span>
+        <span class="qm-row-unit" data-page-node-id="CnQqDM4hg7jcMVKSgBGDWn">FPS</span>
+      </div>
+    </section>
+
+    <!-- 左下：操作提示 -->
+    <aside class="qm-hint" data-page-node-id="goIZJIwpMmE9y2t3FiSFd5">
+      <p data-page-node-id="yZUcwzHwWudUpKuCgyd4vE"><b data-page-node-id="TyycPhUbDhGbEf80x2VeIS">拖动粒子 A / B</b> → 设定自旋方向，另一颗粒子瞬时呈现相反自旋，能量弦随拖动速度震颤加亮</p>
+      <p data-page-node-id="ioptPDCPFA9BMwKQY2kCNP"><b data-page-node-id="hHrEHZ9eOsgfrFQD6PGpS1">按住</b>粒子 → 波函数坍缩（概率云 0.5s 内收成一个亮点），松开缓慢重新弥散</p>
+      <p data-page-node-id="ZxhqStv2IYIvnPHzBtLg2H"><b data-page-node-id="yydg1AJG3HVmMTYOrnytpW">拖动底部旋钮</b> → 顺时针注入能量、逆时针泄能；达阈值电子闪现跃迁，能量回落时释放光子</p>
+      <p data-page-node-id="VQmBGPXLZyGAbccLxe2whD"><b data-page-node-id="H1Rhuiawlf4bYV0lAQbFpG">拖拽空白处</b>环绕 · <b data-page-node-id="S2A6lwr4YXcQ6eHXCy1elN">滚轮</b>缩放 · <span class="qm-kbd" data-page-node-id="LjoiePu7TYED3SdRCxpPkZ">空格</span>观测坍缩 · <span class="qm-kbd" data-page-node-id="0oZGb0kBF50LJJUxHbB3BF">↑</span><span class="qm-kbd" data-page-node-id="nuAe7Z0dQaIHhyiGlKdUJ4">↓</span>注能/泄能 · <span class="qm-kbd" data-page-node-id="5OZXwWsy342RGRSbRLQ0QG">R</span>复位</p>
+    </aside>
+
+    <!-- 底部中央：能量注入旋钮 -->
+    <div class="qm-knob-box" id="qm-knob-box" data-page-node-id="YGkwNBxanE4HlFAdRJoUgL">
+      <div class="qm-knob-halo" data-page-node-id="G2gMEKCjHaHzTGpeGGJijY"></div>
+      <svg class="qm-knob" id="qm-knob" viewBox="0 0 240 240" role="slider"
+           aria-label="能量注入旋钮" aria-valuemin="0" aria-valuemax="150" aria-valuenow="0" data-page-node-id="9KR0sP2tWjBwbSyguVgjsk">
+        <g id="qm-knob-ticks" class="qm-knob-ticks" data-page-node-id="wiAyazQri41VVf1MZFHONk"></g>
+        <circle class="qm-knob-rim" cx="120" cy="120" r="94" data-page-node-id="fyNCcrRBl0bk0F7UdUMvtf"></circle>
+        <circle class="qm-knob-track" cx="120" cy="120" r="80" transform="rotate(-90 120 120)" data-page-node-id="EcIRisL3NQgAoTWkTTbHSU"></circle>
+        <circle id="qm-knob-arc" class="qm-knob-arc" cx="120" cy="120" r="80" transform="rotate(-90 120 120)"
+                style="stroke-dasharray: 0 502.7" data-page-node-id="PLKpCpDRaRy6bZ8Khdf8W2"></circle>
+        <circle class="qm-knob-core" cx="120" cy="120" r="52" data-page-node-id="C4g9UtD027S5wh9kPAg8Fc"></circle>
+        <line id="qm-knob-ptr" class="qm-knob-ptr" x1="120" y1="74" x2="120" y2="30" data-page-node-id="nz1SsznY9Lo0jkc7VBP4Me"></line>
+      </svg>
+      <div class="qm-knob-face" data-page-node-id="HbPD1UXWJLSMlVlSUaD9rK">
+        <span class="qm-knob-num" data-page-node-id="Lg804ppfG5E0EnMxxhsNI4"><span id="qm-knob-pct" data-page-node-id="fo5afAIryl4I2Ve1DXalJo">0</span><i data-page-node-id="vfn1y9UjlWhanqIg2R4hNw">%</i></span>
+        <small id="qm-knob-dir" data-page-node-id="B64HzsGIB5zQUVIQERDQbR">静止 · IDLE</small>
+      </div>
+      <div class="qm-knob-cap" data-page-node-id="jOciBQn3BtCTeXdHZCONTo">能 量 注 入 · ENERGY INJECTION</div>
+    </div>
+
+    <!-- 科普气泡 -->
+    <div id="qm-tip" class="qm-tip" data-page-node-id="U1iMoXJRziQ5k9fYuaS5cU">
+      <div id="qm-tip-title" class="qm-tip-title" data-page-node-id="y3N1DjKWxClOAZBIgdfvVj"></div>
+      <div id="qm-tip-body" class="qm-tip-body" data-page-node-id="EIKWRVju6Qfz8UoFUwMePt"></div>
+    </div>
+
+    <!-- 启动遮罩 -->
+    <div id="qm-boot" data-page-node-id="8cFAGNr6mzTY2g2CGfjkL5">
+      <div class="qm-boot-ring" data-page-node-id="yRyBSylv95sed9P4jN1ZhT"></div>
+      <p class="qm-boot-text" data-page-node-id="BNyXjhHLumKDCytFFsooa6">观测舱校准中 · CALIBRATING OBSERVATORY</p>
+      <p class="qm-boot-sub" data-page-node-id="sAbIzaX9HZPr2ZsvSBcNCg">BELL TEST · SPIN CORRELATION · QUANTUM JUMP</p>
+    </div>
+
+    <script type="module">
+/* ============================================================================
+ * 纠缠之隙：量子跃迁观测台 · ENTANGLEMENT GAP — QUANTUM JUMP OBSERVATORY
+ * Scene 06 / 深空量子赛博风
+ *
+ * 技术分工：
+ *   three.js 0.186（CDN ESM）— 3D 场景 / 自定义 GLSL（概率云、能量弦波动、坍缩点云、光子波包）
+ *   GPU 粒子系统（THREE.Points × 5 组，约 3 万点）— 能量弦带状粒子流、概率云、光子扩散、星尘
+ *   EffectComposer + UnrealBloomPass + 自定义色差/扫描线 Pass
+ *   GSAP — quickTo 阻尼平滑（拖拽速度→震颤/能量/自旋角）+ 瞬发缓动，gsap.ticker 统一驱动主循环
+ *
+ * 结构：CONFIG → 纯逻辑（PURE 区，可离线单测）→ 场景装配 → 交互 → HUD → 主循环
+ * ==========================================================================*/
+
+import * as THREE from 'three'
+import gsap from 'gsap'
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
+
+/* ==========================================================================
+ * 1. 纯逻辑区（PURE）：配置对象 + 无 three / gsap 依赖的纯函数，
+ *    可被 scripts/check-quantum.mjs 抽取后离线单测
+ * ========================================================================*/
+/* ==== PURE-BEGIN ==== */
+
+/* ---- 1.0 配置对象：所有可调参数集中在此 ---- */
+const CONFIG = {
+  /* 渲染与后期 */
+  render: {
+    maxPixelRatio: 2,                 // 像素比上限
+    exposure: 1.08,
+    bloom: { strength: 0.92, radius: 0.72, threshold: 0.14 },
+    post: { aberration: 0.42, scan: 0.16, vignette: 0.52 },   // 色差 / 扫描线 / 暗角基准
+    lowSpec: { particleScale: 0.45, bloomStrength: 0.7 },
+    /* gl_PointSize 换算系数：gl_PointSize = aSize × (设备高度/2 ÷ tan(fov/2)) × factor ÷ 视距 */
+    pointScale: { cloud: 0.008, stream: 0.014, burst: 0.012, star: 0.055 },
+  },
+
+  /* 相机（自实现轨道，避免与粒子拾取冲突） */
+  camera: {
+    fov: 42, near: 0.1, far: 400,
+    radius: 12.6, radiusRange: [8.2, 21],
+    theta: -0.42, phi: 1.27, phiRange: [0.66, 1.98],
+    target: [0, 0.8, 0],
+    damp: 0.1,
+    parallax: 0.5,
+  },
+
+  /* 配色 */
+  colors: {
+    bg: 0x04030c,
+    cyan: 0x00f0ff, magenta: 0xb026ff, amber: 0xffc24a, violet: 0x7a5cff,
+    white: 0xffffff,
+    A: 0x00f0ff, B: 0xb026ff,         // 纠缠粒子 A / B（也是能量弦两端色）
+    glass: 0x0b1424, metal: 0x1b2438,
+  },
+
+  /* 舱体 */
+  chamber: { radius: 4.62, height: 8.6, baseY: -4.35, baseRadius: 6.25 },
+
+  /* 量子纠缠区 */
+  entangle: {
+    ax: -2.68, bx: 2.68, y: 2.35,     // 一对粒子分置舱体两端
+    cloudCount: 9000,                 // 单侧概率云粒子数
+    cloudRadius: 0.98,
+    coreRadius: 0.2,
+    streamCount: 4200,                // 能量弦带状粒子流
+    stringWidth: 0.2,
+    spinGain: 0.011,                  // 拖拽 → 自旋方位角（rad/px）
+    tiltGain: 0.007,                  // 拖拽 → 自旋倾角
+    trembleRef: 5.2,                  // 拖动角速度参考（rad/s）
+    rippleSpeed: 0.9,                 // 涟漪扩散速度（scale/s）
+    rippleLife: 0.95,
+    rippleGap: 0.34,                  // 每转过多少弧度生成一次涟漪
+  },
+
+  /* 量子跃迁区（原子模型） */
+  atom: {
+    y: -1.55,
+    nucleusRadius: 0.34,
+    nucleons: 16,
+    electronRadius: 0.085,
+    orbitSpeed: 0.85,                 // ω ∝ orbitSpeed / n^1.5
+    trailLength: 42,
+    energyMax: 1.62,                  // 能量上限（超过最高阈值即「峰值警示」琥珀色）
+    drain: 0.18,                      // 能量自然回落速率（1/s）
+    hysteresis: 0.06,                 // 能级迟滞，避免阈值抖动
+    photonMaxRadius: 5.2,
+    photonLife: 1.5,
+    jumpCooldown: 0.16,
+  },
+
+  /* 旋钮注入 */
+  knob: {
+    perRadian: 0.3,                   // 每弧度注入的能量（τ）
+    speedRef: 6.5,                    // 角速度参考（rad/s）
+    speedBoost: 0.85,                 // 拖得越快，注入比例越高
+    damp: 0.16,                       // 阻尼平滑时长（s）
+    wheelStep: 0.06,
+    keyRate: 0.9,
+  },
+
+  /* 观测者效应 */
+  collapse: {
+    inDuration: 0.5,                  // 概率云坍缩（s）
+    outDuration: 2.6,                 // 概率云重新弥散（s）
+    flash: 0.85,
+    aberration: 1.6,
+    noise: 0.55,
+  },
+
+  /* 贝尔不等式测试（CHSH） */
+  bell: {
+    settingsA: [0, 90],               // a, a′（度）
+    settingsB: [45, 135],             // b, b′（度）
+    samplesPerMeasure: 12,            // 每次「测量」事件累加的样本数
+    quantumLimit: 2 * Math.SQRT2,     // 2√2 ≈ 2.828
+    classicalBound: 2,                // 局域实在论上限
+    historyLength: 64,
+  },
+
+  /* 时间与缓动 */
+  anim: {
+    jumpUp: { duration: 0.42, ease: 'power4.out' },     // 先蓄力、后瞬发
+    jumpDown: { duration: 0.5, ease: 'elastic.out(1, 0.5)' },
+    trembleDamp: 0.42,
+    spinDamp: 0.13,
+    statusHold: 1.6,
+  },
+}
+
+/* ---- 1.1 GLSL 清单：uniforms 数组必须与 GLSL 内的声明严格一致 ---- */
+const SHADER_SPECS = {
+  /* 概率云：GPU 点云，逐点方向/半径/相位；坍缩时整体收向中心 */
+  cloud: {
+    uniforms: ['uTime', 'uGain', 'uCollapse', 'uRadius', 'uSizeScale', 'uOpacity', 'uColorCore', 'uColorEdge'],
+    vertex: `
+uniform float uTime, uGain, uCollapse, uRadius, uSizeScale, uOpacity;
+uniform vec3 uColorCore, uColorEdge;
+attribute vec3 aDir;
+attribute float aRad, aPhase, aSeed, aSize;
+varying float vAlpha, vSeed;
+varying vec3 vColor;
+
+void main() {
+  float c = uCollapse;
+  float rad = aRad * uRadius;
+  rad *= 1.0 + 0.07 * sin(uTime * 0.85 + aPhase * 6.28318);
+  rad = mix(rad, rad * 0.05, c);                       // 观测：云收成一个亮点
+
+  float ang = uTime * (0.09 + aSeed * 0.17) + aPhase * 0.35 + c * 3.4;
+  float ca = cos(ang), sa = sin(ang);
+  vec3 dir = vec3(aDir.x * ca - aDir.z * sa, aDir.y, aDir.x * sa + aDir.z * ca);
+
+  vec3 pos = dir * rad;
+  float turb = (0.03 + 0.05 * uGain) * (1.0 - c);
+  pos += vec3(sin(uTime * 1.7 + aPhase * 6.28318),
+              cos(uTime * 1.3 + aSeed * 12.5),
+              sin(uTime * 0.95 + aSeed * 5.1)) * turb;
+
+  vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+  gl_Position = projectionMatrix * mv;
+
+  float d = clamp(length(pos) / max(uRadius, 0.0001), 0.0, 1.4);
+  float shell = smoothstep(1.25, 0.16, d);
+  vAlpha = (0.14 + 0.86 * shell * shell) * (0.42 + 0.58 * uGain) * (1.0 + 1.4 * c) * uOpacity;
+  vSeed = aSeed;
+  vColor = mix(uColorCore, uColorEdge, clamp(d * 1.15, 0.0, 1.0));
+  gl_PointSize = max(1.0, aSize * uSizeScale * (0.85 + 1.7 * c) / max(-mv.z, 0.1));
+}
+`,
+    fragment: `
+uniform float uCollapse;
+varying float vAlpha, vSeed;
+varying vec3 vColor;
+
+void main() {
+  vec2 q = gl_PointCoord - 0.5;
+  float m = smoothstep(1.0, 0.15, length(q) * 2.0);
+  vec3 col = mix(vColor, vec3(1.0), 0.5 * uCollapse + 0.12 * vSeed);
+  gl_FragColor = vec4(col, m * vAlpha);
+}
+`,
+  },
+
+  /* 能量弦：带状面片，正弦波位移 + 沿弦流动的脉冲 */
+  string: {
+    uniforms: ['uTime', 'uTremble', 'uTwist', 'uLen', 'uWidth', 'uCollapse', 'uOpacity', 'uColorA', 'uColorB', 'uColorHot'],
+    vertex: `
+uniform float uTime, uTremble, uTwist, uLen, uWidth, uCollapse;
+varying vec2 vUv;
+varying float vTrem;
+
+void main() {
+  vUv = uv;
+  float t = uv.x;
+  float taper = 0.22 + 0.78 * pow(max(sin(3.14159265 * t), 0.0), 0.55);
+  float w = uWidth * taper * (1.0 - 0.45 * uCollapse);
+  float ph = uTime * (2.6 + uTremble * 30.0);
+  float amp = (0.012 + uTremble * 0.2) * (1.0 - 0.6 * uCollapse);
+  float z = sin(t * 20.0 - ph) * amp + sin(t * 41.0 + ph * 0.7) * amp * 0.35;
+  float y = sin(t * 13.0 + ph * 1.25) * amp * 0.8;
+
+  vec3 p = vec3((t - 0.5) * uLen, position.y * 2.0 * w + y, z);
+  float a = uTwist * 3.14159265 * (0.25 + t);
+  float ca = cos(a), sa = sin(a);
+  p = vec3(p.x, p.y * ca - p.z * sa, p.y * sa + p.z * ca);
+
+  vTrem = uTremble;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+}
+`,
+    fragment: `
+uniform float uTime, uTremble, uCollapse, uOpacity;
+uniform vec3 uColorA, uColorB, uColorHot;
+varying vec2 vUv;
+varying float vTrem;
+
+void main() {
+  float t = vUv.x;
+  float edge = pow(max(sin(3.14159265 * clamp(vUv.y, 0.0, 1.0)), 0.0), 0.6);
+  float flow = pow(0.5 + 0.5 * sin(t * 16.0 - uTime * (2.4 + vTrem * 26.0)), 4.0);
+  vec3 col = mix(uColorA, uColorB, smoothstep(0.0, 1.0, t));
+  col += uColorHot * flow * (0.7 + vTrem * 2.2);
+  col = mix(col, vec3(1.0), 0.3 * uCollapse);
+  float a = edge * (0.3 + 0.7 * flow) * (0.45 + vTrem * 0.85) * uOpacity;
+  gl_FragColor = vec4(col, a);
+}
+`,
+  },
+
+  /* 能量弦带状粒子流：双向对流 GPU 点，位置在着色器内积分 */
+  stream: {
+    uniforms: ['uTime', 'uTremble', 'uLen', 'uSpeed', 'uSizeScale', 'uOpacity', 'uCollapse', 'uColorA', 'uColorB'],
+    vertex: `
+uniform float uTime, uTremble, uLen, uSpeed, uSizeScale, uOpacity, uCollapse;
+uniform vec3 uColorA, uColorB;
+attribute float aT, aDirSign, aSeed, aSize;
+varying float vAlpha, vSeed;
+varying vec3 vColor;
+
+void main() {
+  float t = fract(aT + uTime * uSpeed * aDirSign * (0.6 + uTremble * 1.4));
+  float ph = uTime * (3.4 + uTremble * 22.0);
+  float amp = (0.015 + uTremble * 0.22) * (1.0 - 0.55 * uCollapse);
+  float env = 0.35 + 0.65 * pow(max(sin(3.14159 * t), 0.0), 0.5);
+
+  vec3 p;
+  p.x = (t - 0.5) * uLen;
+  p.y = (sin(t * 15.0 + ph * 1.2) + cos(aSeed * 6.283 + ph * 0.4) * 0.7) * amp * env;
+  p.z = (sin(t * 21.0 - ph) + sin(aSeed * 12.0 + ph * 0.6) * 0.7) * amp * env;
+
+  vec4 mv = modelViewMatrix * vec4(p, 1.0);
+  gl_Position = projectionMatrix * mv;
+
+  float fade = smoothstep(0.0, 0.07, t) * smoothstep(1.0, 0.93, t);
+  vAlpha = fade * (0.4 + 0.6 * env) * (0.45 + uTremble * 0.9) * uOpacity;
+  vSeed = aSeed;
+  vColor = mix(uColorA, uColorB, t);
+  gl_PointSize = max(1.0, aSize * uSizeScale * (0.7 + 1.1 * uTremble) / max(-mv.z, 0.1));
+}
+`,
+    fragment: `
+uniform float uTremble;
+varying float vAlpha, vSeed;
+varying vec3 vColor;
+
+void main() {
+  vec2 q = gl_PointCoord - 0.5;
+  float m = smoothstep(0.5, 0.05, length(q));
+  vec3 col = mix(vColor, vec3(1.0), 0.35 * uTremble + 0.12 * vSeed);
+  gl_FragColor = vec4(col, m * vAlpha);
+}
+`,
+  },
+
+  /* 光子波包：向外扩散的菲涅尔球壳 */
+  photonShell: {
+    uniforms: ['uProgress', 'uColor', 'uOpacity'],
+    vertex: `
+varying vec3 vN;
+varying vec3 vV;
+
+void main() {
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  vN = normalize(normalMatrix * normal);
+  vV = normalize(-mv.xyz);
+  gl_Position = projectionMatrix * mv;
+}
+`,
+    fragment: `
+uniform float uProgress, uOpacity;
+uniform vec3 uColor;
+varying vec3 vN;
+varying vec3 vV;
+
+void main() {
+  float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.2);
+  float band = pow(1.0 - clamp(uProgress, 0.0, 1.0), 1.8);
+  gl_FragColor = vec4(uColor * (0.55 + f * 1.7), (f * 0.85 + 0.1) * band * uOpacity);
+}
+`,
+  },
+
+  /* 涟漪 / 冲击环：面向相机的公告板面片 */
+  ripple: {
+    uniforms: ['uProgress', 'uColor', 'uOpacity'],
+    vertex: `
+varying vec2 vUv;
+
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`,
+    fragment: `
+uniform float uProgress, uOpacity;
+uniform vec3 uColor;
+varying vec2 vUv;
+
+void main() {
+  float d = length(vUv - 0.5) * 2.0;
+  float ring = smoothstep(0.35, 1.0, d);
+  float edge = pow(smoothstep(0.78, 1.0, d), 2.0);
+  float band = pow(1.0 - clamp(uProgress, 0.0, 1.0), 1.4);
+  gl_FragColor = vec4(uColor, (ring * 0.45 + edge * 0.9) * band * uOpacity);
+}
+`,
+  },
+
+  /* 光子扩散粒子：自电子位置径向飞散 */
+  burst: {
+    uniforms: ['uAge', 'uLife', 'uSpeed', 'uSizeScale', 'uOpacity', 'uOrigin', 'uColor'],
+    vertex: `
+uniform float uAge, uLife, uSpeed, uSizeScale, uOpacity;
+uniform vec3 uOrigin;
+attribute vec3 aVel;
+attribute float aSeed, aSize;
+varying float vA, vSeed;
+
+void main() {
+  float t = clamp(uAge / max(uLife, 0.001), 0.0, 1.0);
+  float d = uSpeed * uAge * (1.0 - 0.35 * t);
+  vec4 mv = modelViewMatrix * vec4(uOrigin + aVel * d, 1.0);
+  gl_Position = projectionMatrix * mv;
+  vA = pow(1.0 - t, 1.7) * (0.75 + 0.25 * sin(aSeed * 20.0 + uAge * 30.0)) * uOpacity;
+  vSeed = aSeed;
+  gl_PointSize = max(1.0, aSize * uSizeScale * (1.0 - 0.5 * t) / max(-mv.z, 0.1));
+}
+`,
+    fragment: `
+uniform vec3 uColor;
+varying float vA, vSeed;
+
+void main() {
+  vec2 q = gl_PointCoord - 0.5;
+  float m = smoothstep(0.5, 0.06, length(q));
+  vec3 col = mix(uColor, vec3(1.0), 0.3 * vSeed);
+  gl_FragColor = vec4(col, m * vA);
+}
+`,
+  },
+
+  /* 背景星尘 */
+  starfield: {
+    uniforms: ['uTime', 'uSizeScale', 'uOpacity', 'uColorA', 'uColorB'],
+    vertex: `
+uniform float uTime, uSizeScale, uOpacity;
+uniform vec3 uColorA, uColorB;
+attribute float aSeed, aSize;
+varying float vA;
+varying vec3 vColor;
+
+void main() {
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  gl_Position = projectionMatrix * mv;
+  vA = (0.3 + 0.7 * (0.5 + 0.5 * sin(uTime * (0.5 + aSeed * 1.6) + aSeed * 31.4))) * uOpacity;
+  vColor = mix(uColorA, uColorB, aSeed);
+  gl_PointSize = max(1.0, aSize * uSizeScale / max(-mv.z, 0.1));
+}
+`,
+    fragment: `
+varying float vA;
+varying vec3 vColor;
+
+void main() {
+  vec2 q = gl_PointCoord - 0.5;
+  float m = smoothstep(0.5, 0.1, length(q));
+  gl_FragColor = vec4(vColor, m * vA);
+}
+`,
+  },
+
+  /* 后期：色差 + 扫描线 + 相位噪点 + 暗角 */
+  chroma: {
+    uniforms: ['tDiffuse', 'uTime', 'uAberration', 'uNoise', 'uScan', 'uVignette', 'uResolution'],
+    vertex: `
+varying vec2 vUv;
+
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`,
+    fragment: `
+uniform sampler2D tDiffuse;
+uniform float uTime, uAberration, uNoise, uScan, uVignette;
+uniform vec2 uResolution;
+varying vec2 vUv;
+
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+void main() {
+  vec2 uv = vUv;
+  float ab = uAberration * 0.0055 + uNoise * 0.004;
+  vec3 col;
+  col.r = texture2D(tDiffuse, uv + vec2(ab, 0.0)).r;
+  col.g = texture2D(tDiffuse, uv).g;
+  col.b = texture2D(tDiffuse, uv - vec2(ab, 0.0)).b;
+
+  float scan = 0.5 + 0.5 * sin(uv.y * uResolution.y * 1.5 + uTime * 5.5);
+  col *= 1.0 - uScan * scan * 0.24;
+
+  float n = hash(uv * uResolution * 0.5 + fract(uTime) * 91.7);
+  col += (n - 0.5) * uNoise * 0.55;
+
+  vec2 q = uv - 0.5;
+  col *= 1.0 - uVignette * dot(q, q) * 1.75;
+  gl_FragColor = vec4(col, 1.0);
+}
+`,
+  },
+}
+
+/* ---- 1.2 能级表：need = 达到该能级所需的注入能量 τ ---- */
+const LEVELS = [
+  { n: 1, need: 0.0, radius: 1.15, color: '#00f0ff', label: 'K' },
+  { n: 2, need: 0.16, radius: 1.6, color: '#63f2d6', label: 'L' },
+  { n: 3, need: 0.62, radius: 2.1, color: '#b026ff', label: 'M' },
+  { n: 4, need: 1.42, radius: 2.6, color: '#ff6ad5', label: 'N' },
+]
+
+/* ---- 1.3 光子光谱：能级差越大 → 色相越偏蓝紫 ---- */
+const PHOTON_SPECTRUM = {
+  hueStart: 28,     // 能级差最小 → 黄绿/琥珀侧
+  hueEnd: 276,      // 能级差最大 → 蓝紫侧
+  sat: 0.98,
+  light: 0.63,
+  lambdaMax: 610,
+  lambdaMin: 405,
+}
+
+const TAU = Math.PI * 2
+
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v)
+const clamp01 = (v) => clamp(v, 0, 1)
+const lerp = (a, b, t) => a + (b - a) * t
+const degToRad = (d) => (d * Math.PI) / 180
+const radToDeg = (r) => (r * 180) / Math.PI
+
+/** 角度归一化到 [0, 2π) */
+function wrapTau(a) {
+  const m = a % TAU
+  return m < 0 ? m + TAU : m
+}
+
+/** 最短有向角差（旋钮角速度计算，避免跨 ±π 跳变） */
+function shortestAngleDelta(from, to) {
+  let d = (to - from) % TAU
+  if (d > Math.PI) d -= TAU
+  if (d < -Math.PI) d += TAU
+  return d
+}
+
+/** 能量 → 能级索引（带迟滞，避免阈值附近反复跳动） */
+function resolveLevel(energy, prevIndex, levels, hysteresis) {
+  let idx = clamp(Math.round(prevIndex), 0, levels.length - 1)
+  while (idx < levels.length - 1 && energy >= levels[idx + 1].need) idx += 1
+  while (idx > 0 && energy < levels[idx].need - hysteresis) idx -= 1
+  return idx
+}
+
+/** 两能级之间的能量差（= 光子能量） */
+function levelGap(levels, fromIndex, toIndex) {
+  const a = clamp(fromIndex, 0, levels.length - 1)
+  const b = clamp(toIndex, 0, levels.length - 1)
+  return Math.abs(levels[b].need - levels[a].need)
+}
+
+const MAX_LEVEL_GAP = (() => {
+  let m = 0
+  for (let i = 1; i < LEVELS.length; i += 1) m = Math.max(m, levelGap(LEVELS, i - 1, i))
+  return m
+})()
+
+/** HSL → #rrggbb */
+function hslToHex(h, s, l) {
+  const hh = ((h % 360) + 360) % 360
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs(((hh / 60) % 2) - 1))
+  const m = l - c / 2
+  let r = 0
+  let g = 0
+  let b = 0
+  if (hh < 60) { r = c; g = x; b = 0 } else if (hh < 120) { r = x; g = c; b = 0 } else if (hh < 180) { r = 0; g = c; b = x } else if (hh < 240) { r = 0; g = x; b = c } else if (hh < 300) { r = x; g = 0; b = c } else { r = c; g = 0; b = x }
+  const to = (v) => Math.round(clamp01(v + m) * 255).toString(16).padStart(2, '0')
+  return `#${to(r)}${to(g)}${to(b)}`
+}
+
+/**
+ * 光子颜色：能级差越大 → 色相越偏蓝紫（波长越短）
+ * @returns {{ hex: string, hue: number, lambda: number, t: number }}
+ */
+function photonColorFor(deltaE, maxDelta) {
+  const t = clamp01(deltaE / (maxDelta > 0 ? maxDelta : 1))
+  const hue = lerp(PHOTON_SPECTRUM.hueStart, PHOTON_SPECTRUM.hueEnd, t)
+  const lambda = Math.round(lerp(PHOTON_SPECTRUM.lambdaMax, PHOTON_SPECTRUM.lambdaMin, t))
+  return { hex: hslToHex(hue, PHOTON_SPECTRUM.sat, PHOTON_SPECTRUM.light), hue, lambda, t }
+}
+
+/**
+ * 自旋单态的联合测量（量子力学正确分布）：
+ *   P(++) = P(−−) = ½·sin²(Δ/2)，P(+−) = P(−+) = ½·cos²(Δ/2) ⇒ E(a,b) = −cos(Δ)
+ */
+function sampleEntangledPair(aRad, bRad, rnd = Math.random) {
+  const half = (aRad - bRad) / 2
+  const pSame = 0.5 * Math.sin(half) * Math.sin(half)
+  const pDiff = 0.5 * Math.cos(half) * Math.cos(half)
+  const u = rnd()
+  if (u < pSame) return [1, 1]
+  if (u < pSame * 2) return [-1, -1]
+  return u < pSame * 2 + pDiff ? [1, -1] : [-1, 1]
+}
+
+/** 局域隐变量模型（对照）：A = sign(cos(a−λ))，B = −sign(cos(b−λ)) ⇒ |S| ≤ 2 */
+function sampleLocalPair(aRad, bRad, rnd = Math.random) {
+  const lambda = rnd() * TAU
+  const A = Math.cos(aRad - lambda) >= 0 ? 1 : -1
+  const B = Math.cos(bRad - lambda) >= 0 ? -1 : 1
+  return [A, B]
+}
+
+/** CHSH 组合：S = E(a,b) − E(a,b′) + E(a′,b) + E(a′,b′) */
+function chshValue(corr) {
+  return corr[0] - corr[1] + corr[2] + corr[3]
+}
+
+/** 用给定采样器估计四组关联（离线检验） */
+function estimateCorrelations(settingsA, settingsB, sampleCount, sampler, rnd = Math.random) {
+  const pairs = [
+    [settingsA[0], settingsB[0]],
+    [settingsA[0], settingsB[1]],
+    [settingsA[1], settingsB[0]],
+    [settingsA[1], settingsB[1]],
+  ]
+  return pairs.map(([a, b]) => {
+    let sum = 0
+    for (let i = 0; i < sampleCount; i += 1) {
+      const [oa, ob] = sampler(a, b, rnd)
+      sum += oa * ob
+    }
+    return sum / sampleCount
+  })
+}
+
+/** 旋钮拖动 → 能量累积：与拖动角度、拖动速度都成正相关，方向决定注入/泄能 */
+function accumulateEnergy(energy, dAngleRad, angularSpeed, cfg) {
+  const speedGain = 1 + clamp01(angularSpeed / cfg.speedRef) * cfg.speedBoost
+  return clamp(energy + dAngleRad * cfg.perRadian * speedGain, 0, cfg.max)
+}
+
+/** 拖拽角速度 → 能量弦震颤（0..1），越快越强 */
+function trembleFromSpeed(angularSpeed, ref, max) {
+  return clamp(Math.pow(clamp01(angularSpeed / ref), 0.75) * max, 0, max)
+}
+
+/** 累计划过的弧度，达到阈值即生成一次涟漪 */
+function rippleAccumulator(acc, dAngleRad, gap) {
+  const next = acc + Math.abs(dAngleRad)
+  if (next >= gap) return { acc: next - gap, fired: true }
+  return { acc: next, fired: false }
+}
+
+/* ==== PURE-END ==== */
+
+/* ==========================================================================
+ * 2. 渲染骨架
+ * ========================================================================*/
+const DPR_CAP = CONFIG.render.maxPixelRatio
+const canvas = document.getElementById('qm-canvas')
+
+const LOW_SPEC =
+  (navigator.hardwareConcurrency || 4) <= 4 ||
+  window.matchMedia('(max-width: 860px)').matches ||
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const QUALITY = LOW_SPEC ? CONFIG.render.lowSpec.particleScale : 1
+
+let renderer = null
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: !LOW_SPEC, powerPreference: 'high-performance' })
+} catch (err) {
+  bootFail('WebGL 初始化失败，请改用支持 WebGL2 的浏览器', err)
+}
+
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, DPR_CAP))
+renderer.setSize(window.innerWidth, window.innerHeight, false)
+renderer.toneMapping = THREE.ACESFilmicToneMapping
+renderer.toneMappingExposure = CONFIG.render.exposure
+if ('transmissionResolutionScale' in renderer) renderer.transmissionResolutionScale = 0.55
+
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(CONFIG.colors.bg)
+scene.fog = new THREE.FogExp2(CONFIG.colors.bg, 0.014)
+
+const camera = new THREE.PerspectiveCamera(
+  CONFIG.camera.fov,
+  window.innerWidth / window.innerHeight,
+  CONFIG.camera.near,
+  CONFIG.camera.far,
+)
+
+/* 复用临时对象：动画循环内不新建对象 */
+const TMP_V1 = new THREE.Vector3()
+const TMP_V2 = new THREE.Vector3()
+const TMP_Q = new THREE.Quaternion()
+const UP = new THREE.Vector3(0, 1, 0)
+
+/* ==========================================================================
+ * 3. 程序化贴图（canvas 生成，无外部资源）
+ * ========================================================================*/
+function makeCanvas(w, h) {
+  const c = document.createElement('canvas')
+  c.width = w
+  c.height = h === undefined ? w : h
+  return c
+}
+
+function canvasTexture(c, opts = {}) {
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  if (opts.repeat) {
+    t.wrapS = THREE.RepeatWrapping
+    t.wrapT = THREE.RepeatWrapping
+    t.repeat.set(opts.repeat[0], opts.repeat[1])
+  }
+  return t
+}
+
+/** 径向辉光精灵 */
+function makeGlowTexture() {
+  const c = makeCanvas(256)
+  const ctx = c.getContext('2d')
+  const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128)
+  g.addColorStop(0, 'rgba(255,255,255,1)')
+  g.addColorStop(0.18, 'rgba(255,255,255,0.7)')
+  g.addColorStop(0.45, 'rgba(180,240,255,0.24)')
+  g.addColorStop(0.75, 'rgba(120,180,255,0.05)')
+  g.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, 256, 256)
+  return canvasTexture(c)
+}
+
+/** 精密刻度环（示波器 / 仪表盘） */
+function makeTickRingTexture(px = 1024, tickCount = 144) {
+  const c = makeCanvas(px)
+  const ctx = c.getContext('2d')
+  const r = px * 0.46
+  ctx.translate(px / 2, px / 2)
+  ctx.lineCap = 'round'
+  for (let i = 0; i < tickCount; i += 1) {
+    const a = (i / tickCount) * TAU
+    const major = i % 12 === 0
+    const mid = !major && i % 3 === 0
+    const len = major ? px * 0.055 : mid ? px * 0.03 : px * 0.016
+    ctx.strokeStyle = major ? 'rgba(200,245,255,0.85)' : mid ? 'rgba(0,240,255,0.5)' : 'rgba(0,240,255,0.26)'
+    ctx.lineWidth = major ? 2.6 : 1.4
+    ctx.beginPath()
+    ctx.moveTo(Math.cos(a) * (r - len), Math.sin(a) * (r - len))
+    ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r)
+    ctx.stroke()
+  }
+  ctx.lineWidth = 1
+  ctx.strokeStyle = 'rgba(0,240,255,0.22)'
+  ctx.beginPath()
+  ctx.arc(0, 0, r * 0.82, 0, TAU)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.arc(0, 0, r * 0.995, 0, TAU)
+  ctx.stroke()
+  ctx.font = Math.round(px / 42) + 'px ui-monospace, monospace'
+  ctx.fillStyle = 'rgba(170,230,255,0.6)'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  for (let d = 0; d < 360; d += 30) {
+    const a = degToRad(d) - Math.PI / 2
+    const rr = r * 0.71
+    ctx.fillText(String(d), Math.cos(a) * rr, Math.sin(a) * rr)
+  }
+  return canvasTexture(c)
+}
+
+/** 舱壁纵向刻度带（细密刻度 + 坐标标注） */
+function makeTickBandTexture(px = 2048) {
+  const c = makeCanvas(px, 256)
+  const ctx = c.getContext('2d')
+  for (let i = 0; i < 512; i += 1) {
+    const x = (i / 512) * px
+    const major = i % 32 === 0
+    const mid = !major && i % 8 === 0
+    ctx.strokeStyle = major ? 'rgba(200,245,255,0.7)' : mid ? 'rgba(0,240,255,0.34)' : 'rgba(0,240,255,0.14)'
+    ctx.lineWidth = major ? 2 : 1
+    ctx.beginPath()
+    ctx.moveTo(x, 256)
+    ctx.lineTo(x, 256 - (major ? 44 : mid ? 24 : 12))
+    ctx.stroke()
+    if (major) {
+      ctx.font = '15px ui-monospace, monospace'
+      ctx.fillStyle = 'rgba(150,220,255,0.42)'
+      ctx.textAlign = 'center'
+      ctx.fillText(String((i / 32) * 5), x, 196)
+    }
+  }
+  return canvasTexture(c, { repeat: [4, 1] })
+}
+
+/** 极坐标网格（实验室台面） */
+function makePolarGridTexture(px = 1024) {
+  const c = makeCanvas(px)
+  const ctx = c.getContext('2d')
+  ctx.translate(px / 2, px / 2)
+  ctx.lineWidth = 1
+  for (let i = 1; i <= 10; i += 1) {
+    ctx.strokeStyle = 'rgba(0,240,255,0.16)'
+    ctx.beginPath()
+    ctx.arc(0, 0, (px * 0.47 * i) / 10, 0, TAU)
+    ctx.stroke()
+  }
+  for (let i = 0; i < 36; i += 1) {
+    const a = (i / 36) * TAU
+    ctx.strokeStyle = i % 3 === 0 ? 'rgba(0,240,255,0.3)' : 'rgba(0,240,255,0.13)'
+    ctx.beginPath()
+    ctx.moveTo(Math.cos(a) * px * 0.045, Math.sin(a) * px * 0.045)
+    ctx.lineTo(Math.cos(a) * px * 0.47, Math.sin(a) * px * 0.47)
+    ctx.stroke()
+  }
+  ctx.font = '16px ui-monospace, monospace'
+  ctx.fillStyle = 'rgba(140,220,255,0.4)'
+  ctx.textAlign = 'center'
+  for (let i = 1; i <= 4; i += 1) {
+    ctx.fillText('r=' + i * 2, 0, 18 - (px * 0.47 * i) / 4)
+  }
+  return canvasTexture(c)
+}
+
+/** 铭牌 / 公式碎片贴图 */
+function makeTextTexture(main, sub, px, mainSize, fontFamily) {
+  const c = makeCanvas(px, Math.round(px * (sub ? 0.24 : 0.2)))
+  const ctx = c.getContext('2d')
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.font = '500 ' + mainSize + 'px ' + fontFamily
+  ctx.fillStyle = 'rgba(226,250,255,0.92)'
+  ctx.fillText(main, c.width / 2, sub ? c.height * 0.38 : c.height / 2)
+  if (sub) {
+    ctx.font = '400 ' + Math.round(mainSize * 0.42) + 'px ui-monospace, monospace'
+    ctx.fillStyle = 'rgba(0,240,255,0.6)'
+    ctx.fillText(sub, c.width / 2, c.height * 0.78)
+  }
+  return canvasTexture(c)
+}
+
+/* 环境贴图：程序化冷调霓虹渐变 → PMREM（磨砂玻璃 / 金属的反射来源） */
+function buildEnvironment() {
+  const c = makeCanvas(512, 256)
+  const ctx = c.getContext('2d')
+  const g = ctx.createLinearGradient(0, 0, 0, 256)
+  g.addColorStop(0, '#070a1e')
+  g.addColorStop(0.45, '#0b1030')
+  g.addColorStop(0.72, '#05060f')
+  g.addColorStop(1, '#010104')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, 512, 256)
+  const blob = (x, y, r, color) => {
+    const rg = ctx.createRadialGradient(x, y, 0, x, y, r)
+    rg.addColorStop(0, color)
+    rg.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = rg
+    ctx.fillRect(x - r, y - r, r * 2, r * 2)
+  }
+  blob(120, 70, 150, 'rgba(0,240,255,0.85)')
+  blob(400, 96, 170, 'rgba(176,38,255,0.7)')
+  blob(268, 208, 130, 'rgba(255,194,74,0.24)')
+  const tex = new THREE.CanvasTexture(c)
+  tex.mapping = THREE.EquirectangularReflectionMapping
+  tex.colorSpace = THREE.SRGBColorSpace
+  const pmrem = new THREE.PMREMGenerator(renderer)
+  const env = pmrem.fromEquirectangular(tex).texture
+  pmrem.dispose()
+  tex.dispose()
+  return env
+}
+
+const GLOW_TEX = makeGlowTexture()
+
+/* ==========================================================================
+ * 4. 着色器材质工厂（uniforms 由 SHADER_SPECS 校验后装配）
+ * ========================================================================*/
+function makeShaderMaterial(specName, values, extra = {}) {
+  const spec = SHADER_SPECS[specName]
+  if (!spec) throw new Error('未知着色器：' + specName)
+  const uniforms = {}
+  for (const key of spec.uniforms) {
+    if (!(key in values)) throw new Error('着色器 ' + specName + ' 缺少 uniform：' + key)
+    uniforms[key] = { value: values[key] }
+  }
+  return new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: spec.vertex,
+    fragmentShader: spec.fragment,
+    ...extra,
+  })
+}
+
+const ADDITIVE = { transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }
+const PICKABLE = []   // 可拾取对象：粒子 A / B / 原子核
+
+/* ==========================================================================
+ * 5. 观测舱本体与实验室台面
+ * ========================================================================*/
+const chamber = new THREE.Group()
+scene.add(chamber)
+
+scene.environment = buildEnvironment()
+
+/* 5.1 磨砂玻璃舱壁 + 全息线框 */
+const glassMat = new THREE.MeshPhysicalMaterial({
+  color: CONFIG.colors.glass,
+  metalness: 0.05,
+  roughness: 0.34,                       // 磨砂质感
+  transmission: LOW_SPEC ? 0 : 0.9,
+  thickness: 0.45,
+  ior: 1.42,
+  clearcoat: 0.6,
+  clearcoatRoughness: 0.3,
+  iridescence: 0.25,
+  iridescenceIOR: 1.3,
+  side: THREE.DoubleSide,
+  transparent: true,
+  opacity: LOW_SPEC ? 0.16 : 1,
+})
+chamber.add(new THREE.Mesh(
+  new THREE.CylinderGeometry(CONFIG.chamber.radius, CONFIG.chamber.radius, CONFIG.chamber.height, 64, 1, true),
+  glassMat,
+))
+chamber.add(new THREE.Mesh(
+  new THREE.CylinderGeometry(CONFIG.chamber.radius * 1.004, CONFIG.chamber.radius * 1.004, CONFIG.chamber.height, 32, 6, true),
+  new THREE.MeshBasicMaterial({ color: CONFIG.colors.cyan, wireframe: true, transparent: true, opacity: 0.055, depthWrite: false }),
+))
+
+/* 5.2 舱壁纵向刻度带 */
+const band = new THREE.Mesh(
+  new THREE.CylinderGeometry(CONFIG.chamber.radius * 0.985, CONFIG.chamber.radius * 0.985, CONFIG.chamber.height * 0.94, 64, 1, true),
+  new THREE.MeshBasicMaterial({
+    map: makeTickBandTexture(),
+    transparent: true,
+    opacity: 0.5,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  }),
+)
+chamber.add(band)
+
+/* 5.3 上下端环 + 精密刻度环 */
+const R = CONFIG.chamber.radius
+const H = CONFIG.chamber.height
+const ringMat = new THREE.MeshStandardMaterial({
+  color: CONFIG.colors.metal, metalness: 0.92, roughness: 0.28,
+  emissive: 0x081c28, emissiveIntensity: 0.6,
+})
+for (const sign of [-1, 1]) {
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(R * 1.012, 0.07, 8, 128), ringMat)
+  ring.rotation.x = Math.PI / 2
+  ring.position.y = (sign * H) / 2
+  chamber.add(ring)
+
+  const inner = new THREE.Mesh(new THREE.TorusGeometry(R * 0.86, 0.028, 6, 96), ringMat)
+  inner.rotation.x = Math.PI / 2
+  inner.position.y = (sign * H) / 2
+  chamber.add(inner)
+}
+
+const dialTex = makeTickRingTexture()
+const dials = []
+for (const sign of [-1, 1]) {
+  const dial = new THREE.Mesh(
+    new THREE.RingGeometry(R * 0.7, R * 1.16, 128),
+    new THREE.MeshBasicMaterial({
+      map: dialTex, transparent: true, opacity: 0.62,
+      depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    }),
+  )
+  dial.rotation.x = -Math.PI / 2
+  dial.position.y = (sign * H) / 2 + sign * 0.02
+  chamber.add(dial)
+  dials.push(dial)
+}
+
+/* 5.4 底座平台 + 极坐标网格 */
+const baseDisc = new THREE.Mesh(
+  new THREE.CylinderGeometry(CONFIG.chamber.baseRadius, CONFIG.chamber.baseRadius * 0.94, 0.28, 96),
+  new THREE.MeshStandardMaterial({ color: 0x070b16, metalness: 0.85, roughness: 0.42, emissive: 0x06141c, emissiveIntensity: 0.5 }),
+)
+baseDisc.position.y = CONFIG.chamber.baseY
+chamber.add(baseDisc)
+
+const grid = new THREE.Mesh(
+  new THREE.PlaneGeometry(CONFIG.chamber.baseRadius * 6.4, CONFIG.chamber.baseRadius * 6.4),
+  new THREE.MeshBasicMaterial({
+    map: makePolarGridTexture(), transparent: true, opacity: 0.42,
+    depthWrite: false, blending: THREE.AdditiveBlending,
+  }),
+)
+grid.rotation.x = -Math.PI / 2
+grid.position.y = CONFIG.chamber.baseY + 0.16
+chamber.add(grid)
+
+/* 5.5 四根支撑柱 + 铭牌 */
+const strutMat = new THREE.MeshStandardMaterial({
+  color: CONFIG.colors.metal, metalness: 0.9, roughness: 0.36,
+  emissive: 0x07141e, emissiveIntensity: 0.4,
+})
+for (let i = 0; i < 4; i += 1) {
+  const a = Math.PI / 4 + (i / 4) * TAU
+  const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, H * 0.98, 10), strutMat)
+  strut.position.set(Math.cos(a) * R * 1.04, 0, Math.sin(a) * R * 1.04)
+  chamber.add(strut)
+}
+
+const plate = new THREE.Mesh(
+  new THREE.PlaneGeometry(4.6, 1.1),
+  new THREE.MeshBasicMaterial({
+    map: makeTextTexture('纠缠之隙 · ENTANGLEMENT GAP', 'SCENE 06 / QUANTUM JUMP OBSERVATORY MK-VI', 1024, 42, '"Inter", "Noto Sans SC", sans-serif'),
+    transparent: true, opacity: 0.72, depthWrite: false, blending: THREE.AdditiveBlending,
+  }),
+)
+plate.position.set(0, CONFIG.chamber.baseY + 0.34, CONFIG.chamber.baseRadius * 0.72)
+plate.rotation.x = -Math.PI / 2.6
+chamber.add(plate)
+
+/* 5.6 悬浮公式碎片（薛定谔方程 / 狄拉克符号 / 贝尔不等式 …） */
+const FORMULAS = [
+  'iħ ∂ψ/∂t = Ĥψ',
+  '⟨ψ|φ⟩ = ∫ ψ*φ dτ',
+  '|Φ⁺⟩ = (|00⟩ + |11⟩)/√2',
+  '|S| ≤ 2 < 2√2',
+  'Δx·Δp ≥ ħ/2',
+  'σ_z|0⟩ = +|0⟩',
+  'E = hν = ΔE',
+  'ρ = |ψ⟩⟨ψ|',
+  'Ŝ·n̂ |ψ⟩ = ±ħ/2',
+  'e^{i(kx−ωt)}',
+  'ΔE·Δt ~ ħ',
+  '|α|² + |β|² = 1',
+]
+const formulaSprites = []
+FORMULAS.forEach((f, i) => {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeTextTexture(f, '', 512, 56, '"Cambria Math", "Times New Roman", serif'),
+    transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending,
+  }))
+  const a = (i / FORMULAS.length) * TAU + 0.4
+  const rad = 15 + (i % 4) * 3.6
+  sp.position.set(Math.cos(a) * rad, -6.5 + (i % 5) * 3.8, Math.sin(a) * rad)
+  sp.scale.set(3.7, 0.74, 1)
+  sp.userData.phase = i * 1.31
+  sp.userData.baseY = sp.position.y
+  formulaSprites.push(sp)
+  scene.add(sp)
+})
+
+/* ==========================================================================
+ * 6. 量子纠缠区：一对粒子 + 概率云 + 能量弦
+ * ========================================================================*/
+const entangle = new THREE.Group()
+scene.add(entangle)
+
+const AX = CONFIG.entangle.ax
+const BX = CONFIG.entangle.bx
+const EY = CONFIG.entangle.y
+const STRING_LEN = BX - AX
+
+/** 概率云点云（GPU 粒子，位置在顶点着色器内计算） */
+function buildCloud(colorCore, colorEdge) {
+  const n = Math.max(600, Math.round(CONFIG.entangle.cloudCount * QUALITY))
+  const dir = new Float32Array(n * 3)
+  const rad = new Float32Array(n)
+  const phase = new Float32Array(n)
+  const seed = new Float32Array(n)
+  const size = new Float32Array(n)
+  for (let i = 0; i < n; i += 1) {
+    // 均匀球面方向 + 指数型径向概率（中心密、外缘弥散）
+    const u = Math.random() * 2 - 1
+    const theta = Math.random() * TAU
+    const s = Math.sqrt(1 - u * u)
+    dir[i * 3] = s * Math.cos(theta)
+    dir[i * 3 + 1] = u
+    dir[i * 3 + 2] = s * Math.sin(theta)
+    const r = Math.pow(Math.random(), 0.55)
+    rad[i] = (0.16 + 0.84 * r) * (0.72 + 0.5 * r * r)
+    phase[i] = Math.random()
+    seed[i] = Math.random()
+    size[i] = 0.9 + Math.random() * 2.1
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3))   // 占位
+  geo.setAttribute('aDir', new THREE.BufferAttribute(dir, 3))
+  geo.setAttribute('aRad', new THREE.BufferAttribute(rad, 1))
+  geo.setAttribute('aPhase', new THREE.BufferAttribute(phase, 1))
+  geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1))
+  geo.setAttribute('aSize', new THREE.BufferAttribute(size, 1))
+  geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), CONFIG.entangle.cloudRadius * 1.8)
+  const mat = makeShaderMaterial('cloud', {
+    uTime: 0,
+    uGain: 0,
+    uCollapse: 0,
+    uRadius: CONFIG.entangle.cloudRadius,
+    uSizeScale: 1,
+    uOpacity: LOW_SPEC ? 0.85 : 1,
+    uColorCore: new THREE.Color(colorCore),
+    uColorEdge: new THREE.Color(colorEdge),
+  }, { ...ADDITIVE })
+  const pts = new THREE.Points(geo, mat)
+  pts.frustumCulled = false
+  return pts
+}
+
+/** 一颗纠缠粒子：核 + 自旋箭头 + 概率云 + 辉光 + 拾取球 */
+function buildParticle(x, colorHex, sign) {
+  const g = new THREE.Group()
+  g.position.set(x, EY, 0)
+
+  const core = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(CONFIG.entangle.coreRadius, 2),
+    new THREE.MeshBasicMaterial({ color: colorHex }),
+  )
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: GLOW_TEX, color: colorHex, transparent: true, depthWrite: false,
+    blending: THREE.AdditiveBlending, opacity: 0.9,
+  }))
+  glow.scale.setScalar(2.6)
+
+  // 自旋箭头：以 +Y 为基准，用四元数旋到自旋方向
+  const spin = new THREE.Group()
+  const shaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.014, 0.014, 0.52, 8),
+    new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.92 }),
+  )
+  shaft.position.y = 0.26
+  const head = new THREE.Mesh(new THREE.ConeGeometry(0.058, 0.16, 12), new THREE.MeshBasicMaterial({ color: colorHex }))
+  head.position.y = 0.58
+  const tip = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: GLOW_TEX, color: colorHex, transparent: true, depthWrite: false,
+    blending: THREE.AdditiveBlending, opacity: 0.8,
+  }))
+  tip.scale.setScalar(0.62)
+  tip.position.y = 0.6
+  spin.add(shaft, head, tip)
+
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.3, 0.008, 6, 64),
+    new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
+  )
+  ring.rotation.x = Math.PI / 2
+
+  const cloud = buildCloud(colorHex, 0xffffff)
+  const pick = new THREE.Mesh(new THREE.SphereGeometry(0.95, 16, 12), new THREE.MeshBasicMaterial({ visible: false }))
+
+  g.add(core, glow, spin, ring, cloud, pick)
+  entangle.add(g)
+
+  const handle = { mesh: pick, kind: sign > 0 ? 'A' : 'B', group: g, spin, cloud, glow, core, ring, tip }
+  PICKABLE.push(handle)
+  return handle
+}
+
+const partA = buildParticle(AX, CONFIG.colors.A, -1)
+const partB = buildParticle(BX, CONFIG.colors.B, 1)
+
+/* 能量弦：带状面片 */
+const stringMat = makeShaderMaterial('string', {
+  uTime: 0,
+  uTremble: 0,
+  uTwist: 0,
+  uLen: STRING_LEN,
+  uWidth: CONFIG.entangle.stringWidth,
+  uCollapse: 0,
+  uOpacity: LOW_SPEC ? 0.7 : 1,
+  uColorA: new THREE.Color(CONFIG.colors.A),
+  uColorB: new THREE.Color(CONFIG.colors.B),
+  uColorHot: new THREE.Color(CONFIG.colors.white),
+}, { ...ADDITIVE, side: THREE.DoubleSide })
+const stringRibbon = new THREE.Mesh(new THREE.PlaneGeometry(1, 1, 256, 1), stringMat)
+stringRibbon.position.set((AX + BX) / 2, EY, 0)
+stringRibbon.frustumCulled = false
+entangle.add(stringRibbon)
+
+/* 能量弦带状粒子流：双向对流 */
+const STREAM_N = Math.max(400, Math.round(CONFIG.entangle.streamCount * QUALITY))
+const streamGeo = new THREE.BufferGeometry()
+{
+  const pos = new Float32Array(STREAM_N * 3)
+  const aT = new Float32Array(STREAM_N)
+  const aDir = new Float32Array(STREAM_N)
+  const aSeed = new Float32Array(STREAM_N)
+  const aSize = new Float32Array(STREAM_N)
+  for (let i = 0; i < STREAM_N; i += 1) {
+    aT[i] = i / STREAM_N
+    aDir[i] = i % 2 === 0 ? 1 : -1      // 双向流动：A→B 与 B→A 同时进行——关联而非传输
+    aSeed[i] = Math.random()
+    aSize[i] = 0.6 + Math.random() * 1.5
+  }
+  streamGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  streamGeo.setAttribute('aT', new THREE.BufferAttribute(aT, 1))
+  streamGeo.setAttribute('aDirSign', new THREE.BufferAttribute(aDir, 1))
+  streamGeo.setAttribute('aSeed', new THREE.BufferAttribute(aSeed, 1))
+  streamGeo.setAttribute('aSize', new THREE.BufferAttribute(aSize, 1))
+  streamGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), STRING_LEN)
+}
+const streamMat = makeShaderMaterial('stream', {
+  uTime: 0,
+  uTremble: 0,
+  uLen: STRING_LEN,
+  uSpeed: 0.26,
+  uSizeScale: 1,
+  uOpacity: LOW_SPEC ? 0.75 : 1,
+  uCollapse: 0,
+  uColorA: new THREE.Color(CONFIG.colors.A),
+  uColorB: new THREE.Color(CONFIG.colors.B),
+}, { ...ADDITIVE })
+const stream = new THREE.Points(streamGeo, streamMat)
+stream.position.set((AX + BX) / 2, EY, 0)
+stream.frustumCulled = false
+entangle.add(stream)
+
+/* ==========================================================================
+ * 7. 量子跃迁区：原子核 + 4 层能级轨道 + 电子 + 光子波包
+ * ========================================================================*/
+const atom = new THREE.Group()
+atom.position.set(0, CONFIG.atom.y, 0)
+scene.add(atom)
+
+/* 7.1 原子核 */
+const nucleus = new THREE.Group()
+const nucleusCore = new THREE.Mesh(
+  new THREE.IcosahedronGeometry(CONFIG.atom.nucleusRadius, 2),
+  new THREE.MeshStandardMaterial({ color: 0x0a1a2c, emissive: 0x00a8c8, emissiveIntensity: 1.5, metalness: 0.4, roughness: 0.35 }),
+)
+nucleus.add(nucleusCore)
+const nucleonMats = [
+  new THREE.MeshBasicMaterial({ color: CONFIG.colors.cyan }),
+  new THREE.MeshBasicMaterial({ color: CONFIG.colors.magenta }),
+]
+for (let i = 0; i < CONFIG.atom.nucleons; i += 1) {
+  const u = Math.random() * 2 - 1
+  const theta = Math.random() * TAU
+  const s = Math.sqrt(1 - u * u)
+  const r = CONFIG.atom.nucleusRadius * (0.55 + Math.random() * 0.5)
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.07 + Math.random() * 0.035, 10, 8), nucleonMats[i % 2])
+  m.position.set(s * Math.cos(theta) * r, u * r, s * Math.sin(theta) * r)
+  nucleus.add(m)
+}
+const nucleusGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: GLOW_TEX, color: 0x49f4ff, transparent: true, depthWrite: false,
+  blending: THREE.AdditiveBlending, opacity: 0.85,
+}))
+nucleusGlow.scale.setScalar(2.3)
+nucleus.add(nucleusGlow)
+atom.add(nucleus)
+
+const nucleusPick = new THREE.Mesh(new THREE.SphereGeometry(0.62, 12, 10), new THREE.MeshBasicMaterial({ visible: false }))
+atom.add(nucleusPick)
+PICKABLE.push({ mesh: nucleusPick, kind: 'atom', group: atom, spin: null, cloud: null, glow: nucleusGlow, core: nucleusCore, ring: null, tip: null })
+
+/* 7.2 四层同心能级轨道（各自不同倾角，便于观察跃迁） */
+const shells = []
+const shellGroup = new THREE.Group()
+atom.add(shellGroup)
+LEVELS.forEach((lv, i) => {
+  const grp = new THREE.Group()
+  grp.rotation.set(Math.PI / 2 + (i - 1.5) * 0.42, 0, i * 0.55)
+  const mat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(lv.color),
+    transparent: true,
+    opacity: i === 0 ? 0.85 : 0.2,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  })
+  const haloMat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(lv.color),
+    transparent: true,
+    opacity: 0.06,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  })
+  grp.add(new THREE.Mesh(new THREE.TorusGeometry(lv.radius, 0.012, 6, 160), mat))
+  grp.add(new THREE.Mesh(new THREE.TorusGeometry(lv.radius, 0.05, 6, 160), haloMat))
+  shellGroup.add(grp)
+  shells.push({
+    group: grp,
+    mat,
+    haloMat,
+    quat: new THREE.Quaternion().setFromEuler(grp.rotation),
+    radius: lv.radius,
+    dir: i % 2 === 0 ? 1 : -1,
+  })
+})
+
+/* 7.3 电子：亮点 + 辉光 + 尾迹 */
+const electronGroup = new THREE.Group()
+atom.add(electronGroup)
+const electron = new THREE.Mesh(new THREE.SphereGeometry(CONFIG.atom.electronRadius, 16, 12), new THREE.MeshBasicMaterial({ color: 0xf2ffff }))
+const electronGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: GLOW_TEX, color: 0x9ff8ff, transparent: true, depthWrite: false,
+  blending: THREE.AdditiveBlending, opacity: 0.9,
+}))
+electronGlow.scale.setScalar(0.85)
+electronGroup.add(electron, electronGlow)
+
+const trailCount = CONFIG.atom.trailLength
+const trailGeo = new THREE.BufferGeometry()
+trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(trailCount * 3), 3))
+const trail = new THREE.Line(
+  trailGeo,
+  new THREE.LineBasicMaterial({ color: 0x7ff0ff, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }),
+)
+trail.frustumCulled = false
+atom.add(trail)
+const trailPositions = trailGeo.attributes.position.array
+
+/* 7.4 光子波包：多层菲涅尔球壳 + 冲击环 + 径向粒子 */
+const photonFX = { age: 0, active: false, shells: [], rings: [] }
+const unitSphere = new THREE.IcosahedronGeometry(1, 3)
+const unitPlane = new THREE.PlaneGeometry(1, 1)
+for (let i = 0; i < 3; i += 1) {
+  const mat = makeShaderMaterial('photonShell', { uProgress: 1, uColor: new THREE.Color(CONFIG.colors.cyan), uOpacity: 0 }, { ...ADDITIVE, side: THREE.DoubleSide })
+  const mesh = new THREE.Mesh(unitSphere, mat)
+  mesh.visible = false
+  atom.add(mesh)
+  photonFX.shells.push({ mesh, mat, offset: i * 0.14, base: 0 })
+}
+for (let i = 0; i < 2; i += 1) {
+  const mat = makeShaderMaterial('ripple', { uProgress: 1, uColor: new THREE.Color(CONFIG.colors.cyan), uOpacity: 0 }, { ...ADDITIVE, side: THREE.DoubleSide })
+  const mesh = new THREE.Mesh(unitPlane, mat)
+  mesh.visible = false
+  atom.add(mesh)
+  photonFX.rings.push({ mesh, mat, offset: 0.05 + i * 0.12, base: 0 })
+}
+
+const BURST_N = Math.max(200, Math.round(1400 * QUALITY))
+const burstGeo = new THREE.BufferGeometry()
+{
+  const pos = new Float32Array(BURST_N * 3)
+  const vel = new Float32Array(BURST_N * 3)
+  const seed = new Float32Array(BURST_N)
+  const size = new Float32Array(BURST_N)
+  for (let i = 0; i < BURST_N; i += 1) {
+    const u = Math.random() * 2 - 1
+    const theta = Math.random() * TAU
+    const s = Math.sqrt(1 - u * u)
+    const v = Math.pow(Math.random(), 0.5)
+    vel[i * 3] = s * Math.cos(theta) * v
+    vel[i * 3 + 1] = u * v
+    vel[i * 3 + 2] = s * Math.sin(theta) * v
+    seed[i] = Math.random()
+    size[i] = 0.7 + Math.random() * 2.2
+  }
+  burstGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  burstGeo.setAttribute('aVel', new THREE.BufferAttribute(vel, 3))
+  burstGeo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1))
+  burstGeo.setAttribute('aSize', new THREE.BufferAttribute(size, 1))
+  burstGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 14)
+}
+const burstMat = makeShaderMaterial('burst', {
+  uAge: 0,
+  uLife: CONFIG.atom.photonLife,
+  uSpeed: CONFIG.atom.photonMaxRadius,
+  uSizeScale: 1,
+  uOpacity: 0,
+  uOrigin: new THREE.Vector3(),
+  uColor: new THREE.Color(CONFIG.colors.cyan),
+}, { ...ADDITIVE })
+const burst = new THREE.Points(burstGeo, burstMat)
+burst.frustumCulled = false
+burst.visible = false
+atom.add(burst)
+
+/* 7.5 涟漪池（事件驱动的对象复用，循环内不新建对象） */
+const RIPPLE_POOL = 12
+const ripples = []
+for (let i = 0; i < RIPPLE_POOL; i += 1) {
+  const mat = makeShaderMaterial('ripple', { uProgress: 1, uColor: new THREE.Color(CONFIG.colors.cyan), uOpacity: 0 }, { ...ADDITIVE, side: THREE.DoubleSide })
+  const mesh = new THREE.Mesh(unitPlane, mat)
+  mesh.visible = false
+  scene.add(mesh)
+  ripples.push({ mesh, mat, active: false, progress: 0, life: CONFIG.entangle.rippleLife, size: 1 })
+}
+let rippleCursor = 0
+
+function spawnRipple(x, y, z, colorHex, size) {
+  const r = ripples[rippleCursor]
+  rippleCursor = (rippleCursor + 1) % RIPPLE_POOL
+  r.active = true
+  r.progress = 0
+  r.size = size
+  r.mesh.visible = true
+  r.mesh.position.set(x, y, z)
+  r.mat.uniforms.uColor.value.set(colorHex)
+  r.mat.uniforms.uOpacity.value = 0.95
+}
+
+/* ==========================================================================
+ * 8. 背景星尘
+ * ========================================================================*/
+const STAR_N = Math.max(900, Math.round(4200 * QUALITY))
+const starGeo = new THREE.BufferGeometry()
+{
+  const pos = new Float32Array(STAR_N * 3)
+  const seed = new Float32Array(STAR_N)
+  const size = new Float32Array(STAR_N)
+  for (let i = 0; i < STAR_N; i += 1) {
+    const u = Math.random() * 2 - 1
+    const theta = Math.random() * TAU
+    const s = Math.sqrt(1 - u * u)
+    const r = 26 + Math.random() * 54
+    pos[i * 3] = s * Math.cos(theta) * r
+    pos[i * 3 + 1] = u * r * 0.75
+    pos[i * 3 + 2] = s * Math.sin(theta) * r
+    seed[i] = Math.random()
+    size[i] = 0.6 + Math.random() * 2
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  starGeo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1))
+  starGeo.setAttribute('aSize', new THREE.BufferAttribute(size, 1))
+}
+const starMat = makeShaderMaterial('starfield', {
+  uTime: 0,
+  uSizeScale: 1,
+  uOpacity: 0.85,
+  uColorA: new THREE.Color(CONFIG.colors.cyan),
+  uColorB: new THREE.Color(CONFIG.colors.magenta),
+}, { ...ADDITIVE })
+const stars = new THREE.Points(starGeo, starMat)
+stars.frustumCulled = false
+scene.add(stars)
+
+/* ==========================================================================
+ * 9. 后期处理
+ * ========================================================================*/
+const composer = new EffectComposer(renderer)
+composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, DPR_CAP))
+composer.setSize(window.innerWidth, window.innerHeight)
+composer.addPass(new RenderPass(scene, camera))
+
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  LOW_SPEC ? CONFIG.render.lowSpec.bloomStrength : CONFIG.render.bloom.strength,
+  CONFIG.render.bloom.radius,
+  CONFIG.render.bloom.threshold,
+)
+composer.addPass(bloomPass)
+composer.addPass(new OutputPass())
+
+/* 后期 pass 直接复用同一个 ShaderMaterial（ShaderPass 传入普通 shader 对象会深拷贝 uniforms，
+   那样外部 gsap 动画就改不到生效值），因此这里把材质交给 ShaderPass，uniforms 为同一引用 */
+const chromaMaterial = makeShaderMaterial('chroma', {
+  tDiffuse: null,
+  uTime: 0,
+  uAberration: CONFIG.render.post.aberration,
+  uNoise: 0,
+  uScan: CONFIG.render.post.scan,
+  uVignette: CONFIG.render.post.vignette,
+  uResolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
+}, { depthTest: false, depthWrite: false })
+const chromaUniforms = chromaMaterial.uniforms
+const chromaPass = new ShaderPass(chromaMaterial)
+composer.addPass(chromaPass)
+
+/* ==========================================================================
+ * 10. 运行时状态（GSAP 阻尼平滑的载体）
+ * ========================================================================*/
+const state = {
+  time: 0,
+
+  /* 纠缠区 */
+  spinAz: 0,                          // 自旋方向方位角（rad）
+  spinTilt: Math.PI / 2,              // 自旋方向与 +Y 的夹角
+  spinAzDisp: 0,
+  spinTiltDisp: Math.PI / 2,
+  tremble: 0,                         // 能量弦震颤 0..1
+  trembleDisp: 0,
+  dragSpeed: 0,                       // 拖动角速度（rad/s）
+  rippleAcc: 0,
+  collapseA: 0,                       // 粒子 A 概率云坍缩度 0..1
+  collapseB: 0,
+  observeTarget: null,                // 正在观测的对象：'A' | 'B' | 'atom' | null
+
+  /* 跃迁区 */
+  energy: 0,                          // 注入能量 τ
+  energyDisp: 0,
+  level: 0,                           // 能级索引
+  orbitAngle: 0,
+  jumpCooldown: 0,
+  photons: 0,
+  lastPhotonHex: '#00f0ff',
+  lastLambda: 0,
+
+  /* 旋钮 */
+  knobRaw: 0,                         // 累积角度
+  knobDisp: 0,
+  knobSpin: 0,
+
+  /* 相机 */
+  camTheta: CONFIG.camera.theta,
+  camPhi: CONFIG.camera.phi,
+  camRadius: CONFIG.camera.radius,
+  targetTheta: CONFIG.camera.theta,
+  targetPhi: CONFIG.camera.phi,
+  targetRadius: CONFIG.camera.radius,
+
+  /* 交互 */
+  dragging: false,
+  orbiting: false,
+  mode: null,                         // 'orbit' | 'spin' | null
+  activeParticle: null,
+  pointerX: 0,
+  pointerY: 0,
+  lastPointerAt: 0,
+  fps: 60,
+}
+
+/* ==========================================================================
+ * 11. HUD 引用与初始化
+ * ========================================================================*/
+const byId = (id) => document.getElementById(id)
+const UI = {
+  status: byId('qm-status'),
+  corr: byId('qm-corr'),
+  basis: byId('qm-basis'),
+  tremble: byId('qm-tremble'),
+  level: byId('qm-level'),
+  shell: byId('qm-shell'),
+  levels: byId('qm-levels'),
+  energyBar: byId('qm-energy-bar'),
+  energy: byId('qm-energy'),
+  photonChip: byId('qm-photon-chip'),
+  photonCount: byId('qm-photon-count'),
+  photonLambda: byId('qm-photon-lambda'),
+  measures: byId('qm-measures'),
+  bellFill: byId('qm-bell-fill'),
+  bellNeedle: byId('qm-bell-needle'),
+  bellSpark: byId('qm-bell-spark'),
+  verdict: byId('qm-verdict'),
+  fps: byId('qm-fps'),
+  knobBox: byId('qm-knob-box'),
+  knob: byId('qm-knob'),
+  knobTicks: byId('qm-knob-ticks'),
+  knobArc: byId('qm-knob-arc'),
+  knobPtr: byId('qm-knob-ptr'),
+  knobPct: byId('qm-knob-pct'),
+  knobDir: byId('qm-knob-dir'),
+  tip: byId('qm-tip'),
+  tipTitle: byId('qm-tip-title'),
+  tipBody: byId('qm-tip-body'),
+  flash: byId('qm-flash'),
+  boot: byId('qm-boot'),
+}
+
+/* 11.1 旋钮刻度（SVG 生成，带刻度与发光指针） */
+const KNOB_CX = 120
+const KNOB_CY = 120
+const KNOB_R = 80
+const KNOB_CIRC = TAU * KNOB_R
+const SVG_NS = 'http://www.w3.org/2000/svg'
+for (let i = 0; i < 60; i += 1) {
+  const a = (i / 60) * TAU - Math.PI / 2
+  const major = i % 5 === 0
+  const r1 = 95
+  const r2 = major ? 86 : 90
+  const line = document.createElementNS(SVG_NS, 'line')
+  line.setAttribute('x1', String(KNOB_CX + Math.cos(a) * r1))
+  line.setAttribute('y1', String(KNOB_CY + Math.sin(a) * r1))
+  line.setAttribute('x2', String(KNOB_CX + Math.cos(a) * r2))
+  line.setAttribute('y2', String(KNOB_CY + Math.sin(a) * r2))
+  line.setAttribute('stroke-width', major ? '2' : '1')
+  line.setAttribute('transform', 'rotate(' + ((i / 60) * 360).toFixed(2) + ' 120 120)')
+  if (major) line.setAttribute('class', 'is-major')
+  UI.knobTicks.appendChild(line)
+}
+
+/* 11.2 能级指示格 */
+const levelDots = LEVELS.map((lv) => {
+  const d = document.createElement('i')
+  d.className = 'qm-level-dot'
+  d.dataset.n = String(lv.n)
+  UI.levels.appendChild(d)
+  return d
+})
+
+/* 11.3 GSAP 阻尼平滑（拖拽速度 / 能量 / 自旋角） */
+const toTremble = gsap.quickTo(state, 'trembleDisp', { duration: CONFIG.anim.trembleDamp, ease: 'power3.out' })
+const toEnergy = gsap.quickTo(state, 'energyDisp', { duration: CONFIG.knob.damp, ease: 'power2.out' })
+const toSpinAz = gsap.quickTo(state, 'spinAzDisp', { duration: CONFIG.anim.spinDamp, ease: 'power2.out' })
+const toSpinTilt = gsap.quickTo(state, 'spinTiltDisp', { duration: CONFIG.anim.spinDamp, ease: 'power2.out' })
+const toKnob = gsap.quickTo(state, 'knobDisp', { duration: CONFIG.knob.damp, ease: 'power2.out' })
+const toBloom = gsap.quickTo(bloomPass, 'strength', { duration: 0.5, ease: 'power2.out' })
+
+/* ==========================================================================
+ * 12. 贝尔不等式测试：测量与统计
+ * ========================================================================*/
+const bell = {
+  corr: [0, 0, 0, 0],       // E(a,b) / E(a,b′) / E(a′,b) / E(a′,b′)
+  count: [0, 0, 0, 0],
+  samples: 0,
+  lastS: 0,
+  basisIndex: 0,
+  history: [],
+}
+const SET_A = CONFIG.bell.settingsA.map(degToRad)
+const SET_B = CONFIG.bell.settingsB.map(degToRad)
+
+/** 一次联合测量事件：累加样本并更新统计量 */
+function runMeasurement(sampleCount) {
+  for (let k = 0; k < sampleCount; k += 1) {
+    const i = k % 4
+    const a = SET_A[i < 2 ? 0 : 1]
+    const b = SET_B[i % 2]
+    const pair = sampleEntangledPair(a, b)
+    const prod = pair[0] * pair[1]
+    bell.corr[i] = (bell.corr[i] * bell.count[i] + prod) / (bell.count[i] + 1)
+    bell.count[i] += 1
+  }
+  bell.samples += sampleCount
+  bell.basisIndex = (bell.basisIndex + 1) % 4
+  const s = chshValue(bell.corr)
+  bell.lastS = Math.abs(s)
+  bell.history.push(bell.lastS)
+  if (bell.history.length > CONFIG.bell.historyLength) bell.history.shift()
+  // 测量也会扰动观测对象：双侧镜像涟漪
+  spawnRipple(AX, EY, 0, CONFIG.colors.A, 1.5)
+  spawnRipple(BX, EY, 0, CONFIG.colors.B, 1.5)
+  setStatus('联合测量 · JOINT MEASURE #' + bell.samples, '')
+  paintBell()
+}
+
+/** 贝尔仪表 + 迷你折线 */
+let sparkCtx = null
+function paintBell() {
+  const limit = CONFIG.bell.quantumLimit
+  const pct = clamp01(bell.lastS / limit) * 100
+  UI.bellFill.style.width = pct.toFixed(1) + '%'
+  UI.bellNeedle.style.left = pct.toFixed(2) + '%'
+  UI.measures.textContent = 'N = ' + bell.samples
+
+  if (bell.samples < 8) {
+    UI.verdict.textContent = '等待测量 · 拖动粒子后松开即完成一次联合测量'
+    UI.verdict.className = 'qm-verdict'
+  } else if (bell.lastS < 1.6) {
+    UI.verdict.textContent = '关联偏弱 · 继续测量让统计量收敛'
+    UI.verdict.className = 'qm-verdict'
+  } else if (bell.lastS < CONFIG.bell.classicalBound) {
+    UI.verdict.textContent = '|S| = ' + bell.lastS.toFixed(3) + ' < 2 · 尚未违反贝尔不等式'
+    UI.verdict.className = 'qm-verdict'
+  } else if (bell.lastS < 2.6) {
+    UI.verdict.textContent = '|S| = ' + bell.lastS.toFixed(3) + ' > 2 · 已排除局域实在论'
+    UI.verdict.className = 'qm-verdict is-broken'
+  } else {
+    UI.verdict.textContent = '|S| = ' + bell.lastS.toFixed(3) + ' → 逼近量子极限 2√2 ≈ 2.828'
+    UI.verdict.className = 'qm-verdict is-quantum'
+  }
+
+  const ctx = sparkCtx || (sparkCtx = UI.bellSpark.getContext('2d'))
+  const w = UI.bellSpark.width
+  const h = UI.bellSpark.height
+  ctx.clearRect(0, 0, w, h)
+  ctx.strokeStyle = 'rgba(255,194,74,0.55)'
+  ctx.setLineDash([6, 6])
+  ctx.lineWidth = 2
+  const yClassical = h - (CONFIG.bell.classicalBound / limit) * h
+  ctx.beginPath()
+  ctx.moveTo(0, yClassical)
+  ctx.lineTo(w, yClassical)
+  ctx.stroke()
+  ctx.setLineDash([])
+  ctx.strokeStyle = 'rgba(176,38,255,0.5)'
+  ctx.beginPath()
+  ctx.moveTo(0, 2)
+  ctx.lineTo(w, 2)
+  ctx.stroke()
+  if (bell.history.length > 1) {
+    ctx.strokeStyle = 'rgba(0,240,255,0.95)'
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    bell.history.forEach((v, i) => {
+      const x = (i / (CONFIG.bell.historyLength - 1)) * w
+      const y = h - clamp01(v / limit) * h
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    })
+    ctx.stroke()
+  }
+}
+
+/* ==========================================================================
+ * 13. 观测者效应 / 能级跃迁 / 光子发射
+ * ========================================================================*/
+let statusTimer = null
+function setStatus(text, cls) {
+  UI.status.textContent = text
+  UI.status.className = 'qm-status' + (cls ? ' ' + cls : '')
+  if (statusTimer) statusTimer.kill()
+  if (cls === 'is-warn' || cls === 'is-hot') {
+    statusTimer = gsap.delayedCall(CONFIG.anim.statusHold, () => {
+      UI.status.className = 'qm-status'
+      UI.status.textContent = '纠缠中 · ENTANGLED'
+    })
+  }
+}
+
+/** 屏幕相位噪点 + 色差闪烁 */
+function phaseFlash(strength) {
+  gsap.fromTo(UI.flash, { opacity: CONFIG.collapse.flash * strength }, { opacity: 0, duration: 0.7, ease: 'power2.out' })
+  gsap.fromTo(chromaUniforms.uNoise, { value: CONFIG.collapse.noise * strength }, { value: 0, duration: 0.75, ease: 'power2.out' })
+  gsap.fromTo(chromaUniforms.uAberration, { value: CONFIG.collapse.aberration * strength }, { value: CONFIG.render.post.aberration, duration: 0.9, ease: 'power2.out' })
+}
+
+/** 波函数坍缩：0.5s 内概率云收成亮点；松开后缓慢重新弥散 */
+function collapseParticle(kind) {
+  const key = kind === 'A' ? 'collapseA' : 'collapseB'
+  state.observeTarget = kind
+  gsap.killTweensOf(state, key)
+  gsap.to(state, { [key]: 1, duration: CONFIG.collapse.inDuration, ease: 'power3.in' })
+  const p = kind === 'A' ? partA : partB
+  // 概率云收紧 → 中心亮点放大（辉光缩放本身由主循环按 collapse 驱动）
+  gsap.fromTo(p.core.scale, { x: 1, y: 1, z: 1 }, { x: 1.7, y: 1.7, z: 1.7, duration: 0.42, ease: 'power3.out' })
+  spawnRipple(kind === 'A' ? AX : BX, EY, 0, 0xffffff, 1.1)
+  phaseFlash(1)
+  setStatus('波函数坍缩 · COLLAPSED (' + kind + ')', 'is-hot')
+}
+
+function releaseParticle(kind) {
+  const key = kind === 'A' ? 'collapseA' : 'collapseB'
+  gsap.killTweensOf(state, key)
+  gsap.to(state, { [key]: 0, duration: CONFIG.collapse.outDuration, ease: 'power2.out' })
+  const p = kind === 'A' ? partA : partB
+  gsap.to(p.core.scale, { x: 1, y: 1, z: 1, duration: 1.4, ease: 'power2.out' })
+  state.observeTarget = null
+}
+
+/** 电子跃迁：沿轨道无过渡地「闪现」，并放出光子波包 */
+function jumpTo(nextLevel, prevLevel) {
+  const gap = levelGap(LEVELS, prevLevel, nextLevel)
+  const up = nextLevel > prevLevel
+  const photon = photonColorFor(gap, MAX_LEVEL_GAP)
+  const lv = LEVELS[nextLevel]
+
+  state.level = nextLevel
+  state.jumpCooldown = CONFIG.atom.jumpCooldown
+  state.orbitAngle = Math.atan2(electronGroup.position.z, electronGroup.position.x)   // 保持相位，位置瞬间切换
+
+  // 电子闪现：短暂熄灭再点亮（无过渡）
+  electron.visible = false
+  electronGlow.visible = false
+  gsap.delayedCall(0.045, () => {
+    electron.visible = true
+    electronGlow.visible = true
+  })
+  gsap.fromTo(electronGlow.scale, { x: 2.6, y: 2.6, z: 2.6 }, { x: 0.85, y: 0.85, z: 0.85, duration: 0.6, ease: 'power2.out' })
+  // 能级轨道亮度由主循环按 state.level 平滑过渡，此处不另开补间
+
+  // 光子波包向外扩散（向上跃迁 = 吸收光子；回落 = 释放对应颜色的光子）
+  emitPhoton(photon.hex, up ? 1.15 : 0.85, up)
+
+  if (!up) {
+    state.photons += 1
+    state.lastPhotonHex = photon.hex
+    state.lastLambda = photon.lambda
+    UI.photonChip.style.background = photon.hex
+    UI.photonChip.style.color = photon.hex
+    setStatus('释放光子 λ ≈ ' + photon.lambda + 'nm · PHOTON EMITTED', 'is-warn')
+  } else {
+    setStatus('电子跃迁 n=' + LEVELS[prevLevel].n + ' → n=' + lv.n + ' · QUANTUM JUMP', 'is-hot')
+  }
+
+  bloomFlash(up ? 1.5 : 1.1)
+  if (!up) phaseFlash(0.45)
+}
+
+/** 光子波包：多层球壳 + 冲击环 + 径向粒子，颜色由能级差决定 */
+function emitPhoton(hex, strength, absorb) {
+  photonFX.age = 0
+  photonFX.active = true
+  burst.visible = true
+  burstMat.uniforms.uOrigin.value.copy(electronGroup.position)   // 光子自电子当前所在位置向外扩散
+  burstMat.uniforms.uColor.value.set(hex)
+  burstMat.uniforms.uSpeed.value = CONFIG.atom.photonMaxRadius * (absorb ? 0.75 : 1)
+  burstMat.uniforms.uOpacity.value = 1
+  photonFX.shells.forEach((s) => {
+    s.mesh.visible = true
+    s.base = strength
+    s.mat.uniforms.uColor.value.set(hex)
+    s.mat.uniforms.uOpacity.value = strength
+  })
+  photonFX.rings.forEach((r) => {
+    r.mesh.visible = true
+    r.base = strength * 0.9
+    r.mat.uniforms.uColor.value.set(hex)
+    r.mat.uniforms.uOpacity.value = strength * 0.9
+  })
+}
+
+function bloomFlash(strength) {
+  toBloom(CONFIG.render.bloom.strength + 0.55 * strength)
+  gsap.delayedCall(0.5, () => toBloom(CONFIG.render.bloom.strength))
+}
+
+/* ==========================================================================
+ * 14. 交互：Raycaster 拾取 / 拖拽自旋 / 旋钮 / 键盘
+ * ========================================================================*/
+const raycaster = new THREE.Raycaster()
+const pointerNdc = new THREE.Vector2(-2, -2)
+const mouseNorm = { x: 0, y: 0 }
+const pickTargets = PICKABLE.map((p) => p.mesh)
+
+const TIPS = {
+  A: {
+    title: '为什么这不是超光速通信？',
+    body: 'A 与 B 的自旋关联在测量前并不「存在」——它们共用同一个不可分解的态。改变 A 的测量方向，B 的统计规律随之确定，但你无法据此向远方传递任何消息：想知道 A 测到了什么，仍要靠常规信道把结果送过来。',
+  },
+  B: {
+    title: '关联 ≠ 信号',
+    body: 'B 之所以瞬时呈现相反自旋，是因为两者的结果在量子态层面被绑定，而不是 B「收到」了来自 A 的通知。单边看 B 的读数始终是各半的随机序列——它不含任何可用信息。',
+  },
+  atom: {
+    title: '跃迁为什么是「闪现」？',
+    body: '能级是原子的定态，电子没有「中间高度」可停留。能量一次性地被光子带走或补足，因此跃迁表现为状态的瞬间重排，而不是一段可见的位移过程。',
+  },
+  knob: {
+    title: '注入能量 = 光子吸收',
+    body: '旋钮把能量按拖动角度与速度累积注入。能量达到能级差阈值时，原子吸收相应能量的光子并跃迁到高能级；能量回落则反向放出一颗对应颜色的光子，能级差越大波长越短、颜色越偏蓝紫。',
+  },
+}
+
+function showTip(kind, x, y) {
+  const t = TIPS[kind]
+  if (!t) return
+  UI.tipTitle.textContent = t.title
+  UI.tipBody.textContent = t.body
+  UI.tip.style.left = clamp(x, 150, window.innerWidth - 150) + 'px'
+  UI.tip.style.top = clamp(y, 150, window.innerHeight - 40) + 'px'
+  UI.tip.classList.add('is-on')
+}
+
+function hideTip() {
+  UI.tip.classList.remove('is-on')
+}
+
+function updatePointer(e) {
+  state.pointerX = e.clientX
+  state.pointerY = e.clientY
+  pointerNdc.x = (e.clientX / window.innerWidth) * 2 - 1
+  pointerNdc.y = -(e.clientY / window.innerHeight) * 2 + 1
+  mouseNorm.x = pointerNdc.x
+  mouseNorm.y = pointerNdc.y
+}
+
+function raycastParticle() {
+  raycaster.setFromCamera(pointerNdc, camera)
+  const hits = raycaster.intersectObjects(pickTargets, false)
+  if (!hits.length) return null
+  const mesh = hits[0].object
+  const handle = PICKABLE.find((p) => p.mesh === mesh)
+  return handle || null
+}
+
+/** 拖拽粒子：自旋方向 1:1 跟随，B 瞬时取反；速度越快能量弦震颤越强 */
+function applySpinDrag(dx, dy, now) {
+  const cfg = CONFIG.entangle
+  const dAz = dx * cfg.spinGain
+  const dTilt = dy * cfg.tiltGain
+  // 方位角不取模，避免阻尼插值时绕整圈；三角函数本身对任意角周期成立
+  state.spinAz += dAz
+  state.spinTilt = clamp(state.spinTilt + dTilt, 0.3, Math.PI - 0.3)
+  toSpinAz(state.spinAz)
+  toSpinTilt(state.spinTilt)
+
+  const dt = Math.max(0.008, (now - state.lastPointerAt) / 1000)
+  state.dragSpeed = Math.hypot(dAz, dTilt) / dt
+  const t = trembleFromSpeed(state.dragSpeed, cfg.trembleRef, 1)
+  toTremble(t)
+  toBloom(CONFIG.render.bloom.strength + t * 0.8)
+
+  const step = rippleAccumulator(state.rippleAcc, Math.hypot(dAz, dTilt), cfg.rippleGap)
+  state.rippleAcc = step.acc
+  if (step.fired) {
+    spawnRipple(AX, EY, 0, CONFIG.colors.A, 1.35)
+    spawnRipple(BX, EY, 0, CONFIG.colors.B, 1.35)   // 镜像涟漪
+  }
+  state.lastPointerAt = now
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0 && e.pointerType === 'mouse') return
+  canvas.setPointerCapture?.(e.pointerId)
+  updatePointer(e)
+  state.lastPointerAt = performance.now()
+
+  const hit = raycastParticle()
+  if (hit && (hit.kind === 'A' || hit.kind === 'B')) {
+    state.mode = 'spin'
+    state.activeParticle = hit.kind
+    collapseParticle(hit.kind)                     // 观测者效应：按下即坍缩
+  } else {
+    if (hit && hit.kind === 'atom') {
+      runMeasurement(CONFIG.bell.samplesPerMeasure)
+      phaseFlash(0.6)
+    }
+    state.mode = 'orbit'
+    state.orbitX = e.clientX
+    state.orbitY = e.clientY
+  }
+})
+
+canvas.addEventListener('pointermove', (e) => {
+  const now = performance.now()
+  const prevX = state.pointerX
+  const prevY = state.pointerY
+  updatePointer(e)
+
+  if (state.mode === 'spin') {
+    const dx = e.movementX || e.clientX - prevX
+    const dy = e.movementY || e.clientY - prevY
+    applySpinDrag(dx, dy, now)
+    hideTip()
+    return
+  }
+
+  if (state.mode === 'orbit') {
+    const dx = e.clientX - state.orbitX
+    const dy = e.clientY - state.orbitY
+    state.orbitX = e.clientX
+    state.orbitY = e.clientY
+    state.targetTheta -= dx * 0.0052
+    state.targetPhi = clamp(state.targetPhi - dy * 0.0042, CONFIG.camera.phiRange[0], CONFIG.camera.phiRange[1])
+    hideTip()
+    return
+  }
+
+  // 悬停：科普气泡
+  const hit = raycastParticle()
+  if (hit && (hit.kind === 'A' || hit.kind === 'B')) {
+    canvas.style.cursor = 'grab'
+    showTip(hit.kind, e.clientX, e.clientY - 26)
+  } else if (hit && hit.kind === 'atom') {
+    canvas.style.cursor = 'pointer'
+    showTip('atom', e.clientX, e.clientY - 26)
+  } else {
+    canvas.style.cursor = 'default'
+    hideTip()
+  }
+})
+
+function endPointer() {
+  if (state.mode === 'spin' && state.activeParticle) {
+    releaseParticle(state.activeParticle)          // 松开：概率云缓慢重新弥散
+    runMeasurement(CONFIG.bell.samplesPerMeasure)  // 一次联合测量
+    state.activeParticle = null
+  }
+  state.mode = null
+  state.dragSpeed = 0
+  toTremble(0)
+  toBloom(CONFIG.render.bloom.strength)
+}
+canvas.addEventListener('pointerup', endPointer)
+canvas.addEventListener('pointercancel', endPointer)
+
+/* 14.1 能量注入旋钮（SVG 绘制，带刻度与发光指针） */
+const knobState = { dragging: false, lastAngle: 0, lastAt: 0, dir: 0 }
+
+function knobAngleAt(e) {
+  const rect = UI.knob.getBoundingClientRect()
+  return Math.atan2(e.clientY - (rect.top + rect.height / 2), e.clientX - (rect.left + rect.width / 2))
+}
+
+function knobInject(deltaRad, speed) {
+  const cfg = { ...CONFIG.knob, max: CONFIG.atom.energyMax }
+  state.energy = accumulateEnergy(state.energy, deltaRad, speed, cfg)
+  state.knobRaw += deltaRad
+  toKnob(state.knobRaw)
+  toEnergy(state.energy)
+  knobState.dir = Math.sign(deltaRad)
+  UI.knobDir.textContent = knobState.dir >= 0 ? '顺时针注入 · INJECT' : '逆时针泄能 · DUMP'
+}
+
+UI.knobBox.addEventListener('pointerdown', (e) => {
+  knobState.dragging = true
+  knobState.lastAngle = knobAngleAt(e)
+  knobState.lastAt = performance.now()
+  UI.knobBox.classList.add('is-drag')
+  UI.knobBox.setPointerCapture?.(e.pointerId)
+  hideTip()
+  e.preventDefault()
+})
+
+UI.knobBox.addEventListener('pointermove', (e) => {
+  if (!knobState.dragging) return
+  const now = performance.now()
+  const angle = knobAngleAt(e)
+  const delta = shortestAngleDelta(knobState.lastAngle, angle)
+  const dt = Math.max(0.008, (now - knobState.lastAt) / 1000)
+  knobInject(delta, Math.abs(delta) / dt)
+  knobState.lastAngle = angle
+  knobState.lastAt = now
+})
+
+function knobRelease(e) {
+  if (!knobState.dragging) return
+  knobState.dragging = false
+  UI.knobBox.classList.remove('is-drag')
+  runMeasurement(CONFIG.bell.samplesPerMeasure)
+  e?.preventDefault?.()
+}
+UI.knobBox.addEventListener('pointerup', knobRelease)
+UI.knobBox.addEventListener('pointercancel', knobRelease)
+
+UI.knobBox.addEventListener('wheel', (e) => {
+  e.preventDefault()
+  const step = -Math.sign(e.deltaY) * CONFIG.knob.wheelStep
+  state.energy = clamp(state.energy + step, 0, CONFIG.atom.energyMax)
+  state.knobRaw += (step / CONFIG.knob.perRadian) * 0.6
+  toKnob(state.knobRaw)
+  toEnergy(state.energy)
+  knobState.dir = Math.sign(step)
+  UI.knobDir.textContent = knobState.dir >= 0 ? '注入 · INJECT' : '泄能 · DUMP'
+}, { passive: false })
+
+UI.knobBox.addEventListener('pointerenter', () => showTip('knob', window.innerWidth / 2, UI.knobBox.getBoundingClientRect().top - 10))
+UI.knobBox.addEventListener('pointerleave', hideTip)
+
+/* 14.2 键盘：空格观测 / ↑↓ 注能 / R 复位 */
+const keys = Object.create(null)
+window.addEventListener('keydown', (e) => {
+  keys[e.code] = true
+  if (e.code === 'Space') {
+    e.preventDefault()
+    const kind = state.observeTarget === 'A' ? 'B' : 'A'
+    collapseParticle(kind)
+    gsap.delayedCall(CONFIG.collapse.inDuration + 0.35, () => {
+      releaseParticle(kind)
+      runMeasurement(CONFIG.bell.samplesPerMeasure)
+    })
+  }
+  if (e.code === 'KeyR') resetAll()
+})
+window.addEventListener('keyup', (e) => {
+  keys[e.code] = false
+})
+
+/* ==========================================================================
+ * 15. 复位 / 尺寸自适应 / 点尺寸换算
+ * ========================================================================*/
+function resetAll() {
+  state.spinAz = 0
+  state.spinTilt = Math.PI / 2
+  state.energy = 0
+  state.photons = 0
+  state.dragSpeed = 0
+  toSpinAz(0)
+  toSpinTilt(Math.PI / 2)
+  toTremble(0)
+  toEnergy(0)
+  bell.corr = [0, 0, 0, 0]
+  bell.count = [0, 0, 0, 0]
+  bell.samples = 0
+  bell.history.length = 0
+  bell.lastS = 0
+  if (state.level !== 0) jumpTo(0, state.level)
+  else {
+    state.level = 0
+    shells[0].mat.opacity = 0.85
+  }
+  paintBell()
+  setStatus('观测台复位 · RESET', '')
+  phaseFlash(0.4)
+}
+
+/** gl_PointSize 使用设备像素：把世界尺度换算成像素（像素比上限 2，随窗口自适应） */
+function updatePointScales() {
+  const deviceH = window.innerHeight * renderer.getPixelRatio()
+  const base = (deviceH * 0.5) / Math.tan(degToRad(CONFIG.camera.fov / 2))
+  const k = CONFIG.render.pointScale
+  partA.cloud.material.uniforms.uSizeScale.value = base * k.cloud
+  partB.cloud.material.uniforms.uSizeScale.value = base * k.cloud
+  streamMat.uniforms.uSizeScale.value = base * k.stream
+  burstMat.uniforms.uSizeScale.value = base * k.burst
+  starMat.uniforms.uSizeScale.value = base * k.star
+}
+
+function onResize() {
+  const w = window.innerWidth
+  const h = window.innerHeight
+  camera.aspect = w / h
+  camera.updateProjectionMatrix()
+  const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP)
+  renderer.setPixelRatio(dpr)
+  renderer.setSize(w, h, false)
+  composer.setPixelRatio(dpr)
+  composer.setSize(w, h)
+  chromaUniforms.uResolution.value.set(w, h)
+  updatePointScales()
+}
+window.addEventListener('resize', onResize)
+window.addEventListener('orientationchange', onResize)
+
+/* ==========================================================================
+ * 16. HUD 渲染（节流到 ~10Hz，避免每帧触发排版）
+ * ========================================================================*/
+let hudAcc = 0
+let paintedLevel = -1
+let fpsAcc = 0
+let fpsFrames = 0
+
+function renderHUD(dt) {
+  fpsAcc += dt
+  fpsFrames += 1
+  hudAcc += dt
+  if (hudAcc < 0.1) return
+  hudAcc = 0
+  if (fpsAcc > 0.5) {
+    state.fps = fpsFrames / fpsAcc
+    UI.fps.textContent = state.fps.toFixed(0)
+    fpsAcc = 0
+    fpsFrames = 0
+  }
+
+  /* 纠缠区 */
+  const bi = bell.basisIndex
+  UI.corr.textContent = bell.samples > 0 ? bell.corr[bi].toFixed(3) : '0.000'
+  UI.basis.textContent = Math.round(radToDeg(SET_A[bi < 2 ? 0 : 1])) + '° / ' + Math.round(radToDeg(SET_B[bi % 2])) + '°'
+  UI.tremble.textContent = (state.trembleDisp * 9.6).toFixed(2)
+
+  /* 跃迁区 */
+  const lv = LEVELS[state.level]
+  const energyPct = clamp01(state.energyDisp / CONFIG.atom.energyMax) * 100
+  UI.level.textContent = String(lv.n)
+  UI.shell.textContent = lv.radius.toFixed(2) + ' a₀'
+  UI.energy.textContent = state.energyDisp.toFixed(2)
+  UI.energyBar.style.width = energyPct.toFixed(1) + '%'
+  UI.energy.className = 'qm-row-value' + (state.energy >= LEVELS[LEVELS.length - 1].need ? ' is-warm' : '')
+  UI.photonCount.textContent = String(state.photons)
+  UI.photonLambda.textContent = state.lastLambda ? String(state.lastLambda) : '—'
+
+  if (paintedLevel !== state.level) {
+    paintedLevel = state.level
+    levelDots.forEach((d, i) => d.classList.toggle('is-on', i <= state.level))
+  }
+
+  /* 旋钮 */
+  const knobPct = Math.round(energyPct)
+  UI.knobPct.textContent = String(knobPct)
+  UI.knob.setAttribute('aria-valuenow', knobPct.toFixed(0))
+  UI.knobArc.style.strokeDasharray = (clamp01(state.energyDisp / CONFIG.atom.energyMax) * KNOB_CIRC).toFixed(1) + ' ' + KNOB_CIRC.toFixed(1)
+  UI.knobArc.style.stroke = state.energy >= LEVELS[LEVELS.length - 1].need ? '#ffc24a' : 'var(--qm-cyan)'
+  UI.knobPtr.setAttribute('transform', 'rotate(' + (radToDeg(state.knobDisp) % 360).toFixed(2) + ' 120 120)')
+  if (!knobState.dragging && state.dragSpeed === 0 && !keys.ArrowUp && !keys.ArrowDown) {
+    UI.knobDir.textContent = state.observeTarget ? '观测坍缩中 · COLLAPSED' : '静止 · IDLE'
+  }
+}
+
+/* ==========================================================================
+ * 17. 主循环：gsap.ticker 统一驱动（内部即 requestAnimationFrame）
+ * ========================================================================*/
+let lastNow = performance.now()
+
+function updateCamera(dt) {
+  const k = 1 - Math.exp(-dt * 7)
+  state.camTheta += (state.targetTheta - state.camTheta) * k
+  state.camPhi += (state.targetPhi - state.camPhi) * k
+  state.camRadius += (state.targetRadius - state.camRadius) * k
+
+  const p = CONFIG.camera.parallax
+  const sp = Math.sin(state.camPhi)
+  const cp = Math.cos(state.camPhi)
+  TMP_V1.set(
+    CONFIG.camera.target[0] + state.camRadius * sp * Math.cos(state.camTheta) + mouseNorm.x * p,
+    CONFIG.camera.target[1] + state.camRadius * cp - mouseNorm.y * p * 0.5,
+    CONFIG.camera.target[2] + state.camRadius * sp * Math.sin(state.camTheta),
+  )
+  camera.position.lerp(TMP_V1, k)
+  camera.lookAt(CONFIG.camera.target[0], CONFIG.camera.target[1], CONFIG.camera.target[2])
+}
+
+function updateEntangle(dt) {
+  /* 自旋方向：A 由拖拽决定，B 恒取反 ⇒ 瞬时呈现相反自旋（镜像） */
+  const tilt = state.spinTiltDisp
+  const az = state.spinAzDisp
+  TMP_V1.set(Math.sin(tilt) * Math.cos(az), Math.cos(tilt), Math.sin(tilt) * Math.sin(az)).normalize()
+  TMP_Q.setFromUnitVectors(UP, TMP_V1)
+  partA.spin.quaternion.copy(TMP_Q)
+  TMP_V2.copy(TMP_V1).negate()
+  TMP_Q.setFromUnitVectors(UP, TMP_V2)
+  partB.spin.quaternion.copy(TMP_Q)
+
+  /* 环绕的小圈与粒子本体旋转 */
+  partA.ring.rotation.z += dt * 1.7
+  partB.ring.rotation.z -= dt * 1.7
+  partA.core.rotation.y += dt * 0.9
+  partB.core.rotation.y -= dt * 0.9
+
+  /* 概率云：跟随震颤与坍缩 */
+  const gain = state.trembleDisp
+  partA.cloud.material.uniforms.uTime.value = state.time
+  partA.cloud.material.uniforms.uGain.value = gain
+  partA.cloud.material.uniforms.uCollapse.value = state.collapseA
+  partB.cloud.material.uniforms.uTime.value = state.time
+  partB.cloud.material.uniforms.uGain.value = gain
+  partB.cloud.material.uniforms.uCollapse.value = state.collapseB
+
+  /* 坍缩亮点：云收紧时中心辉光增强 */
+  const glowA = 1 + state.collapseA * 1.1
+  partA.glow.scale.setScalar(2.6 * glowA)
+  partB.glow.scale.setScalar(2.6 * (1 + state.collapseB * 1.1))
+
+  /* 能量弦：震颤频率/亮度随拖动速度，扭转角随自旋方向 */
+  stringMat.uniforms.uTime.value = state.time
+  stringMat.uniforms.uTremble.value = gain
+  stringMat.uniforms.uTwist.value = state.spinAzDisp * 0.35
+  stringMat.uniforms.uCollapse.value = Math.max(state.collapseA, state.collapseB)
+  streamMat.uniforms.uTime.value = state.time
+  streamMat.uniforms.uTremble.value = gain
+  streamMat.uniforms.uSpeed.value = 0.26 + gain * 0.5
+  streamMat.uniforms.uCollapse.value = Math.max(state.collapseA, state.collapseB)
+}
+
+function updateAtom(dt) {
+  /* 键盘注入 / 泄能 */
+  if (keys.ArrowUp || keys.KeyW) {
+    state.energy = clamp(state.energy + CONFIG.knob.keyRate * dt, 0, CONFIG.atom.energyMax)
+    state.knobRaw += CONFIG.knob.keyRate * dt * 0.7
+    toKnob(state.knobRaw)
+    toEnergy(state.energy)
+  }
+  if (keys.ArrowDown || keys.KeyS) {
+    state.energy = clamp(state.energy - CONFIG.knob.keyRate * dt, 0, CONFIG.atom.energyMax)
+    state.knobRaw -= CONFIG.knob.keyRate * dt * 0.7
+    toKnob(state.knobRaw)
+    toEnergy(state.energy)
+  }
+
+  /* 能量自然回落 → 电子退回低能级并释放光子 */
+  state.energy = clamp(state.energy - CONFIG.atom.drain * dt, 0, CONFIG.atom.energyMax)
+
+  if (state.jumpCooldown > 0) state.jumpCooldown -= dt
+  else {
+    const next = resolveLevel(state.energy, state.level, LEVELS, CONFIG.atom.hysteresis)
+    if (next !== state.level) jumpTo(next, state.level)
+  }
+
+  /* 原子核 */
+  nucleus.rotation.y += dt * 0.32
+  nucleusCore.rotation.x += dt * 0.5
+  nucleusGlow.scale.setScalar(2.3 + Math.sin(state.time * 2.1) * 0.12)
+
+  /* 轨道整体慢转 + 电子沿当前能级轨道运行（ω ∝ 1/n^1.8） */
+  shellGroup.rotation.y += dt * 0.07
+  const lv = LEVELS[state.level]
+  state.orbitAngle += (dt * CONFIG.atom.orbitSpeed * 3.2) / Math.pow(lv.n, 1.8)
+  const r = lv.radius
+  TMP_V1.set(Math.cos(state.orbitAngle) * r, 0, Math.sin(state.orbitAngle) * r)
+    .applyQuaternion(shells[state.level].quat)
+    .applyQuaternion(shellGroup.quaternion)
+  electronGroup.position.copy(TMP_V1)
+  electron.rotation.y += dt * 3
+
+  /* 尾迹：整体前移一格 */
+  for (let i = trailCount - 1; i > 0; i -= 1) {
+    trailPositions[i * 3] = trailPositions[(i - 1) * 3]
+    trailPositions[i * 3 + 1] = trailPositions[(i - 1) * 3 + 1]
+    trailPositions[i * 3 + 2] = trailPositions[(i - 1) * 3 + 2]
+  }
+  trailPositions[0] = TMP_V1.x
+  trailPositions[1] = TMP_V1.y
+  trailPositions[2] = TMP_V1.z
+  trailGeo.attributes.position.needsUpdate = true
+
+  /* 能级轨道亮度：当前能级最亮 */
+  shells.forEach((sh, i) => {
+    const target = i === state.level ? 0.9 : 0.18
+    sh.mat.opacity += (target - sh.mat.opacity) * Math.min(1, dt * 5)
+  })
+}
+
+function updatePhoton(dt) {
+  if (!photonFX.active) return
+  photonFX.age += dt
+  const p = photonFX.age / CONFIG.atom.photonLife
+  for (const s of photonFX.shells) {
+    const prog = clamp01((p - s.offset) / 0.72)
+    s.mat.uniforms.uProgress.value = prog
+    s.mat.uniforms.uOpacity.value = clamp01(s.base * (1 - prog))
+    s.mesh.scale.setScalar(0.2 + prog * CONFIG.atom.photonMaxRadius * 0.6)
+  }
+  for (const rg of photonFX.rings) {
+    const prog = clamp01((p - rg.offset) / 0.8)
+    rg.mat.uniforms.uProgress.value = prog
+    rg.mat.uniforms.uOpacity.value = clamp01(rg.base * 0.9 * (1 - prog))
+    const sc = 0.5 + prog * CONFIG.atom.photonMaxRadius * 0.9
+    rg.mesh.scale.set(sc, sc, 1)
+    rg.mesh.quaternion.copy(camera.quaternion)     // 公告板
+  }
+  burstMat.uniforms.uAge.value = photonFX.age
+  if (p >= 1) {
+    photonFX.active = false
+    photonFX.shells.forEach((s) => { s.mesh.visible = false; s.mat.uniforms.uOpacity.value = 0 })
+    photonFX.rings.forEach((r) => { r.mesh.visible = false; r.mat.uniforms.uOpacity.value = 0 })
+    burst.visible = false
+    burstMat.uniforms.uOpacity.value = 0
+  }
+}
+
+function updateRipples(dt) {
+  for (const r of ripples) {
+    if (!r.active) continue
+    r.progress += dt / r.life
+    if (r.progress >= 1) {
+      r.active = false
+      r.mesh.visible = false
+      r.mat.uniforms.uOpacity.value = 0
+      continue
+    }
+    r.mat.uniforms.uProgress.value = r.progress
+    const s = 0.3 + r.progress * 1.6 * r.size
+    r.mesh.scale.set(s, s, 1)
+    r.mesh.quaternion.copy(camera.quaternion)      // 公告板，正对相机
+  }
+}
+
+function updateBackground() {
+  starMat.uniforms.uTime.value = state.time
+  band.rotation.y += 0.0007
+  dials[0].rotation.z += 0.0012
+  dials[1].rotation.z -= 0.0009
+  grid.material.opacity = 0.34 + Math.sin(state.time * 0.6) * 0.05
+  formulaSprites.forEach((sp) => {
+    const ph = sp.userData.phase
+    sp.position.y = sp.userData.baseY + Math.sin(state.time * 0.42 + ph) * 0.7
+    sp.material.rotation = Math.sin(state.time * 0.3 + ph) * 0.05
+    sp.material.opacity = 0.14 + 0.08 * (0.5 + 0.5 * Math.sin(state.time * 0.5 + ph))
+  })
+}
+
+function updatePost() {
+  chromaUniforms.uTime.value = state.time
+}
+
+function tick() {
+  const now = performance.now()
+  const dt = Math.min((now - lastNow) / 1000, 0.05)
+  lastNow = now
+  state.time += dt
+
+  updateCamera(dt)
+  updateEntangle(dt)
+  updateAtom(dt)
+  updatePhoton(dt)
+  updateRipples(dt)
+  updateBackground()
+  updatePost()
+  renderHUD(dt)
+
+  composer.render()
+}
+
+/* ==========================================================================
+ * 18. 启动
+ * ========================================================================*/
+function init() {
+  updatePointScales()
+  paintBell()
+  setStatus('纠缠中 · ENTANGLED', '')
+  onResize()
+
+  // 入场：面板与品牌渐显
+  gsap.from(['.qm-panel', '.qm-brand', '.qm-hint', '.qm-knob-box'], {
+    opacity: 0,
+    y: 14,
+    duration: 0.9,
+    stagger: 0.09,
+    ease: 'power3.out',
+    delay: 0.25,
+  })
+
+  gsap.ticker.add(tick)
+
+  gsap.delayedCall(0.5, () => {
+    UI.boot.classList.add('is-hidden')
+    gsap.delayedCall(1.1, () => UI.boot.remove())
+  })
+}
+
+/** 兜底：初始化失败时在遮罩上给出可读提示，避免白屏 */
+function bootFail(message, err) {
+  const boot = document.getElementById('qm-boot')
+  if (boot) {
+    boot.innerHTML = '<p class="qm-boot-text">' + message + '</p><p class="qm-boot-sub">' + (err && err.message ? err.message : '') + '</p>'
+  }
+  throw err instanceof Error ? err : new Error(message)
+}
+
+try {
+  init()
+} catch (err) {
+  bootFail('观测舱初始化失败', err)
+}
+
+/* 调试句柄：便于控制台核对数值与做批量测量 */
+window.__quantum = {
+  CONFIG,
+  LEVELS,
+  state,
+  bell,
+  api: {
+    measure: runMeasurement,
+    jump: jumpTo,
+    photonColorFor,
+    resolveLevel,
+    sampleEntangledPair,
+    chshValue,
+  },
+}
+
+    </script>
+  </body>
+</html>

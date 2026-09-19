@@ -1,0 +1,4206 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>数智能源管理平台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <style>
+    :root {
+      --primary: #5fd0ff;
+      --secondary: #3a9bff;
+      --accent: #00ff9d;
+      --warning: #ffcc00;
+      --danger: #ff5d7d;
+      --bg-dark: #12406e;
+      --panel-bg: rgba(18, 58, 104, 0.72);
+      --panel-border: rgba(95, 208, 255, 0.35);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: 'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
+      background: var(--bg-dark);
+      color: #fff;
+    }
+
+    #app {
+      position: relative;
+      width: 100%; height: 100%;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(95,208,255,0.20) 0%, transparent 45%),
+        linear-gradient(180deg, #1f5690 0%, #0f335f 100%);
+    }
+
+    /* 顶部标题栏 */
+    .header {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      /* 深色实底：与下方 3D 场景形成分界（不分硬线，靠底边渐变自然过渡） */
+      background: linear-gradient(180deg, #04101f 0%, #071f39 58%, #0a2b4d 100%);
+      box-shadow: 0 10px 26px rgba(0,8,18,0.55);
+    }
+
+    /* 标题栏底边：不用 2px 硬线，改为向下渐隐的渐变色带（越往下越淡，与场景柔和衔接） */
+    .header::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0; bottom: -22px;
+      height: 22px;
+      background: linear-gradient(180deg,
+        rgba(10,43,77,0.88) 0%,
+        rgba(12,52,92,0.54) 32%,
+        rgba(56,150,220,0.20) 66%,
+        rgba(76,201,255,0.00) 100%);
+      pointer-events: none;
+    }
+
+    .header-title {
+      text-align: center;
+      font-family: 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
+    }
+
+    .header-title h1 {
+      font-size: 1.62rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      background: linear-gradient(180deg, #ffffff 0%, #a8e8ff 52%, #4cc9ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 7px rgba(0,16,36,0.85)) drop-shadow(0 0 16px rgba(76,201,255,0.35));
+    }
+
+    .header-title p {
+      font-size: 0.75rem;
+      color: rgba(140,220,255,0.92);
+      letter-spacing: 4px;
+      margin-top: -1px;
+      text-shadow: 0 1px 4px rgba(0,16,36,0.75);
+    }
+
+    .header-side {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.75);
+    }
+
+    .header-side.left { left: 16px; }
+    .header-side.right { right: 16px; }
+
+    /* 个人印章 logo（正方形 1:1；旧 logo 为 405x374，渲染占位约 32x29.6，此处取 30x30 保持同等体量） */
+    .header-logo {
+      height: 30px;
+      width: 30px;
+      object-fit: contain;
+      /* 【第23轮】红色印章 → 纯白：brightness(0) 把不透明像素压成黑，invert(1) 再翻成纯白，
+         alpha 通道原样保留 —— 印章轮廓与笔触不变，只换颜色。
+         三种主题的标题栏都是深色实底，白色对比最强、最醒目。 */
+      filter: brightness(0) invert(1)
+              drop-shadow(0 1px 5px rgba(0, 10, 20, 0.72))
+              drop-shadow(0 0 10px rgba(255, 255, 255, 0.55));
+    }
+
+    /* 站点返回导航：集成进「万物联动」仓库后，用左上角位置承载返回首页的入口 */
+    .site-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      height: 32px;
+      padding: 0 14px 0 11px;
+      border: 1px solid rgba(95, 208, 255, 0.42);
+      border-radius: 16px;
+      background: rgba(9, 32, 60, 0.55);
+      color: #cfeaff;
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+      text-decoration: none;
+      white-space: nowrap;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 2px 10px rgba(0, 12, 26, 0.45);
+      transition: all 0.22s ease;
+    }
+
+    .site-back:hover {
+      border-color: #5fd0ff;
+      color: #ffffff;
+      background: rgba(20, 62, 108, 0.78);
+      box-shadow: 0 0 16px rgba(95, 208, 255, 0.35);
+    }
+
+    .site-back-arrow {
+      font-size: 0.9rem;
+      line-height: 1;
+      transform: translateY(-1px);
+    }
+
+    body.black .site-back {
+      border-color: rgba(95, 208, 255, 0.35);
+      background: rgba(8, 20, 38, 0.6);
+      color: #cfe6f7;
+    }
+
+    .time-badge {
+      font-family: 'Consolas', 'SFMono-Regular', 'Menlo', 'Courier New', monospace;
+      font-size: 1rem;
+      color: #4cc9ff;
+    }
+
+    .weather-item {
+      display: flex; align-items: center; gap: 4px;
+    }
+
+    /* 3D 容器 */
+    #scene-container {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1;
+    }
+
+    /* 电影感后期：暗角 + 细微颗粒（不参与交互） */
+    #grade {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      background: radial-gradient(ellipse 84% 74% at 50% 46%, rgba(0,0,0,0) 44%, rgba(4,14,28,0.38) 100%);
+    }
+    #grade::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0.055;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/></filter><rect width="180" height="180" filter="url(%23n)"/></svg>');
+      background-size: 180px 180px;
+    }
+    body.light #grade {
+      background: radial-gradient(ellipse 82% 72% at 50% 46%, rgba(0,0,0,0) 46%, rgba(28,50,76,0.24) 100%);
+    }
+    body.light #grade::after { opacity: 0.035; }
+
+    /* 面板基础 */
+    .panel {
+      position: absolute;
+      z-index: 10;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      backdrop-filter: blur(8px);
+      padding: 14px;
+      box-shadow:
+        0 0 20px rgba(0,0,0,0.35),
+        inset 0 0 30px rgba(76,201,255,0.04);
+    }
+
+    .panel::before, .panel::after {
+      content: '';
+      position: absolute;
+      width: 10px; height: 10px;
+      border: 2px solid var(--primary);
+    }
+
+    .panel::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+    .panel::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+
+    .panel-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #fff;
+      padding-left: 10px;
+      border-left: 3px solid var(--primary);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-sub {
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.55);
+      font-weight: 400;
+    }
+
+    /* 左侧面板 */
+    .left-column {
+      left: 16px;
+      top: 80px;
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      z-index: 12;
+    }
+
+    /* 右侧面板 */
+    .right-column {
+      right: 16px;
+      top: 80px;
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      z-index: 12;
+    }
+
+    /* 中央顶部综合效益 */
+    .center-top {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 560px;
+      max-width: 92vw;
+      z-index: 10;
+      display: flex;
+      justify-content: space-around;
+      padding: 16px 20px;
+    }
+
+    .benefit-item {
+      text-align: center;
+    }
+
+    .benefit-label {
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.65);
+      margin-bottom: 4px;
+    }
+
+    .benefit-value {
+      font-family: 'Consolas', 'SFMono-Regular', 'Menlo', 'Courier New', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .benefit-unit {
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.55);
+      margin-left: 2px;
+    }
+
+    .benefit-trend {
+      font-size: 0.65rem;
+      color: var(--accent);
+      margin-top: 2px;
+    }
+
+    /* 进度条 */
+    .progress-box {
+      margin-top: 8px;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      margin-bottom: 6px;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .progress-track {
+      height: 10px;
+      border-radius: 5px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 5px;
+      background: linear-gradient(90deg, var(--secondary), var(--primary));
+      box-shadow: 0 0 12px rgba(76,201,255,0.4);
+      position: relative;
+    }
+
+    .progress-fill::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0; bottom: 0;
+      width: 20px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45));
+    }
+
+    /* 排名列表 */
+    .rank-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .rank-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+    }
+
+    .rank-num {
+      width: 18px; height: 18px;
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+      background: rgba(76,201,255,0.12);
+      color: var(--primary);
+    }
+
+    .rank-num.top { background: rgba(0,255,157,0.18); color: var(--accent); }
+
+    .rank-name { flex: 1; color: rgba(255,255,255,0.85); }
+
+    .rank-bar-wrap {
+      width: 90px;
+      height: 6px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .rank-bar { height: 100%; border-radius: 3px; }
+
+    .rank-value {
+      width: 60px;
+      text-align: right;
+      font-family: 'Consolas', 'SFMono-Regular', 'Menlo', 'Courier New', monospace;
+      color: var(--primary);
+    }
+
+    /* 环保参数网格 */
+    .env-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .env-item {
+      background: rgba(76,201,255,0.05);
+      border: 1px solid rgba(76,201,255,0.12);
+      border-radius: 6px;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .env-label {
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.55);
+      margin-bottom: 4px;
+    }
+
+    .env-value {
+      font-family: 'Consolas', 'SFMono-Regular', 'Menlo', 'Courier New', monospace;
+      font-size: 1rem;
+      color: #fff;
+    }
+
+    .env-unit {
+      font-size: 0.6rem;
+      color: rgba(255,255,255,0.45);
+    }
+
+    /* 图表容器 */
+    .chart-box {
+      width: 100%;
+      height: 160px;
+    }
+
+    /* 左侧导航小按钮 + 可切换看板 */
+    .left-nav {
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 14;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .nav-btn {
+      width: 58px;
+      min-height: 58px;
+      padding: 8px 4px;
+      border-radius: 10px;
+      background: rgba(6,22,46,0.82);
+      border: 1px solid rgba(76,201,255,0.30);
+      color: #cfeffd;
+      font-size: 0.62rem;
+      line-height: 1.3;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      transition: all 0.2s;
+      backdrop-filter: blur(6px);
+      user-select: none;
+    }
+
+    .nav-btn:hover, .nav-btn.active {
+      background: rgba(76,201,255,0.15);
+      border-color: var(--primary);
+      color: #fff;
+      box-shadow: 0 0 16px rgba(76,201,255,0.25);
+    }
+
+    .left-dash {
+      position: absolute;
+      left: 76px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 300px;
+      max-height: 82vh;
+      overflow: hidden;
+      z-index: 13;
+      display: none;
+    }
+
+    .left-dash.show { display: block; }
+
+    .left-dash .panel { position: relative; width: 100%; }
+
+    .dash-panel { display: none; }
+    .dash-panel.active { display: block; }
+
+    /* 底部功能区 */
+    .bottom-bar {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      gap: 12px;
+    }
+
+    .func-btn {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: rgba(6,22,46,0.85);
+      border: 1px solid rgba(76,201,255,0.35);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: pointer;
+      transition: all 0.25s;
+      backdrop-filter: blur(6px);
+    }
+
+    .func-btn:hover, .func-btn.active {
+      background: rgba(76,201,255,0.15);
+      border-color: var(--primary);
+      box-shadow: 0 0 20px rgba(76,201,255,0.25);
+    }
+
+    .func-btn svg { width: 22px; height: 22px; }
+    .func-btn span { font-size: 0.65rem; }
+
+    /* 加载层 */
+    #loader {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: var(--bg-dark);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      transition: opacity 0.5s;
+    }
+
+    .loader-ring {
+      width: 56px; height: 56px;
+      border: 3px solid rgba(76,201,255,0.15);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 3D 提示 */
+    .scene-hint {
+      position: absolute;
+      bottom: 96px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 5;
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.45);
+      background: rgba(0,0,0,0.35);
+      padding: 4px 12px;
+      border-radius: 12px;
+      pointer-events: none;
+    }
+
+    /* 移动端适配 */
+    @media (max-width: 1024px) {
+      .left-column, .right-column {
+        width: 260px;
+      }
+      .center-top { width: 460px; }
+      .benefit-value { font-size: 1.2rem; }
+    }
+
+    @media (max-width: 768px) {
+      .header { height: 54px; }
+      .header-title h1 { font-size: 1rem; letter-spacing: 1px; }
+      .header-title p { font-size: 0.6rem; letter-spacing: 2px; }
+      /* 移动端保留个人 logo，隐藏右侧时间/天气与名字文字 */
+      .header-side.right { display: none; }
+      .header-side.left { left: 10px; gap: 8px; }
+      .header-side.left span { display: none; }
+      .header-logo { height: 26px; width: 26px; }
+
+      /* 左右看板：窄屏下始终贴边可见，不再隐藏 */
+      .left-column, .right-column {
+        position: fixed;
+        top: 56px;
+        width: 42vw;
+        max-height: 52vh;
+        overflow-y: auto;
+        padding: 10px;
+        gap: 10px;
+        transform: none;
+      }
+      .left-column { left: 0; right: auto; }
+      .right-column { right: 0; left: auto; }
+      .left-column.open, .right-column.open { transform: translateY(0); }
+
+      .panel { padding: 10px; }
+      .panel-title { font-size: 0.8rem; margin-bottom: 8px; }
+
+      /* 顶部综合指标移到底部，避免遮挡左右看板 */
+      .center-top {
+        top: auto; bottom: 8px;
+        width: 96vw;
+        padding: 8px 10px;
+      }
+
+      .benefit-value { font-size: 0.95rem; }
+      .benefit-label { font-size: 0.6rem; }
+
+      .chart-box { height: 120px; }
+
+      .bottom-bar { bottom: 96px; gap: 8px; }
+
+      .func-btn { width: 46px; height: 46px; }
+      .func-btn svg { width: 16px; height: 16px; }
+      .func-btn span { font-size: 0.55rem; }
+
+      .mobile-handle { display: none; }
+
+      .left-nav { left: 4px; gap: 6px; }
+      .nav-btn { width: 46px; min-height: 46px; font-size: 0.55rem; padding: 4px 2px; }
+      .left-dash { left: 58px; width: 70vw; max-height: 80vh; }
+
+      .scene-hint { bottom: 150px; font-size: 0.55rem; }
+    }
+
+    /* ============ 亮色主题（body.light） ============ */
+    body.light { color: #1a2740; background: #e9eff6; }
+
+    body.light #app {
+      background:
+        radial-gradient(circle at 50% 0%, rgba(0,160,200,0.10) 0%, transparent 45%),
+        linear-gradient(180deg, #eaf2fb 0%, #d7e3f2 100%);
+    }
+
+    body.light .header {
+      /* 浅色主题：标题栏同样改为深色实底，与下方浅色内容明显区分 */
+      background: linear-gradient(180deg, #04101f 0%, #0a2643 58%, #10365c 100%);
+      box-shadow: 0 10px 24px rgba(10,30,55,0.32);
+    }
+    body.light .header::after {
+      background: linear-gradient(180deg,
+        rgba(16,54,92,0.88) 0%,
+        rgba(18,66,110,0.52) 32%,
+        rgba(60,160,215,0.20) 66%,
+        rgba(78,200,236,0.00) 100%);
+    }
+    body.light .header-title h1 {
+      background: linear-gradient(180deg, #ffffff 0%, #cfeeff 52%, #6fd6ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 6px rgba(0,16,36,0.80));
+    }
+    body.light .header-title p { color: rgba(150,222,255,0.92); text-shadow: 0 1px 4px rgba(0,16,36,0.60); }
+    body.light .header-side { color: rgba(214,236,252,0.86); }
+    body.light .header-logo { filter: brightness(0) invert(1) drop-shadow(0 1px 5px rgba(0, 10, 20, 0.72)); }
+
+    body.light .panel {
+      background: rgba(255,255,255,0.86);
+      border: 1px solid rgba(0,140,180,0.30);
+      color: #1a2740;
+      box-shadow: 0 0 20px rgba(20,40,70,0.10), inset 0 0 30px rgba(0,150,200,0.04);
+    }
+    body.light .panel::before, body.light .panel::after { border-color: #0088aa; }
+
+    body.light .panel-title { color: #16304a; }
+    body.light .panel-sub,
+    body.light .benefit-label,
+    body.light .env-label,
+    body.light .progress-label { color: rgba(30,50,80,0.60); }
+
+    body.light .benefit-value { color: #0a6b8a !important; }
+    body.light .benefit-trend { color: #0a8a5a; }
+    body.light .env-value { color: #16304a; }
+    body.light .rank-name { color: rgba(30,50,80,0.85); }
+    body.light .rank-value { color: #0a6b8a; }
+    body.light .rank-num { background: rgba(0,140,180,0.12); color: #0a6b8a; }
+    body.light .rank-num.top { background: rgba(0,160,120,0.16); color: #0a8a5a; }
+
+    body.light .env-item { background: rgba(0,140,180,0.06); border-color: rgba(0,140,180,0.15); }
+    body.light .progress-track { background: rgba(20,40,70,0.10); }
+
+    body.light .func-btn {
+      background: rgba(255,255,255,0.86);
+      border: 1px solid rgba(0,140,180,0.30);
+      color: #1a2740;
+    }
+    body.light .func-btn:hover, body.light .func-btn.active {
+      background: rgba(0,170,210,0.16);
+      border-color: #0088aa;
+      box-shadow: 0 0 18px rgba(0,150,200,0.25);
+    }
+
+    body.light .nav-btn {
+      background: rgba(255,255,255,0.86);
+      border: 1px solid rgba(0,140,180,0.30);
+      color: #1a2740;
+    }
+    body.light .nav-btn:hover, body.light .nav-btn.active {
+      background: rgba(0,170,210,0.16);
+      border-color: #0088aa;
+      color: #16304a;
+      box-shadow: 0 0 16px rgba(0,150,200,0.25);
+    }
+    body.light .left-dash { color: #1a2740; }
+
+    body.light .scene-hint { color: rgba(30,50,80,0.60); background: rgba(255,255,255,0.55); }
+    body.light .loader-ring { border-color: rgba(0,140,180,0.15); border-top-color: #0088aa; }
+    body.light #loader { background: #e9eff6; }
+    body.light #loader div:last-child { color: rgba(30,50,80,0.6); }
+
+    /* ============ 黑色主题（body.black） ============ */
+    body.black { color: #d8e8f5; background: #050b16; }
+
+    body.black #app {
+      background:
+        radial-gradient(circle at 50% 0%, rgba(80,200,255,0.10) 0%, transparent 45%),
+        linear-gradient(180deg, #0a1a2e 0%, #03070e 100%);
+    }
+
+    body.black .header {
+      background: linear-gradient(180deg, #01040a 0%, #05101f 62%, #071a2e 100%);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.62);
+    }
+    body.black .header::after {
+      background: linear-gradient(180deg,
+        rgba(7,26,46,0.90) 0%,
+        rgba(9,34,58,0.52) 32%,
+        rgba(52,140,205,0.18) 66%,
+        rgba(95,208,255,0.00) 100%);
+    }
+    body.black .header-title h1 {
+      background: linear-gradient(180deg, #d8f6ff 0%, #6fd6ff 45%, #2f8fff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 14px rgba(60,170,255,0.45));
+    }
+    body.black .header-title p { color: rgba(120,215,255,0.85); }
+    body.black .header-side { color: rgba(180,210,235,0.75); }
+    body.black .header-logo { filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(210, 235, 255, 0.62)); }
+
+    body.black .panel {
+      background: rgba(8, 20, 38, 0.80);
+      border: 1px solid rgba(95,208,255,0.22);
+      color: #d8e8f5;
+      box-shadow: 0 0 20px rgba(0,40,80,0.35), inset 0 0 30px rgba(40,120,200,0.06);
+    }
+    body.black .panel::before, body.black .panel::after { border-color: rgba(95,208,255,0.5); }
+
+    body.black .panel-title { color: #bfe6ff; }
+    body.black .panel-sub,
+    body.black .benefit-label,
+    body.black .env-label,
+    body.black .progress-label { color: rgba(170,200,225,0.6); }
+
+    body.black .benefit-value { color: #5fd0ff !important; }
+    body.black .benefit-trend { color: #00ff9d; }
+    body.black .env-value { color: #cfe6f5; }
+    body.black .rank-name { color: rgba(200,225,245,0.85); }
+    body.black .rank-value { color: #5fd0ff; }
+    body.black .rank-num { background: rgba(95,208,255,0.12); color: #5fd0ff; }
+    body.black .rank-num.top { background: rgba(0,255,157,0.14); color: #00ff9d; }
+
+    body.black .env-item { background: rgba(95,208,255,0.06); border-color: rgba(95,208,255,0.15); }
+    body.black .progress-track { background: rgba(120,170,210,0.12); }
+
+    body.black .func-btn {
+      background: rgba(10, 24, 44, 0.85);
+      border: 1px solid rgba(95,208,255,0.25);
+      color: #cfe6f5;
+    }
+    body.black .func-btn:hover, body.black .func-btn.active {
+      background: rgba(40,110,180,0.22);
+      border-color: #5fd0ff;
+      box-shadow: 0 0 18px rgba(95,208,255,0.3);
+    }
+
+    body.black .nav-btn {
+      background: rgba(10, 24, 44, 0.85);
+      border: 1px solid rgba(95,208,255,0.25);
+      color: #cfe6f5;
+    }
+    body.black .nav-btn:hover, body.black .nav-btn.active {
+      background: rgba(40,110,180,0.22);
+      border-color: #5fd0ff;
+      color: #bfe6ff;
+      box-shadow: 0 0 16px rgba(95,208,255,0.3);
+    }
+    body.black .left-dash { color: #d8e8f5; }
+
+    body.black .scene-hint { color: rgba(180,210,235,0.6); background: rgba(8,18,34,0.55); }
+    body.black .loader-ring { border-color: rgba(95,208,255,0.15); border-top-color: #5fd0ff; }
+    body.black #loader { background: #050b16; }
+    body.black #loader div:last-child { color: rgba(180,210,235,0.6); }
+  </style>
+</head>
+<body>
+  <div id="loader">
+    <div class="loader-ring"></div>
+    <div style="font-size:0.8rem;color:rgba(255,255,255,0.6)">正在加载3D场景...</div>
+  </div>
+
+  <div id="app">
+    <!-- 顶部 -->
+    <header class="header">
+      <div class="header-side left">
+        <a class="site-back" href="../index.html" title="返回万物联动首页">
+          <span class="site-back-arrow">←</span>
+          <span>返回万物联动</span>
+        </a>
+      </div>
+      <div class="header-title">
+        <h1>数智能源管理平台</h1>
+        <p>AI能源测试平台</p>
+      </div>
+      <div class="header-side right">
+        <div class="time-badge" id="clock">15:01:04</div>
+        <div class="weather-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffcc00" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <span>30.8°C</span>
+        </div>
+        <div class="weather-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4cc9ff" stroke-width="2">
+            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+          </svg>
+          <span>68.8%</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 3D 场景 -->
+    <div id="scene-container"></div>
+    <div id="grade"></div>
+    <div class="scene-hint">拖动旋转 · 滚轮缩放 · 双指缩放</div>
+
+    <!-- 中央顶部指标 -->
+    <div class="panel center-top">
+      <div class="benefit-item">
+        <div class="benefit-label">累计用电量</div>
+        <div><span class="benefit-value" style="color:#4cc9ff">52.86</span><span class="benefit-unit">万kWh</span></div>
+        <div class="benefit-trend">↑ 2.4%</div>
+      </div>
+      <div class="benefit-item">
+        <div class="benefit-label">累计节能量</div>
+        <div><span class="benefit-value" style="color:#2f8fff">64.96</span><span class="benefit-unit">tce</span></div>
+        <div class="benefit-trend">↑ 5.1%</div>
+      </div>
+      <div class="benefit-item">
+        <div class="benefit-label">累计减碳量</div>
+        <div><span class="benefit-value" style="color:#00ff9d">222.01</span><span class="benefit-unit">tCO₂e</span></div>
+        <div class="benefit-trend">↑ 3.8%</div>
+      </div>
+      <div class="benefit-item">
+        <div class="benefit-label">减碳折合种树</div>
+        <div><span class="benefit-value" style="color:#ffcc00">407.03</span><span class="benefit-unit">棵/年</span></div>
+        <div class="benefit-trend">↑ 4.2%</div>
+      </div>
+    </div>
+
+    <!-- 左侧导航小按钮 + 可切换看板 -->
+    <div class="left-nav">
+      <div class="nav-btn" id="navTarget" onclick="toggleDash('target')">节能减碳目标跟踪</div>
+      <div class="nav-btn" id="navRank" onclick="toggleDash('rank')">综合能耗排名</div>
+      <div class="nav-btn" id="navTrend" onclick="toggleDash('trend')">综合能耗月趋势</div>
+      <div class="nav-btn" id="navLoad" onclick="toggleDash('load')">用电负荷跟踪</div>
+    </div>
+
+    <div class="left-dash" id="leftDash">
+      <!-- 节能减碳目标跟踪 -->
+      <div class="panel dash-panel" id="panel-target">
+        <div class="panel-title">
+          节能减碳目标跟踪
+          <span class="panel-sub">年度</span>
+        </div>
+        <div class="progress-box">
+          <div class="progress-label"><span>年总量控制目标</span><span style="color:#4cc9ff">300 tce</span></div>
+          <div class="progress-track"><div class="progress-fill" style="width:84.6%"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:rgba(255,255,255,0.5);margin-top:4px"><span>已用 84.6%</span><span>偏差 -2.3%</span></div>
+        </div>
+        <div class="progress-box" style="margin-top:14px">
+          <div class="progress-label"><span>节能量目标</span><span style="color:#00ff9d">64.96 tce</span></div>
+          <div class="progress-track"><div class="progress-fill" style="width:72%"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:rgba(255,255,255,0.5);margin-top:4px"><span>完成 72%</span><span>↑ 5.1%</span></div>
+        </div>
+        <div class="progress-box" style="margin-top:14px">
+          <div class="progress-label"><span>减碳量目标</span><span style="color:#ffcc00">222.01 tCO₂e</span></div>
+          <div class="progress-track"><div class="progress-fill" style="width:88%"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:rgba(255,255,255,0.5);margin-top:4px"><span>完成 88%</span><span>↑ 3.8%</span></div>
+        </div>
+      </div>
+
+      <!-- 综合能耗排名 -->
+      <div class="panel dash-panel" id="panel-rank">
+        <div class="panel-title">
+          综合能耗排名
+          <span class="panel-sub">本月</span>
+        </div>
+        <div class="rank-list" id="rankList"><!-- JS 填充 --></div>
+      </div>
+
+      <!-- 综合能耗月趋势 -->
+      <div class="panel dash-panel" id="panel-trend">
+        <div class="panel-title">
+          综合能耗月趋势
+          <span class="panel-sub">kWh</span>
+        </div>
+        <div class="chart-box" id="trendChart"></div>
+      </div>
+
+      <!-- 用电负荷跟踪 -->
+      <div class="panel dash-panel" id="panel-load">
+        <div class="panel-title">
+          用电负荷跟踪
+          <span class="panel-sub">今日</span>
+        </div>
+        <div class="chart-box" id="loadChart"></div>
+      </div>
+    </div>
+
+    <!-- 左侧面板 -->
+    <!-- 左右看板已移除 -->
+
+    <!-- 底部功能按钮 -->
+    <div class="bottom-bar">
+      <div class="func-btn active" onclick="setView('all', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>总览</span>
+      </div>
+      <div class="func-btn" onclick="setView('pv', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        <span>光伏</span>
+      </div>
+      <div class="func-btn" onclick="setView('charge', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="16" height="10" rx="2"/><path d="M22 11v2"/><path d="M6 11h2"/><path d="M10 11h2"/></svg>
+        <span>充电</span>
+      </div>
+      <div class="func-btn" onclick="setView('tank', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5.8" rx="7.3" ry="2.5"/><path d="M4.7 5.8v11.1c0 1.4 3.3 2.5 7.3 2.5s7.3-1.1 7.3-2.5V5.8"/><path d="M12 3.3V1.5"/></svg>
+        <span>储罐</span>
+      </div>
+      <div class="func-btn" onclick="setView('sub', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 4 14 11 14 10 22 19 10 12 10 13 2"/></svg>
+        <span>电站</span>
+      </div>
+      <div class="func-btn" id="orbitBtn" onclick="toggleOrbit(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3.2-6.9"/><polyline points="21 3 21 9 15 9"/></svg>
+        <span>环视</span>
+      </div>
+      <div class="func-btn" onclick="resetCamera()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <span>复位</span>
+      </div>
+      <div class="func-btn" id="themeBtn" onclick="toggleTheme()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        <span>傍晚</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===================== 工具函数 =====================
+    const $ = id => document.getElementById(id);
+
+    function updateClock() {
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      $('clock').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    function togglePanel(id) {
+      const el = $(id);
+      el.classList.toggle('open');
+    }
+
+    // ===================== 左侧可切换看板 =====================
+    const rankData = [
+      { name: '空压机房（三）', value: 1216.8, color: '#00ff9d' },
+      { name: '空压机房（二）', value: 1094.4, color: '#4cc9ff' },
+      { name: '9号楼1层动力间', value: 1083.2, color: '#2f8fff' },
+      { name: '10号楼4层照明', value: 318.0, color: '#ffcc00' },
+      { name: '9号楼1层照明2-10LP', value: 304.0, color: '#00ff9d' }
+    ];
+    const maxVal = Math.max(...rankData.map(d => d.value));
+    $('rankList').innerHTML = rankData.map((d, i) => `
+      <div class="rank-item">
+        <div class="rank-num ${i < 2 ? 'top' : ''}">${i + 1}</div>
+        <div class="rank-name">${d.name}</div>
+        <div class="rank-bar-wrap"><div class="rank-bar" style="width:${(d.value / maxVal * 100).toFixed(1)}%;background:${d.color}"></div></div>
+        <div class="rank-value">${d.value.toFixed(1)}</div>
+      </div>
+    `).join('');
+
+    let trendChart = null;
+    let trendInited = false;
+    function initTrendChart() {
+      if (trendInited) return;
+      trendChart = echarts.init($('trendChart'));
+      trendChart.setOption({
+        grid: { top: 30, right: 12, bottom: 24, left: 36 },
+        tooltip: { trigger: 'axis', backgroundColor: 'rgba(13,43,84,0.95)', borderColor: '#4cc9ff', textStyle: { color: '#fff' } },
+        legend: { data: ['市电', '光伏'], textStyle: { color: 'rgba(255,255,255,0.6)', fontSize: 10 }, top: 0, right: 0, itemWidth: 10, itemHeight: 6 },
+        xAxis: {
+          type: 'category',
+          data: Array.from({ length: 31 }, (_, i) => i + 1),
+          axisLine: { lineStyle: { color: 'rgba(255,255,255,0.15)' } },
+          axisLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10 }
+        },
+        yAxis: {
+          type: 'value',
+          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+          axisLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10 }
+        },
+        series: [
+          {
+            name: '市电', type: 'bar',
+            data: Array.from({ length: 31 }, () => Math.floor(12000 + Math.random() * 8000)),
+            itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#4cc9ff' }, { offset: 1, color: 'rgba(76,201,255,0.1)' }]) }
+          },
+          {
+            name: '光伏', type: 'bar',
+            data: Array.from({ length: 31 }, () => Math.floor(2000 + Math.random() * 5000)),
+            itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#00ff9d' }, { offset: 1, color: 'rgba(0,255,157,0.1)' }]) }
+          }
+        ]
+      });
+      trendInited = true;
+    }
+
+    let loadChart = null;
+    let loadInited = false;
+    function initLoadChart() {
+      if (loadInited) return;
+      loadChart = echarts.init($('loadChart'));
+      loadChart.setOption({
+        grid: { top: 24, right: 12, bottom: 24, left: 36 },
+        tooltip: { trigger: 'axis', backgroundColor: 'rgba(13,43,84,0.95)', borderColor: '#4cc9ff', textStyle: { color: '#fff' } },
+        xAxis: {
+          type: 'category',
+          data: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'],
+          axisLine: { lineStyle: { color: 'rgba(255,255,255,0.15)' } },
+          axisLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10 }
+        },
+        yAxis: {
+          type: 'value',
+          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+          axisLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10 }
+        },
+        series: [{
+          name: '负荷', type: 'line', smooth: true, showSymbol: false,
+          data: [320, 280, 560, 820, 760, 640, 420],
+          lineStyle: { color: '#00ff9d', width: 2 },
+          areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(0,255,157,0.35)' }, { offset: 1, color: 'rgba(0,255,157,0.02)' }]) }
+        }]
+      });
+      loadInited = true;
+    }
+
+    let currentDash = null;
+    function toggleDash(key) {
+      const dash = $('leftDash');
+      const panel = $('panel-' + key);
+      const btn = $('nav' + key.charAt(0).toUpperCase() + key.slice(1));
+      const isOpen = dash.classList.contains('show') && panel.classList.contains('active');
+
+      document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+      if (isOpen) {
+        dash.classList.remove('show');
+        currentDash = null;
+      } else {
+        panel.classList.add('active');
+        btn.classList.add('active');
+        dash.classList.add('show');
+        currentDash = key;
+        if (key === 'trend') {
+          initTrendChart();
+          setTimeout(() => trendChart && trendChart.resize(), 60);
+        } else if (key === 'load') {
+          initLoadChart();
+          setTimeout(() => loadChart && loadChart.resize(), 60);
+        }
+      }
+    }
+
+    function closeDash() {
+      if (!currentDash) return;
+      document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      $('leftDash').classList.remove('show');
+      currentDash = null;
+    }
+
+    // 点击看板以外的任意位置（3D 场景、空白等）自动隐藏看板；点击看板内部或左侧按钮不收起
+    document.addEventListener('click', (e) => {
+      if (!currentDash) return;
+      if (e.target.closest('.left-nav') || e.target.closest('.left-dash')) return;
+      closeDash();
+    });
+
+    window.addEventListener('resize', () => {
+      onWindowResize();
+      if (trendInited && currentDash === 'trend') trendChart.resize();
+      if (loadInited && currentDash === 'load') loadChart.resize();
+    });
+
+    // ===================== Three.js 3D 场景（PBR 写实渲染） =====================
+    let scene, camera, renderer, controls, buildingGroup;
+    let ground, groundPad, gridHelper, ambientLight, sunLight, hemiLight, skyMesh, worldGroup;
+    let currentTheme = 'dark';
+    let themeManual = false;      // 用户手动点过切换按钮后，本次会话不再按时间自动跟随
+
+    /* ---------- 昼夜三模式：白天 / 傍晚 / 晚间 ---------- */
+    // 点击循环顺序：白天 → 傍晚 → 晚间 → 白天
+    const THEME_ORDER = ['light', 'dark', 'black'];
+    const THEME_LABEL = { light: '白天', dark: '傍晚', black: '晚间' };
+    const NIGHT_PROPS = [];     // 只在晚间可见的灯具部件（灯泡光晕 / 光锥 / 地面光斑 / 星空）
+    const NIGHT_LIGHTS = [];    // 强度随昼夜切换的灯光（路灯 / 门口灯球）
+    const FACADE_MATS = [];     // 幕墙材质（晚间换"亮灯"贴图并把窗格变成自发光）
+    let starsMesh = null;
+    // 渲染采样倍率下限（抗闪烁超采样）：放在模块级，init3D 与 onWindowResize 共用同一个值，
+    // 避免两处各写一份、改了一处漏另一处（拖到另一块屏后画质悄悄掉档）。
+    const SUPERSAMPLE_MIN = 1.75;
+    let glowTex = null;
+    function isNight(key) { return (key || currentTheme) === 'black'; }
+    const container = $('scene-container');
+    const ENV_CACHE = {};
+
+    /* ---------- 基础工具 ---------- */
+    function clamp255(v) { return v < 0 ? 0 : v > 255 ? 255 : v; }
+    function S(hex) { return new THREE.Color(hex); }                        // sRGB 直出（天空 / 自发光）
+    function C(hex) { return new THREE.Color(hex).convertSRGBToLinear(); }  // 材质基色（线性空间）
+    function rnd(a, b) { return a + Math.random() * (b - a); }
+
+    /* ---------- 夜景系统：幕墙登记 / 光晕贴图 / 灯具构件 ---------- */
+    function registerFacade(mat, dayTex, nightTex) {
+      mat.userData.dayMap = dayTex;
+      mat.userData.nightMap = nightTex;
+      FACADE_MATS.push(mat);
+      return mat;
+    }
+
+    // 灯泡光晕 / 地面光斑共用：径向渐变贴图（叠加混合用，中心暖白、边缘透明）
+    function getGlowTex() {
+      if (glowTex) return glowTex;
+      const SZ = 128, o = canvas2d(SZ, SZ), ctx = o.ctx;
+      const g = ctx.createRadialGradient(SZ / 2, SZ / 2, 0, SZ / 2, SZ / 2, SZ / 2);
+      g.addColorStop(0.00, 'rgba(255,244,220,1.00)');
+      g.addColorStop(0.20, 'rgba(255,228,172,0.58)');
+      g.addColorStop(0.48, 'rgba(255,210,142,0.18)');
+      g.addColorStop(0.76, 'rgba(255,198,126,0.05)');
+      g.addColorStop(1.00, 'rgba(255,192,122,0.00)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, SZ, SZ);
+      glowTex = finishTexture(o.c, 1, 1);
+      return glowTex;
+    }
+
+    // 星点贴图：柔和圆点。原来用 1.9px 的硬点精灵，相机一动，点就落在不同像素上
+    // 忽明忽暗 —— 看起来像整个星空在闪。改成带柔和边缘的圆点贴图 + 稍大尺寸后，
+    // 每个星点覆盖多个像素、亮度是连续渐变，运动时不再跳变。
+    let starTex = null;
+    function getStarTex() {
+      if (starTex) return starTex;
+      const SZ = 64, o = canvas2d(SZ, SZ), ctx = o.ctx;
+      const g = ctx.createRadialGradient(SZ / 2, SZ / 2, 0, SZ / 2, SZ / 2, SZ / 2);
+      g.addColorStop(0.00, 'rgba(255,255,255,1.00)');
+      g.addColorStop(0.22, 'rgba(255,255,255,0.82)');
+      g.addColorStop(0.55, 'rgba(255,255,255,0.20)');
+      g.addColorStop(1.00, 'rgba(255,255,255,0.00)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, SZ, SZ);
+      starTex = finishTexture(o.c, 1, 1);
+      return starTex;
+    }
+
+    // 灯泡光晕：面向相机的叠加光斑，让灯"发光"而不是只亮个小色块
+    function nightGlow(parent, x, y, z, size, opacity) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: getGlowTex(), color: S('#ffe8c4'), transparent: true,
+        opacity: opacity == null ? 0.88 : opacity, toneMapped: false,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      }));
+      sp.position.set(x, y, z);
+      sp.scale.set(size, size, 1);
+      sp.visible = false;
+      sp.renderOrder = 5;          // 固定透明层排序，避免相机转动时叠加次序跳变（= 灯忽明忽暗）
+      parent.add(sp);
+      NIGHT_PROPS.push(sp);
+      return sp;
+    }
+
+    // 光锥：半透明锥体，模拟光束在空气里的散射（顶部为灯头、向下张开到地面）
+    function nightCone(parent, x, yTop, z, rBottom, yBottom, opacity) {
+      const h = Math.max(0.5, yTop - yBottom);
+      const cone = new THREE.Mesh(
+        new THREE.ConeGeometry(rBottom, h, 24, 1, true),
+        new THREE.MeshBasicMaterial({
+          color: S('#ffd9a2'), transparent: true,
+          opacity: opacity == null ? 0.055 : opacity, toneMapped: false,
+          blending: THREE.AdditiveBlending, depthWrite: false,
+          side: THREE.DoubleSide, fog: false
+        })
+      );
+      cone.position.set(x, yBottom + h / 2, z);
+      cone.visible = false;
+      parent.add(cone);
+      NIGHT_PROPS.push(cone);
+      return cone;
+    }
+
+    // 地面光斑：贴在路面上的叠加圆面，是夜间最直观的"灯亮了"证据
+    function nightPool(parent, x, y, z, radius, opacity) {
+      const pool = new THREE.Mesh(
+        new THREE.PlaneGeometry(radius * 2, radius * 2),
+        new THREE.MeshBasicMaterial({
+          map: getGlowTex(), color: S('#ffdfae'), transparent: true,
+          opacity: opacity == null ? 0.50 : opacity, toneMapped: false,
+          blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+          // 【抗闪烁 ②】光斑是贴在地面上方的零厚度面片，与路面/标线只差几毫米，
+          // 远处深度精度不足时会与它们反复"谁在前"翻转 → 一块块闪。用 polygonOffset
+          // 把它在深度上稳定压到地面之前，就不再看运气了。
+          polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -12
+        })
+      );
+      pool.rotation.x = -Math.PI / 2;
+      pool.position.set(x, y, z);
+      pool.visible = false;
+      pool.renderOrder = 3;
+      parent.add(pool);
+      NIGHT_PROPS.push(pool);
+      return pool;
+    }
+
+    const NIGHT_DIM = [];       // 晚间需要压暗的材质（植被 / 光伏等，白天颜色原样恢复）
+    function registerNightDim(mat, k) {
+      if (!mat) return mat;
+      mat.userData.dayColor = mat.color.clone();
+      NIGHT_DIM.push({ mat: mat, k: k });
+      return mat;
+    }
+
+    // 登记一盏可昼夜切换的灯（dayI 默认沿用当前强度）
+    function registerNightLight(light, nightI, dayI) {
+      light.userData.nightI = nightI;
+      light.userData.dayI = (dayI == null) ? light.intensity : dayI;
+      NIGHT_LIGHTS.push(light);
+      return light;
+    }
+
+    /* ============ 1. 程序化 PBR 纹理（canvas 生成，无外部依赖） ============ */
+    const TEX = {};
+
+    function canvas2d(w, h) {
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      return { c: c, ctx: c.getContext('2d') };
+    }
+
+    // 细颗粒噪声
+    function grain(ctx, w, h, amount) {
+      const img = ctx.getImageData(0, 0, w, h), d = img.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const n = (Math.random() - 0.5) * amount;
+        d[i] = clamp255(d[i] + n);
+        d[i + 1] = clamp255(d[i + 1] + n);
+        d[i + 2] = clamp255(d[i + 2] + n);
+      }
+      ctx.putImageData(img, 0, 0);
+    }
+
+    // 低频色斑（污渍 / 风化）
+    function blotches(ctx, w, h, color, count, maxR, alpha) {
+      for (let i = 0; i < count; i++) {
+        const x = Math.random() * w, y = Math.random() * h;
+        const r = maxR * (0.25 + Math.random() * 0.9);
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, 'rgba(' + color[0] + ',' + color[1] + ',' + color[2] + ',' + (alpha * (0.3 + Math.random() * 0.8)).toFixed(3) + ')');
+        g.addColorStop(1, 'rgba(' + color[0] + ',' + color[1] + ',' + color[2] + ',0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
+    // 竖向水渍 / 风化痕（真实建筑外墙最显著的特征）
+    function weathering(ctx, w, h, count, rgb, maxAlpha) {
+      for (let i = 0; i < count; i++) {
+        const x = Math.random() * w;
+        const bw = 2 + Math.random() * 9;
+        const hh = h * (0.25 + Math.random() * 0.75);
+        const g = ctx.createLinearGradient(x, 0, x + bw, 0);
+        const a = (maxAlpha * (0.3 + Math.random() * 0.7)).toFixed(3);
+        g.addColorStop(0.00, 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',0)');
+        g.addColorStop(0.50, 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + a + ')');
+        g.addColorStop(1.00, 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, 0, bw, hh);
+      }
+    }
+
+    function finishTexture(c, rx, ry) {
+      const t = new THREE.CanvasTexture(c);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(rx, ry);
+      t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      t.encoding = THREE.sRGBEncoding;
+      return t;
+    }
+
+    // 复用纹理并按尺寸重新铺贴（带缓存，避免重复上传显存）
+    const TILE_CACHE = {};
+    function tiled(tex, rx, ry) {
+      const key = tex.uuid + '|' + rx + '|' + ry;
+      if (TILE_CACHE[key]) return TILE_CACHE[key];
+      const t = tex.clone();
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(rx, ry);
+      t.needsUpdate = true;
+      TILE_CACHE[key] = t;
+      return t;
+    }
+
+    // 清水混凝土 / 装饰面
+    function texConcrete() {
+      const N = 256;
+      const o = canvas2d(N, N), ctx = o.ctx;
+      ctx.fillStyle = '#cfd3d8'; ctx.fillRect(0, 0, N, N);
+      blotches(ctx, N, N, [166, 172, 180], 26, 46, 0.30);
+      blotches(ctx, N, N, [232, 236, 240], 18, 38, 0.34);
+      ctx.strokeStyle = 'rgba(146,154,164,0.50)'; ctx.lineWidth = 1.6;
+      for (let i = 1; i < 4; i++) {
+        ctx.beginPath(); ctx.moveTo(i * N / 4, 0); ctx.lineTo(i * N / 4, N); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i * N / 4); ctx.lineTo(N, i * N / 4); ctx.stroke();
+      }
+      weathering(ctx, N, N, 22, [104, 112, 122], 0.16);
+      grain(ctx, N, N, 15);
+      return finishTexture(o.c, 1, 1);
+    }
+
+    // 压型金属墙板（竖向肋条）
+    function texMetalWall() {
+      const N = 256;
+      const o = canvas2d(N, N), ctx = o.ctx;
+      ctx.fillStyle = '#e2e7ec'; ctx.fillRect(0, 0, N, N);
+      const rib = 16;
+      for (let x = 0; x < N; x += rib) {
+        const g = ctx.createLinearGradient(x, 0, x + rib, 0);
+        g.addColorStop(0.00, 'rgba(255,255,255,0.60)');
+        g.addColorStop(0.32, 'rgba(255,255,255,0.12)');
+        g.addColorStop(0.62, 'rgba(118,128,140,0.30)');
+        g.addColorStop(1.00, 'rgba(150,160,172,0.38)');
+        ctx.fillStyle = g; ctx.fillRect(x, 0, rib, N);
+      }
+      ctx.fillStyle = 'rgba(148,158,170,0.42)';
+      for (let y = 0; y < N; y += 64) ctx.fillRect(0, y, N, 2);
+      weathering(ctx, N, N, 20, [108, 118, 130], 0.20);
+      grain(ctx, N, N, 9);
+      return finishTexture(o.c, 1, 1);
+    }
+
+    // 玻璃幕墙分格（真实建筑做法：贴图代替几何窗）
+    function texFacade(cols, rows, opt) {
+      opt = opt || {};
+      const cw = 34, ch = 42;
+      const W = cols * cw, H = rows * ch;
+      const o = canvas2d(W, H), ctx = o.ctx;
+
+      // ---- 晚间版：底子近乎全黑，只有"开着的房间"是亮的 → 这张贴图同时当自发光贴图用 ----
+      if (opt.mode === 'night') {
+        ctx.fillStyle = opt.frame || '#0b131c'; ctx.fillRect(0, 0, W, H);
+        // 【楼灯·按层控制】litRatio = 亮的楼层占比（默认 0.68）。
+        // 先把行号打乱、再取前 nLit 行点亮 —— 而不是逐层各掷一次骰子：掷骰子会出现
+        // 连续五六层全黑（9 层的楼里很常见），看着像整栋没亮；打乱后取定数，亮几层说了算。
+        const litRatio = (opt.litRatio == null) ? 0.68 : opt.litRatio;
+        const order = [];
+        for (let r0 = 0; r0 < rows; r0++) order.push(r0);
+        for (let i0 = order.length - 1; i0 > 0; i0--) {
+          const j0 = Math.floor(Math.random() * (i0 + 1));
+          const t0 = order[i0]; order[i0] = order[j0]; order[j0] = t0;
+        }
+        const litRows = {};
+        const nLit = Math.max(1, Math.round(rows * litRatio));
+        for (let i0 = 0; i0 < nLit; i0++) litRows[order[i0]] = 1;
+
+        // --- ① 先定稿每个窗格（先算后画：溢光层必须垫在清晰窗格下面）---
+        const cells = [];
+        for (let r = 0; r < rows; r++) {
+          const floorOn = !!litRows[r];      // 整层统一亮/暗：真实办公楼是"某几层成片亮着"
+          for (let k = 0; k < cols; k++) {
+            const t = Math.random();
+            let col, lit2 = 0;
+            if (floorOn && t < 0.82) {
+              col = t < 0.58 ? 'rgba(255,206,138,0.98)' : 'rgba(214,232,255,0.90)'; // 暖白工位灯 / 冷白走道灯
+              lit2 = 1;
+            } else if (t < 0.10) {
+              col = 'rgba(96,124,164,0.30)';                                        // 熄灯但幕墙反一点环境光
+            } else {
+              col = 'rgba(8,14,22,1)';
+            }
+            cells.push({ x: k * cw, y: r * ch, col: col, lit: lit2 });
+          }
+        }
+
+        // --- ② 亮窗溢光：把"亮窗 ↔ 暗幕墙"的像素级硬边摊成柔和过渡 ---
+        // 为什么必须做：亮窗与暗幕墙原本是硬边，相机一动，边界像素就在"全亮"与"全暗"
+        // 两个采样之间反复归属 —— 一条又长又直的亮暗边界（尤其**最下面那排窗**与勒脚/
+        // 地面相接处，"建筑底部边缘闪"夜间最明显的就是它）跳起来极刺眼。
+        // 加一层高斯溢光后，边界两侧的色差被摊到十几个像素上，单像素跳变幅度大幅降低；
+        // 顺带这才是真实夜景该有的样子（窗光本来就会在幕墙上洇开一圈）。
+        {
+          const litCv = canvas2d(W, H), lctx = litCv.ctx;
+          for (let i2 = 0; i2 < cells.length; i2++) {
+            const c2 = cells[i2];
+            if (!c2.lit) continue;
+            lctx.fillStyle = c2.col;
+            lctx.fillRect(c2.x + 2, c2.y + 3, cw - 4, ch - 6);
+          }
+          const blurCv = canvas2d(W, H);
+          const bp = Math.max(3, Math.round(cw * 0.13));
+          blurCv.ctx.filter = 'blur(' + bp + 'px)';
+          blurCv.ctx.drawImage(litCv.c, 0, 0);
+          blurCv.ctx.filter = 'none';
+          ctx.globalAlpha = 0.55;
+          ctx.drawImage(blurCv.c, 0, 0);
+          ctx.globalAlpha = 1;
+        }
+
+        // --- ③ 再画清晰窗格（压在溢光上面，保住"窗格"而非"一片糊亮"）---
+        for (let i3 = 0; i3 < cells.length; i3++) {
+          const c3 = cells[i3];
+          ctx.fillStyle = c3.col;
+          ctx.fillRect(c3.x + 2, c3.y + 3, cw - 4, ch - 6);
+          if (c3.lit) {
+            // 窗内亮度不均：靠近窗台更亮，天花一侧偏暗，避免"一片死亮"
+            const g = ctx.createLinearGradient(c3.x, c3.y + 3, c3.x, c3.y + ch - 3);
+            g.addColorStop(0.00, 'rgba(255,255,255,0.34)');
+            g.addColorStop(0.55, 'rgba(255,255,255,0.05)');
+            g.addColorStop(1.00, 'rgba(0,0,0,0.30)');
+            ctx.fillStyle = g;
+            ctx.fillRect(c3.x + 2, c3.y + 3, cw - 4, ch - 6);
+          }
+        }
+        return finishTexture(o.c, 1, 1);
+      }
+
+      ctx.fillStyle = opt.frame || '#b6c0cb'; ctx.fillRect(0, 0, W, H);
+      const lit = opt.lit == null ? 0.18 : opt.lit;
+      for (let r = 0; r < rows; r++) {
+        for (let k = 0; k < cols; k++) {
+          const x = k * cw, y = r * ch;
+          const t = Math.random();
+          let col;
+          if (t < lit) col = 'rgba(255,238,196,0.95)';
+          else if (t < lit + 0.18) col = 'rgba(158,196,228,0.92)';
+          else col = 'rgba(38,70,102,0.95)';
+          ctx.fillStyle = col;
+          ctx.fillRect(x + 2, y + 3, cw - 4, ch - 6);
+          const g = ctx.createLinearGradient(x, y + 3, x, y + ch - 3);
+          g.addColorStop(0.00, 'rgba(255,255,255,0.30)');
+          g.addColorStop(0.42, 'rgba(255,255,255,0.04)');
+          g.addColorStop(1.00, 'rgba(0,0,0,0.24)');
+          ctx.fillStyle = g;
+          ctx.fillRect(x + 2, y + 3, cw - 4, ch - 6);
+        }
+      }
+      grain(ctx, W, H, 6);
+      return finishTexture(o.c, 1, 1);
+    }
+
+    // 沥青路面
+    function texAsphalt() {
+      const N = 256;
+      const o = canvas2d(N, N), ctx = o.ctx;
+      ctx.fillStyle = '#4a525b'; ctx.fillRect(0, 0, N, N);
+      blotches(ctx, N, N, [44, 49, 56], 34, 44, 0.34);
+      blotches(ctx, N, N, [118, 126, 134], 22, 34, 0.26);
+      grain(ctx, N, N, 24);
+      return finishTexture(o.c, 1, 1);
+    }
+
+    // 园区石材铺装
+    function texPaving() {
+      const N = 256;
+      const o = canvas2d(N, N), ctx = o.ctx;
+      ctx.fillStyle = '#959da4'; ctx.fillRect(0, 0, N, N);
+      blotches(ctx, N, N, [112, 120, 128], 28, 44, 0.34);
+      blotches(ctx, N, N, [176, 183, 190], 16, 32, 0.24);
+      ctx.strokeStyle = 'rgba(96,104,112,0.70)'; ctx.lineWidth = 1.4;
+      const step = N / 8;
+      for (let i = 0; i <= 8; i++) {
+        ctx.beginPath(); ctx.moveTo(i * step, 0); ctx.lineTo(i * step, N); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i * step); ctx.lineTo(N, i * step); ctx.stroke();
+      }
+      grain(ctx, N, N, 12);
+      return finishTexture(o.c, 1, 1);
+    }
+
+    // 草地（低饱和，偏自然草甸色）
+    function texGrass() {
+      const N = 256;
+      const o = canvas2d(N, N), ctx = o.ctx;
+      ctx.fillStyle = '#4a6340'; ctx.fillRect(0, 0, N, N);
+      blotches(ctx, N, N, [56, 78, 48], 44, 48, 0.40);
+      blotches(ctx, N, N, [104, 128, 76], 26, 36, 0.24);
+      for (let i = 0; i < 1500; i++) {
+        const x = Math.random() * N, y = Math.random() * N;
+        ctx.strokeStyle = 'rgba(' + (58 + Math.random() * 52 | 0) + ',' + (86 + Math.random() * 52 | 0) + ',' + (44 + Math.random() * 34 | 0) + ',' + (0.22 + Math.random() * 0.36).toFixed(2) + ')';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + (Math.random() - 0.5) * 3, y - 2 - Math.random() * 4);
+        ctx.stroke();
+      }
+      grain(ctx, N, N, 14);
+      return finishTexture(o.c, 1, 1);
+    }
+
+    // 光伏组件
+    // 注意：此贴图会经 ACES 色调映射 + 金属反射后整体压暗，基色必须比"实际观感"亮一档，
+    // 否则渲染出来接近全黑（此前基色 #0e1830 / 单元 #1e3760 就是这个问题）
+    function texSolar() {
+      const W = 256, H = 256;
+      const o = canvas2d(W, H), ctx = o.ctx;
+      ctx.fillStyle = '#1c2c48'; ctx.fillRect(0, 0, W, H);   // 电池片之间的深色缝隙
+      const cell = W / 8;
+      for (let r = 0; r < 8; r++) {
+        for (let k = 0; k < 8; k++) {
+          const x = k * cell, y = r * cell;
+          const g = ctx.createLinearGradient(x, y, x + cell, y + cell);
+          g.addColorStop(0.00, '#5f8bcf');
+          g.addColorStop(0.50, '#4468a8');
+          g.addColorStop(1.00, '#33507f');
+          ctx.fillStyle = g;
+          ctx.fillRect(x + 1.5, y + 1.5, cell - 3, cell - 3);
+          ctx.strokeStyle = 'rgba(206,224,248,0.38)'; ctx.lineWidth = 1;
+          for (let i = 1; i < 4; i++) {
+            ctx.beginPath();
+            ctx.moveTo(x + cell * i / 4, y + 2);
+            ctx.lineTo(x + cell * i / 4, y + cell - 2);
+            ctx.stroke();
+          }
+        }
+      }
+      // 组件边框（细边更接近真实边框尺寸，过粗会形成"白色网格"观感）
+      ctx.strokeStyle = 'rgba(206,216,230,0.90)'; ctx.lineWidth = 3;
+      ctx.strokeRect(3, 3, W - 6, H - 6);
+      return finishTexture(o.c, 1, 1);
+    }
+
+    // 拉丝不锈钢
+    function texSteel() {
+      const N = 256;
+      const o = canvas2d(N, N), ctx = o.ctx;
+      ctx.fillStyle = '#c7ced6'; ctx.fillRect(0, 0, N, N);
+      for (let i = 0; i < 900; i++) {
+        const y = Math.random() * N;
+        const light = Math.random() > 0.5;
+        ctx.strokeStyle = 'rgba(' + (light ? '255,255,255' : '112,122,134') + ',' + (0.05 + Math.random() * 0.18).toFixed(2) + ')';
+        ctx.lineWidth = Math.random() * 1.6 + 0.3;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(N, y + (Math.random() - 0.5) * 2);
+        ctx.stroke();
+      }
+      grain(ctx, N, N, 7);
+      return finishTexture(o.c, 1, 1);
+    }
+
+    // 园区围墙：清水混凝土板 + 竖向分缝 + 压顶（一张贴图代表 4m × 2.4m 墙段）
+    function texFence() {
+      const W = 512, H = 256;
+      const o = canvas2d(W, H), ctx = o.ctx;
+      ctx.fillStyle = '#ccd0d3'; ctx.fillRect(0, 0, W, H);
+      blotches(ctx, W, H, [160, 166, 172], 26, 62, 0.32);
+      blotches(ctx, W, H, [232, 236, 239], 18, 48, 0.34);
+      // 竖向分缝（每 128px = 1m 一块板）
+      ctx.strokeStyle = 'rgba(108,116,124,0.75)'; ctx.lineWidth = 3;
+      for (let x = 0; x <= W; x += 128) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      }
+      ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1;
+      for (let x = 0; x <= W; x += 128) {
+        ctx.beginPath(); ctx.moveTo(x + 3, 0); ctx.lineTo(x + 3, H); ctx.stroke();
+      }
+      // 压顶分界 + 底部勒脚
+      ctx.fillStyle = 'rgba(104,112,120,0.60)'; ctx.fillRect(0, 0, W, 5);
+      ctx.fillStyle = 'rgba(124,130,136,0.55)'; ctx.fillRect(0, H - 30, W, 4);
+      ctx.fillStyle = 'rgba(92,98,105,0.34)'; ctx.fillRect(0, H - 26, W, 26);
+      weathering(ctx, W, H, 28, [100, 108, 118], 0.15);
+      grain(ctx, W, H, 10);
+      return finishTexture(o.c, 1, 1);
+    }
+
+    function initTextures() {
+      TEX.fence = texFence();
+      TEX.concrete = texConcrete();
+      TEX.metalWall = texMetalWall();
+      TEX.asphalt = texAsphalt();
+      TEX.paving = texPaving();
+      TEX.grass = texGrass();
+      TEX.solar = texSolar();
+      TEX.steel = texSteel();
+      TEX.facadeHall = texFacade(16, 24, { lit: 0.20, frame: '#aab5c1' });  // 主厂房幕墙
+      TEX.facadeOffice = texFacade(12, 26, { lit: 0.28, frame: '#c4cdd7' }); // 办公楼层间
+      // 晚间版（房间灯亮起，同时用作自发光贴图）
+      // 【第 17 轮】夜间亮灯数量降到三分之一：厂房高侧窗那一条玻璃带原来一律按默认 0.68 点亮，
+      // 夜里就是一条横在建筑上部的亮带（"灯都集中在上半部分"的主要来源之一）。
+      TEX.facadeHallN = texFacade(16, 24, { mode: 'night', frame: '#0c141d', litRatio: 0.33 });
+      // 【最高的那栋楼】晚间不必全亮：行数直接给成楼层数（9 行 = 9 层，一行就是一层），
+      // 亮的层数取一半（litRatio 0.5 → 5 层亮 4 层暗），符合"下班后只留一半办公区"的真实感。
+      // 原来 rows=26 与 9 层对不上，一行只覆盖 1/3 层，"半亮"根本表达不出来。
+      TEX.facadeOfficeN = texFacade(12, 9, { mode: 'night', frame: '#0a121b', litRatio: 0.33 });
+    }
+
+    /* ============ 2. 天空穹顶 + PMREM 环境反射 ============ */
+    const THEME_LOOK = {
+      // 傍晚（原"蓝色"）：蓝色时刻，天顶深蓝、地平线转暖，太阳压低
+      dark: {
+        zenith: '#0a2547', mid: '#2a6298', horizon: '#d6c3a6', bottom: '#3d4a58',
+        sunHex: '#ffdcaa', sunDir: [0.70, 0.44, -0.70],
+        fogHex: '#c2c8cc', fogNear: 150, fogFar: 500,
+        hemiSky: '#a2c0e0', hemiGround: '#3a4450', hemiI: 0.42,
+        sunI: 2.85, ambI: 0.06, exposure: 0.92,
+        cloud: 0.92, cloudColor: '#ffffff',
+        ground: '#8e9a86', pad: '#aab2b9', grid1: '#8fc0e4', grid2: '#3d6b96', gridOp: 0.09
+      },
+      // 晚间（原"黑色"）：真正入夜 —— 天光压到最低，照明改由路灯 / 楼体房间灯承担
+      black: {
+        zenith: '#01030a', mid: '#071527', horizon: '#17324c', bottom: '#04080e',
+        sunHex: '#b9cdea', sunDir: [0.58, 0.62, -0.58],           // 月光（高角度、冷白）
+        fogHex: '#08141f', fogNear: 88, fogFar: 330,
+        hemiSky: '#1c3a5e', hemiGround: '#04070c', hemiI: 0.12,
+        sunI: 0.30, ambI: 0.025, exposure: 1.18,
+        cloud: 0.30, cloudColor: '#16243a',
+        ground: '#1b241f', pad: '#242c34', grid1: '#5fd0ff', grid2: '#1b3a5c', gridOp: 0.13
+      },
+      // 白天（原"白色"）：正午白光
+      light: {
+        zenith: '#2b6ab8', mid: '#88b9e2', horizon: '#e6f0fa', bottom: '#9dabb7',
+        sunHex: '#fffaec', sunDir: [0.66, 0.52, -0.55],
+        fogHex: '#dcebf7', fogNear: 160, fogFar: 520,
+        hemiSky: '#cfe3ff', hemiGround: '#8f9aa4', hemiI: 0.74,
+        sunI: 3.00, ambI: 0.18, exposure: 0.92,
+        cloud: 0.95, cloudColor: '#ffffff',
+        ground: '#c6d4be', pad: '#e0e6eb', grid1: '#8fb0cc', grid2: '#bbccda', gridOp: 0.26
+      }
+    };
+
+    // 生成 equirect 环境贴图 → PMREM（给金属 / 玻璃提供真实反射）
+    function buildEnvMap(key) {
+      const L = THEME_LOOK[key];
+      const W = 512, H = 256;
+      const o = canvas2d(W, H), ctx = o.ctx;
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0.00, L.zenith);
+      g.addColorStop(0.34, L.mid);
+      g.addColorStop(0.50, L.horizon);
+      g.addColorStop(0.58, L.bottom);
+      g.addColorStop(1.00, L.bottom);
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+      const sd = L.sunDir;
+      const sx = ((Math.atan2(sd[0], sd[2]) / (Math.PI * 2) + 0.5) % 1) * W;
+      const sy = (0.5 - Math.asin(Math.max(-1, Math.min(1, sd[1]))) / Math.PI) * H;
+      const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, H * 0.55);
+      sg.addColorStop(0.00, '#ffffff');
+      sg.addColorStop(0.09, L.sunHex);
+      sg.addColorStop(0.32, 'rgba(255,244,222,0.28)');
+      sg.addColorStop(1.00, 'rgba(255,244,222,0)');
+      ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
+
+      const tex = new THREE.CanvasTexture(o.c);
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      tex.encoding = THREE.sRGBEncoding;
+
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      pmrem.compileEquirectangularShader();
+      const rt = pmrem.fromEquirectangular(tex);
+      tex.dispose();
+      pmrem.dispose();
+      return rt.texture;
+    }
+
+    function getEnvMap(key) {
+      if (!ENV_CACHE[key]) ENV_CACHE[key] = buildEnvMap(key);
+      return ENV_CACHE[key];
+    }
+
+    // 写实天空穹顶（渐变 + 太阳盘 + 光晕）
+    /* ---- 星空（仅晚间显示）：点精灵铺在天穹内侧，不随园区自转 ---- */
+    function createStars() {
+      const N = 900, pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+      const R = 380;
+      for (let i = 0; i < N; i++) {
+        // 只在地平线以上撒点，并按仰角做密度加权（靠近天顶更密）
+        const u = Math.random() * Math.PI * 2;
+        const v = Math.pow(Math.random(), 0.7);           // 0=地平 1=天顶
+        const el = v * Math.PI * 0.5;
+        pos[i * 3] = Math.cos(u) * Math.cos(el) * R;
+        pos[i * 3 + 1] = Math.sin(el) * R;
+        pos[i * 3 + 2] = Math.sin(u) * Math.cos(el) * R;
+        // 亮度随机 + 少量偏蓝/偏暖的星
+        const b = rnd(0.45, 1.0);
+        const tint = Math.random();
+        col[i * 3] = b * (tint < 0.18 ? 1.00 : 0.90);
+        col[i * 3 + 1] = b * 0.94;
+        col[i * 3 + 2] = b * (tint < 0.18 ? 0.82 : 1.00);
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      const pts = new THREE.Points(geo, new THREE.PointsMaterial({
+        map: getStarTex(), size: 3.2, sizeAttenuation: false, vertexColors: true,
+        transparent: true, opacity: 0.90, depthWrite: false, fog: false, toneMapped: false
+      }));
+      pts.visible = false;
+      pts.renderOrder = -1;
+      scene.add(pts);
+      NIGHT_PROPS.push(pts);
+      return pts;
+    }
+
+    function createSkyDome() {
+      const geo = new THREE.SphereGeometry(420, 48, 32);
+      const mat = new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        depthWrite: false,
+        fog: false,
+        uniforms: {
+          uZenith: { value: S(THEME_LOOK.dark.zenith) },
+          uMid: { value: S(THEME_LOOK.dark.mid) },
+          uHorizon: { value: S(THEME_LOOK.dark.horizon) },
+          uBottom: { value: S(THEME_LOOK.dark.bottom) },
+          uSunDir: { value: new THREE.Vector3(0.62, 0.44, 0.65).normalize() },
+          uSunColor: { value: S(THEME_LOOK.dark.sunHex) },
+          uCloudColor: { value: S(THEME_LOOK.dark.cloudColor) },
+          uCloud: { value: THEME_LOOK.dark.cloud }
+        },
+        vertexShader: [
+          'varying vec3 vDir;',
+          'void main() {',
+          '  vDir = normalize(position);',
+          '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+          '}'
+        ].join('\n'),
+        fragmentShader: [
+          'uniform vec3 uZenith, uMid, uHorizon, uBottom, uSunColor, uCloudColor;',
+          'uniform vec3 uSunDir;',
+          'uniform float uCloud;',
+          'varying vec3 vDir;',
+          '',
+          'float hash21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }',
+          'float vnoise(vec2 p) {',
+          '  vec2 i = floor(p); vec2 f = fract(p);',
+          '  vec2 u = f * f * (3.0 - 2.0 * f);',
+          '  return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), u.x),',
+          '             mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), u.x), u.y);',
+          '}',
+          'float fbm(vec2 p) {',
+          '  float v = 0.0; float a = 0.5;',
+          '  for (int i = 0; i < 3; i++) { v += a * vnoise(p); p *= 2.13; a *= 0.5; }',
+          '  return v;',
+          '}',
+          '',
+          'void main() {',
+          '  vec3 d = normalize(vDir);',
+          '  float h = d.y;',
+          '  vec3 col;',
+          '  if (h >= 0.0) {',
+          '    float t = pow(clamp(h, 0.0, 1.0), 0.62);',
+          '    col = mix(uHorizon, uMid, smoothstep(0.0, 0.30, t));',
+          '    col = mix(col, uZenith, smoothstep(0.26, 1.0, t));',
+          '  } else {',
+          '    col = mix(uHorizon, uBottom, smoothstep(0.0, 0.22, -h));',
+          '  }',
+          '',
+          '  // 程序化云层（fbm 噪声 + 太阳侧受光）',
+          '  if (h > 0.012 && uCloud > 0.001) {',
+          '    vec2 uv = d.xz / (max(h, 0.075) + 0.15) * 0.90;',
+          '    float w = fbm(uv * 1.00 + vec2(3.10));',
+          '    float c = fbm(uv * 3.00 + vec2(w * 1.70));',
+          '    c = smoothstep(0.32, 0.58, c);',
+          '    float fade = smoothstep(0.055, 0.30, h);',   // 【抗闪烁 ③】地平线附近不再起云：该处 uv 被极度拉伸，高频噪声在相机运动时就是一片闪点
+          '    float sd = max(dot(d, normalize(uSunDir)), 0.0);',
+          '    vec3 cc = mix(uCloudColor * 0.86, uCloudColor * 1.20 + uSunColor * 0.30, pow(sd, 3.0));',
+          '    col = mix(col, cc, c * fade * uCloud);',
+          '  }',
+          '',
+          '  float s = max(dot(d, normalize(uSunDir)), 0.0);',
+          '  col += uSunColor * pow(s, 320.0) * 2.2;',
+          '  col += uSunColor * pow(s, 8.0) * 0.20;',
+          '  gl_FragColor = vec4(col, 1.0);',
+          '}'
+        ].join('\n')
+      });
+      const m = new THREE.Mesh(geo, mat);
+      m.frustumCulled = false;
+      m.renderOrder = -1;
+      scene.add(m);
+      return m;
+    }
+
+    /* ============ 3. PBR 材质池 ============ */
+    const MAT = {};
+
+    // 地面类材质工厂（同参数复用）
+    // 【第19轮】第 8 个参数 po = 深度层次（polygonOffsetUnits）。正值＝把该面往后推，
+    // 负值＝往前拉。园区地面是一摞"零厚度面片"，全靠标高差区分先后；拉远后标高差
+    // 不够用就会成片闪。按层给固定偏置后，层次由 polygonOffset 保证，与距离无关。
+    //   +4 最底层大面（草地 / 园区铺装）   -2 沥青面   -4 覆面 / 人行道   -6 标线涂装
+    function groundMatFactory(cacheKey, tex, rx, ry, rough, metal, envI, po) {
+      if (MAT[cacheKey]) return MAT[cacheKey];
+      const m = new THREE.MeshStandardMaterial({
+        map: tiled(tex, rx, ry), color: C('#ffffff'),
+        roughness: rough, metalness: metal, envMapIntensity: envI
+      });
+      if (po) {
+        m.polygonOffset = true;
+        m.polygonOffsetFactor = po > 0 ? 1.5 : -1.5;
+        m.polygonOffsetUnits = po;
+      }
+      MAT[cacheKey] = m;
+      return m;
+    }
+    // 默认层次：沥青面 −2（压在最底层大面之上）、铺装/草地 −4（只有非"园区铺装"的
+    // 铺装才会走默认值，例如罐区铺装 0.060 与人行道 0.066）
+    function asphaltMat(rx, ry, po) { return groundMatFactory('asphalt_' + rx + '_' + ry, TEX.asphalt, rx, ry, 0.94, 0.03, 0.45, po == null ? -2 : po); }
+    function pavingMat(rx, ry, po) { return groundMatFactory('paving_' + rx + '_' + ry, TEX.paving, rx, ry, 0.68, 0.06, 0.80, po == null ? -4 : po); }
+    function grassMat(rx, ry, po) { return groundMatFactory('grass_' + rx + '_' + ry, TEX.grass, rx, ry, 0.96, 0.00, 0.42, po == null ? -4 : po); }
+    // 围墙墙面材质（按墙段长度决定横向铺贴次数，贴图 = 4m 一段）
+    function fenceMat(len) {
+      const rx = Math.max(1, Math.round(len / 4));
+      return groundMatFactory('fence_' + rx, TEX.fence, rx, 1, 0.86, 0.03, 0.55);
+    }
+    function solarMatFor(pw, ph) {
+      const rx = Math.max(1, Math.round(pw / 5)), ry = Math.max(1, Math.round(ph / 5));
+      const key = 'solar_' + rx + '_' + ry;
+      if (!MAT[key]) {
+        // 光伏板：降低 metalness / envMap 强度，避免表面大面积镜面反射天空阴影而发黑
+        MAT[key] = new THREE.MeshStandardMaterial({
+          map: tiled(TEX.solar, rx, ry), color: C('#ffffff'),
+          roughness: 0.26, metalness: 0.38, envMapIntensity: 1.00
+        });
+      }
+      return MAT[key];
+    }
+
+    function initMaterials() {
+      // 清水混凝土（墙体 / 基座）
+      MAT.concrete = new THREE.MeshStandardMaterial({
+        map: tiled(TEX.concrete, 2, 2), color: C('#ffffff'),
+        roughness: 0.88, metalness: 0.02, envMapIntensity: 0.55
+      });
+      // 压型金属墙板
+      MAT.wallPanel = new THREE.MeshStandardMaterial({
+        map: tiled(TEX.metalWall, 3, 2), color: C('#cfd8e1'),
+        roughness: 0.44, metalness: 0.50, envMapIntensity: 1.00
+      });
+      // 屋面（浅灰金属）
+      MAT.roof = new THREE.MeshStandardMaterial({
+        color: C('#b9c2cb'), roughness: 0.62, metalness: 0.38, envMapIntensity: 0.80
+      });
+      // 铝合金（腰线 / 支架 / 框料）
+      MAT.alu = new THREE.MeshStandardMaterial({
+        color: C('#c9d1d9'), roughness: 0.34, metalness: 0.80, envMapIntensity: 1.15
+      });
+      // 深色金属（门 / 格栅）
+      MAT.darkMetal = new THREE.MeshStandardMaterial({
+        color: C('#4a5560'), roughness: 0.48, metalness: 0.72, envMapIntensity: 0.95
+      });
+      // 不锈钢（罐体 / 管道）
+      MAT.steel = new THREE.MeshStandardMaterial({
+        map: tiled(TEX.steel, 1, 1), color: C('#eef2f6'),
+        roughness: 0.24, metalness: 0.94, envMapIntensity: 1.35
+      });
+      // 建筑玻璃（高反射 + 清漆层）
+      MAT.glass = new THREE.MeshPhysicalMaterial({
+        color: C('#2b4d72'), roughness: 0.07, metalness: 0.52,
+        clearcoat: 1.0, clearcoatRoughness: 0.05, envMapIntensity: 1.75
+      });
+      // 入口幕墙玻璃（比常规建筑玻璃更深，保证门厅在浅色墙面上有足够对比）
+      MAT.glassDeep = new THREE.MeshPhysicalMaterial({
+        color: C('#132a44'), roughness: 0.06, metalness: 0.55,
+        clearcoat: 1.0, clearcoatRoughness: 0.04, envMapIntensity: 1.60
+      });
+      // 大门门楣名牌底板（深藏青）+ 冷白发光字带 / 灯箱面
+      MAT.gatePanel = new THREE.MeshStandardMaterial({
+        color: C('#12283f'), roughness: 0.42, metalness: 0.45, envMapIntensity: 0.95
+      });
+      MAT.signGlow = new THREE.MeshStandardMaterial({
+        color: C('#eaf7ff'), emissive: S('#7fd8ff'), emissiveIntensity: 2.1,
+        roughness: 0.30, metalness: 0.05, envMapIntensity: 0.70
+      });
+      // 幕墙贴图（主厂房）
+      MAT.facadeHall = new THREE.MeshStandardMaterial({
+        map: TEX.facadeHall, color: C('#ffffff'),
+        roughness: 0.11, metalness: 0.50, envMapIntensity: 1.55
+      });
+      // 幕墙贴图（办公楼）
+      MAT.facadeOffice = new THREE.MeshStandardMaterial({
+        map: TEX.facadeOffice, color: C('#ffffff'),
+        roughness: 0.09, metalness: 0.52, envMapIntensity: 1.65
+      });
+      // 幕墙进入昼夜系统：晚间换成"亮灯"贴图并让窗格自发光（＝大楼房间灯打开）
+      registerFacade(MAT.facadeHall, TEX.facadeHall, TEX.facadeHallN);
+      registerFacade(MAT.facadeOffice, TEX.facadeOffice, TEX.facadeOfficeN);
+      // 光伏组件（中等粗糙度，浅蓝深色，避免过深过黑）
+      MAT.solar = new THREE.MeshStandardMaterial({
+        map: TEX.solar, color: C('#ffffff'),
+        roughness: 0.26, metalness: 0.38, envMapIntensity: 1.00
+      });
+      registerNightDim(MAT.solar, 0.42);   // 晚间光伏板不再反天光，压暗
+      // 地面材质按铺贴次数缓存，避免创建重复材质
+      MAT.asphalt2 = asphaltMat(5, 5);   // 停车场场坪（0.052，压铺装 12mm）→ 层次 −2
+      // 园区铺装与外围草地是"最底层大面"：它们下方什么都没有，上方压着停车场场坪、
+      // 充电地坪、各级道路、绿带草坪、车位线…… 与其逐个给上层加偏置，不如把这两张
+      // 最底层大面统一往后推（+4），此后任何压在它们上面的面都稳定在前，一劳永逸。
+      MAT.paving = pavingMat(50, 50, 4);    // 园区铺装（0.040）→ 层次 +4
+      MAT.grass = grassMat(80, 80, 4);      // 外围草地（0.000）→ 层次 +4
+      MAT.grassPatch = grassMat(6, 4);   // 绿化带草坪（0.058）→ 层次 −4
+      // 标线（白色）
+      // 【抗闪烁 ②】标线是贴在路面上方 8mm 的零厚度面片，远处（100m 量级）深度精度只有
+      // 几毫米，会与路面/地坪反复翻转 —— 表现为白线一段段闪。用一个固定负向 polygonOffset
+      // 把它稳定压到地面之前，就不再靠运气的深度比较了。
+      MAT.marking = new THREE.MeshStandardMaterial({
+        color: C('#e8ecef'), roughness: 0.70, metalness: 0.02, envMapIntensity: 0.60,
+        polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6
+      });
+      // 平贴地面的深灰石材收边（路侧绿带 / 树池压边）
+      // 【关键】地面上的"线"必须是零厚度的面片：原来用 BoxGeometry 做路缘石，
+      // 高出路面 0.34m，在俯视角度看就是一条"凸起的白线"，还带投影
+      MAT.curbFlat = new THREE.MeshStandardMaterial({
+        color: C('#79818a'), roughness: 0.88, metalness: 0.02, envMapIntensity: 0.42,
+        polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6
+      });
+      // 警示黄
+      MAT.warn = new THREE.MeshStandardMaterial({
+        color: C('#e8b93a'), roughness: 0.45, metalness: 0.30, envMapIntensity: 0.85
+      });
+      // 警示红
+      MAT.warnRed = new THREE.MeshStandardMaterial({
+        color: C('#c8433f'), roughness: 0.55, metalness: 0.10, envMapIntensity: 0.70
+      });
+      // 树皮
+      MAT.bark = new THREE.MeshStandardMaterial({
+        color: C('#6a5138'), roughness: 0.95, metalness: 0.00, envMapIntensity: 0.35
+      });
+      // 树冠（多色变体，避免整片树同色的塑料感）
+      function leafMat(hex) {
+        return new THREE.MeshStandardMaterial({
+          color: C(hex), roughness: 0.93, metalness: 0.00, envMapIntensity: 0.38
+        });
+      }
+      MAT.leafVariants = [leafMat('#4a7c3c'), leafMat('#3d6b34'), leafMat('#577f42'), leafMat('#446f38')];
+      // 灌木
+      MAT.bush = new THREE.MeshStandardMaterial({
+        color: C('#547f45'), roughness: 0.93, metalness: 0.00, envMapIntensity: 0.38
+      });
+      // 植被 / 光伏：晚间必须压暗。否则月光与半球光一照，夜里树还是白天那种亮绿，
+      // 一眼就"假"，路灯的照明对比也显不出来。
+      MAT.leafVariants.forEach(function (m) { registerNightDim(m, 0.20); });
+      registerNightDim(MAT.bush, 0.20);
+      registerNightDim(MAT.grassPatch, 0.26);
+      // 车漆（带清漆层，反射环境）
+      function carPaint(hex) {
+        return new THREE.MeshPhysicalMaterial({
+          color: C(hex), roughness: 0.16, metalness: 0.55,
+          clearcoat: 1.0, clearcoatRoughness: 0.04, envMapIntensity: 1.35
+        });
+      }
+      MAT.carBody = [carPaint('#dce3ea'), carPaint('#37414d'), carPaint('#9aa6b2'), carPaint('#5c6b7a')];
+      MAT.carGlass = new THREE.MeshStandardMaterial({
+        color: C('#16202c'), roughness: 0.06, metalness: 0.55, envMapIntensity: 1.80
+      });
+      MAT.tire = new THREE.MeshStandardMaterial({
+        color: C('#1b1e22'), roughness: 0.92, metalness: 0.02, envMapIntensity: 0.30
+      });
+      // 灯具自发光
+      MAT.lampGlass = new THREE.MeshStandardMaterial({
+        color: C('#fff4d8'), emissive: S('#ffd9a0'), emissiveIntensity: 1.6,
+        roughness: 0.35, metalness: 0.10, envMapIntensity: 0.60
+      });
+      // 汽车底部包围 / 塑料饰件
+      MAT.carTrim = new THREE.MeshStandardMaterial({
+        color: C('#2a2f36'), roughness: 0.74, metalness: 0.10, envMapIntensity: 0.55
+      });
+      // 前大灯（微自发光）
+      MAT.headLight = new THREE.MeshStandardMaterial({
+        color: C('#e6edf4'), emissive: S('#cfe2f4'), emissiveIntensity: 0.40,
+        roughness: 0.12, metalness: 0.30, envMapIntensity: 1.40
+      });
+      // 尾灯
+      MAT.tailLight = new THREE.MeshStandardMaterial({
+        color: C('#8e2b28'), emissive: S('#5e1512'), emissiveIntensity: 0.30,
+        roughness: 0.24, metalness: 0.25, envMapIntensity: 1.15
+      });
+      // 充电桩外壳（白色烤漆，带清漆层）
+      MAT.charger = new THREE.MeshPhysicalMaterial({
+        color: C('#eef1f4'), roughness: 0.30, metalness: 0.16,
+        clearcoat: 0.85, clearcoatRoughness: 0.10, envMapIntensity: 1.15
+      });
+      // 充电桩顶盖 / 枪头（深色件）
+      MAT.chargerTop = new THREE.MeshStandardMaterial({
+        color: C('#252a31'), roughness: 0.44, metalness: 0.45, envMapIntensity: 0.95
+      });
+      // 充电桩屏幕（暗底绿光）
+      MAT.chargerScreen = new THREE.MeshStandardMaterial({
+        color: C('#0e1620'), emissive: S('#1f6349'), emissiveIntensity: 0.65,
+        roughness: 0.16, metalness: 0.30, envMapIntensity: 1.10
+      });
+      // 充电状态灯（绿 = 正在充电）
+      MAT.chargeLed = new THREE.MeshStandardMaterial({
+        color: C('#39d98a'), emissive: S('#2fd07f'), emissiveIntensity: 2.2,
+        roughness: 0.30, metalness: 0.05, envMapIntensity: 0.60
+      });
+      // 充电线缆（黑色橡胶）
+      MAT.cable = new THREE.MeshStandardMaterial({
+        color: C('#181b1f'), roughness: 0.90, metalness: 0.03, envMapIntensity: 0.30
+      });
+      // 充电车位地坪涂装（深绿）
+      MAT.chargeZone = new THREE.MeshStandardMaterial({
+        color: C('#2f7a5a'), roughness: 0.84, metalness: 0.02, envMapIntensity: 0.55,
+        polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6
+      });
+    }
+
+    /* ============ 4. 园区建筑群 ============ */
+    function init3D() {
+      scene = new THREE.Scene();
+      scene.background = null;
+
+      // 【第19轮·根治拉远闪】near 0.1 → 1.5。
+      // 深度缓冲精度公式 Δz(z) ≈ z²·(1/near − 1/far)/2²⁴：near=0.1 时
+      // z=150m 只能分辨 13.4mm、z=300m 分辨 53.6mm —— 而地面各层高差只有
+      // 8~22mm（铺装 .040 / 场坪 .052 / 车位线 .060 / 主路 .062），拉远后必然
+      // 互相翻转（z-fighting），表现为灰色马路与停车场成片闪烁。
+      // 提到 1.5 后 z=300m 分辨 3.6mm、z=350m 分辨 4.9mm，比最小高差还小一半。
+      // 相机受 minDistance=14 约束，不可能贴到 1.5m 内，取景完全不受影响。
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 1.5, 1200);
+      camera.position.set(72, 54, 72);
+
+      // ---- 渲染器：线性工作流 + ACES 电影级色调映射 ----
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      // 【抗闪烁·超采样】渲染分辨率至少 1.5 倍（上限 2 倍）。
+      // 相机缓慢移动时，围栏立柱/光伏格栅/铺装纹理这类高频细节会发生"亚像素采样跳变"——
+      // 表现为画面上一片细密的沙沙闪。dpr=1 的普通显示器等于只有 1 个采样/像素，最明显；
+      // 提到 1.5 倍后每个屏幕像素有 2.25 个渲染采样再缩小，闪烁量明显下降。
+      // dpr≥2 的高分屏本来就够，不额外加负担。
+      renderer.setPixelRatio(Math.min(Math.max(window.devicePixelRatio, SUPERSAMPLE_MIN), 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      // 【抗闪烁 ①】阴影贴图改为"按需更新"。园区每帧都在缓慢自转
+      // （worldGroup.rotation.y += 0.00035），若 shadowMap 逐帧重算，阴影采样点会在
+      // texel 之间来回跳变 —— 表现为整个画面到处"沙沙"闪（草地、铺装、墙面的阴影边缘
+      // 尤其明显）。改成只在初始化与切换主题（太阳方位变了）时更新一帧，边缘就绝对稳定，
+      // 顺带省掉每帧的 shadow pass。
+      renderer.shadowMap.autoUpdate = false;
+      renderer.shadowMap.needsUpdate = true;
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.0;
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.06;
+      // 【第 17 轮】缩放放开：原来 min 30 / max 170 —— 拉到 170 时园区仍占满整屏（"不能自由缩小、
+      // 还是太大"），贴近也进不去。改成 14~300：可以贴到单体跟前（充电桩/配电站），
+      // 也可以一路拉到看全园区＋周边环境。
+      controls.minDistance = 14;
+      controls.maxDistance = 300;
+      controls.zoomSpeed = 0.85;
+      controls.maxPolarAngle = Math.PI / 2 - 0.04;
+      controls.target.set(0, 16, 0);
+      // 【第 17 轮】鼠标中键 = 上下左右平移画布（原来中键是推拉镜头，用户要的是拖动画布）。
+      // screenSpacePanning=true 让平移沿屏幕方向走（而不是贴着地面平移），"上下左右拖动"更符合直觉。
+      // 左键旋转、右键平移都保留。
+      controls.screenSpacePanning = true;
+      controls.mouseButtons = {
+        LEFT: THREE.MOUSE.ROTATE,
+        MIDDLE: THREE.MOUSE.PAN,
+        RIGHT: THREE.MOUSE.PAN
+      };
+      // 中键在浏览器里有"自动滚屏"的默认行为（弹出滚动圈并吃掉拖动），这里拦掉。
+      renderer.domElement.addEventListener('mousedown', function (e) {
+        if (e.button === 1) e.preventDefault();
+      });
+      renderer.domElement.addEventListener('auxclick', function (e) {
+        if (e.button === 1) e.preventDefault();
+      });
+
+      initTextures();
+      initMaterials();
+      // 【切换顺滑】三个主题的环境贴图（PMREM）在这里一次生成好。否则第一次切到某个主题时
+      // 要现场跑一遍 PMREM（几十毫秒的 GPU 阻塞），表现就是"切换那一瞬间画面卡一下、跳一下"。
+      ['light', 'dark', 'black'].forEach(function (k) { getEnvMap(k); });
+
+      // ---- 天空穹顶 ----
+      skyMesh = createSkyDome();
+      starsMesh = createStars();
+
+      // ---- 光照：太阳主光 + 半球环境光 + 补光 ----
+      const sd = THEME_LOOK.dark.sunDir;
+      sunLight = new THREE.DirectionalLight(S(THEME_LOOK.dark.sunHex).getHex(), 2.35);
+      sunLight.position.set(sd[0] * 160, sd[1] * 160, sd[2] * 160);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.width = 3072;
+      sunLight.shadow.mapSize.height = 3072;
+      // 【第 17 轮·阴影重做 ①】原写法只改了正交相机的 left/right/top/bottom，却从未调用
+      // updateProjectionMatrix() —— three 的 DirectionalLightShadow 是 new OrthographicCamera(-5,5,5,-5,0.5,500)，
+      // 不重算投影矩阵，它就一直是构造时的默认值 ±5！结果：阴影贴图只覆盖原点周围 10×10m，
+      // 主厂房以外的建筑（办公楼、车间、储罐、配电站）**全都没有影子** —— 这就是"阴影都不对"的根因。
+      // 正确范围要能把 160×116m 的园区（斜投影后约 ±100m）全罩住。
+      sunLight.shadow.camera.near = 30;
+      sunLight.shadow.camera.far = 470;
+      sunLight.shadow.camera.left = -118;
+      sunLight.shadow.camera.right = 118;
+      sunLight.shadow.camera.top = 118;
+      sunLight.shadow.camera.bottom = -118;
+      sunLight.shadow.camera.updateProjectionMatrix();   // ← 少了这一句，前面五行参数全是摆设
+      // 3072 贴图 / 236m 跨度 ≈ 0.077m 一个 texel（原来 2048/260m = 0.127m），阴影边缘更干净；
+      // normalBias 从 0.035 收到 0.02：0.035 会把细长构件（灯杆、栏杆、树干的影子）整根推没。
+      sunLight.shadow.bias = -0.00030;
+      sunLight.shadow.normalBias = 0.02;
+      scene.add(sunLight);
+
+      hemiLight = new THREE.HemisphereLight(S(THEME_LOOK.dark.hemiSky).getHex(), S(THEME_LOOK.dark.hemiGround).getHex(), 0.74);
+      scene.add(hemiLight);
+
+      ambientLight = new THREE.AmbientLight(0xffffff, 0.16);
+      scene.add(ambientLight);
+
+      // ---- 世界容器 ----
+      // 【关键】地面 / 园区铺装 / 网格 / 建筑必须挂在同一个节点下再整体自转。
+      // 此前 ground、groundPad、gridHelper 直属 scene，而自转只加到 buildingGroup 上，
+      // 于是"建筑在转、地面不转"，铺装缝和网格与建筑彻底错位。
+      worldGroup = new THREE.Group();
+      scene.add(worldGroup);
+      // 【第 17 轮·阴影重做 ②】太阳光（连同它的 target）一起挂到 worldGroup 下。
+      // 原来光源挂在 scene 上、园区在转 —— 光源不动、物体在转，而 shadowMap 又是冻结的
+      // （autoUpdate=false），页面开一会儿影子就整体错位（转 30° 后影子还停在原方位）。
+      // 把光源挂进来之后，"光源 ↔ 园区"的相对方位恒定不变：
+      //   · 光源空间下的阴影贴图内容完全不随自转改变 → 冻结的那一帧永远正确；
+      //   · 天空里的太阳盘也跟着一起转，光照方向与天空始终自洽。
+      worldGroup.add(sunLight);
+      worldGroup.add(sunLight.target);
+
+      // ---- 地面：外围草地 + 园区铺装 ----
+      const groundGeo = new THREE.PlaneGeometry(600, 600);
+      ground = new THREE.Mesh(groundGeo, MAT.grass);
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      worldGroup.add(ground);
+
+      // 园区铺装：范围严格收在围墙内
+      // 【修正】原来 172x128 比围墙（x±80 / z-62~54，墙厚 0.34）大一圈，
+      // 铺装会甩到墙外草地上，看着像"围墙外还铺了石材"
+      // 墙内表面 x±79.83 / z-61.83~53.83 → 铺装取 159.6 x 115.6，中心 z=-4
+      const padGeo = new THREE.PlaneGeometry(159.6, 115.6);
+      groundPad = new THREE.Mesh(padGeo, MAT.paving);
+      groundPad.rotation.x = -Math.PI / 2;
+      groundPad.position.set(0, 0.04, -4);
+      groundPad.receiveShadow = true;
+      worldGroup.add(groundPad);
+
+      // 极淡网格：改用矩形网格线（GridHelper 是正方形 164x164，半径方向会溢到墙外草地上）
+      gridHelper = paintGrid();
+      worldGroup.add(gridHelper);
+
+      buildingGroup = new THREE.Group();
+      worldGroup.add(buildingGroup);
+
+      createFactoryBuilding();
+      createEnvironment();
+
+      applyTheme(currentTheme);
+
+      animate();
+
+      setTimeout(function () {
+        $('loader').style.opacity = '0';
+        setTimeout(function () { $('loader').style.display = 'none'; }, 500);
+      }, 600);
+    }
+
+    function createFactoryBuilding() {
+      // ===== 现代工业园区：主厂房 + 办公楼 + 生产车间 + 储罐区 =====
+      addFactoryMainHall(0, -6, 46, 30, 12);   // 中央主厂房
+      addOfficeBuilding(-38, 18, 22, 16, 9);   // 左侧研发办公楼
+      addWorkshop(40, -16, 28, 20, 9);         // 右侧生产车间
+      addStorageTanks(-44, -24);               // 西北储罐区
+      addChargingStation(40, -30.7, Math.PI); // 车间北侧电动车充电站（车位/充电桩紧贴车间北墙，桩体外缘留 5cm 不入墙）
+      addGateHouse(0, 50);                     // 南门岗（园区大门）
+      addParkingLot(50, 18);                   // 东南停车场（移出主干道，避免与路面重叠）
+      addGreenArea(-30, 48.6);                 // 主干道南侧路侧绿带（z 44.2~53，不再压马路）
+      addSubstation(69, -54);                  // 东北角小型配电站（箱式变电站，贴角布置）
+      addPipeRack();                           // 工艺管廊
+      addPerimeterWall();                      // 园区围墙
+    }
+
+    // 主厂房：钢结构大跨厂房，金属墙板 + 玻璃腰带 + 满铺光伏
+    /* ---- 建筑接地阴影（接触遮蔽）过渡带 ----
+       「建筑底部边缘闪」的机制：建筑与地面之间是一条又长又直的水平硬交线，
+       两侧色差大（浅色勒脚 ↔ 灰蓝铺装）。相机一动，边界像素在"墙面"和"地面"
+       两个采样之间反复归属 —— 一条长直线整体同步跳，比立面零散细节扎眼得多。
+       这里在建筑四周铺一圈**从墙脚向外渐隐的柔和暗带**：
+         · 视觉上＝真实建筑根部的接触阴影（AO），真实感只增不减；
+         · 关键是它把交线两侧的**对比度压下来**——紧贴墙脚的地面由亮转暗，
+           与墙面的色差大幅缩小，于是边界像素跳变的**幅度**显著降低。
+       注意：它是贴地的半透明面片，必须自带 polygonOffset + 抬高标高，
+       否则它自己就会跟铺装打 z-fighting（等于把一个闪烁换成另一个）。 */
+    const CONTACT_MATS = [];
+    const CONTACT_CACHE = {};
+    function contactShadeTex(w, d, band) {
+      const key = w.toFixed(2) + '|' + d.toFixed(2) + '|' + band.toFixed(2);
+      if (CONTACT_CACHE[key]) return CONTACT_CACHE[key];
+      const S = 256;
+      const o = canvas2d(S, S), ctx = o.ctx;
+      const img = ctx.createImageData(S, S);
+      const HW = w / 2 + band, HD = d / 2 + band;      // 面片半尺寸（世界米）
+      for (let y = 0; y < S; y++) {
+        for (let x = 0; x < S; x++) {
+          const wx = ((x + 0.5) / S * 2 - 1) * HW;
+          const wz = ((y + 0.5) / S * 2 - 1) * HD;
+          // 到建筑外轮廓的距离（外部为正）——切比雪夫 ⇒ 矩形环
+          const dOut = Math.max(Math.abs(wx) - w / 2, Math.abs(wz) - d / 2);
+          let t = 1 - dOut / band;
+          t = t < 0 ? 0 : (t > 1 ? 1 : t);
+          const a = Math.pow(t, 1.45);                 // 靠墙陡、外缘缓，自然收尾
+          const k = (y * S + x) * 4;
+          img.data[k] = 20; img.data[k + 1] = 24; img.data[k + 2] = 30;
+          img.data[k + 3] = Math.round(a * 112);       // 最大不透明度 ≈ 0.44
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      const t2 = finishTexture(o.c, 1, 1);
+      t2.wrapS = t2.wrapT = THREE.ClampToEdgeWrapping;
+      CONTACT_CACHE[key] = t2;
+      return t2;
+    }
+    function addContactShade(parent, w, d, band) {
+      band = band || 1.8;
+      const mat = new THREE.MeshBasicMaterial({
+        map: contactShadeTex(w, d, band), transparent: true, depthWrite: false,
+        toneMapped: false, fog: true,
+        // 铺装是 polygonOffsetUnits = +4（往后推），这里 -24 稳稳压在前面；
+        // polygonOffsetUnits 的单位是"深度缓冲最小可分辨单元"，会随距离自动放大，
+        // 所以这个偏置在 14m 和 300m 处同样有效。
+        polygonOffset: true, polygonOffsetFactor: -12, polygonOffsetUnits: -24
+      });
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w + band * 2, d + band * 2), mat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.y = 0.046;                            // 铺装(0.040) 之上 6mm
+      m.renderOrder = 2;
+      parent.add(m);
+      CONTACT_MATS.push(mat);
+      return m;
+    }
+
+    function addFactoryMainHall(x, z, w, d, h) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+
+      // 主体（六面分材质：四面墙板 / 顶面屋面板 / 底面）
+      const wallMat = MAT.wallPanel.clone();
+      wallMat.map = tiled(TEX.metalWall, Math.round(w / 9), Math.round(h / 5));
+      const roofMat = MAT.roof;
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, d),
+        [wallMat, wallMat, roofMat, MAT.concrete, wallMat, wallMat]
+      );
+      body.position.y = h / 2;
+      body.castShadow = true; body.receiveShadow = true;
+      g.add(body);
+
+      // 混凝土勒脚（建筑落地感）——南立面正门处断开，避免把入口下段整段埋进勒脚
+      // 左/右两段保留完整进深（南面出挑 0.4）；中段在南面退回墙内，正门处露出落地墙面
+      const PGAP = 4.6;                                  // 勒脚断开半宽（略大于门套外沿）
+      const lw = (w / 2 + 0.4) - PGAP;                   // 左/右段宽
+      const plinthParts = [
+        [lw, d + 0.8, -(w / 2 + 0.4 + PGAP) / 2, 0],     // 左段
+        [lw, d + 0.8, (w / 2 + 0.4 + PGAP) / 2, 0],      // 右段
+        [PGAP * 2, d - 0.4, 0, -0.4]                     // 中段（南面退到墙内侧）
+      ];
+      for (const pp of plinthParts) {
+        const pl = new THREE.Mesh(new THREE.BoxGeometry(pp[0], 1.6, pp[1]), MAT.concrete);
+        pl.position.set(pp[2], 0.8, pp[3]);
+        pl.castShadow = true; pl.receiveShadow = true;
+        g.add(pl);
+      }
+
+      // 上部玻璃采光带（真实厂房高侧窗）
+      const gbH = h * 0.28;
+      for (const s of [1, -1]) {
+        const b1 = new THREE.Mesh(new THREE.BoxGeometry(w - 2, gbH, 0.30), MAT.facadeHall);
+        b1.position.set(0, h * 0.72, s * (d / 2 + 0.14));
+        b1.castShadow = true;
+        g.add(b1);
+        const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.30, gbH, d - 2), MAT.facadeHall);
+        b2.position.set(s * (w / 2 + 0.14), h * 0.72, 0);
+        b2.castShadow = true;
+        g.add(b2);
+      }
+
+      // 竖向壁柱
+      const colCount = 6;
+      for (let i = 0; i <= colCount; i++) {
+        if (i === colCount / 2) continue;   // 跳过正中壁柱：原来正好堵在南立面主入口门洞中央
+        for (const s of [1, -1]) {
+          const pil = new THREE.Mesh(new THREE.BoxGeometry(0.9, h, 0.6), MAT.alu);
+          pil.position.set(-w / 2 + (w / colCount) * i, h / 2, s * (d / 2 + 0.10));
+          pil.castShadow = true;
+          g.add(pil);
+        }
+      }
+
+      // 女儿墙压顶
+      const parapet = new THREE.Mesh(new THREE.BoxGeometry(w + 0.7, 1.1, d + 0.7), MAT.concrete);
+      parapet.position.y = h + 0.55;
+      parapet.castShadow = true; parapet.receiveShadow = true;
+      g.add(parapet);
+
+      // 屋顶设备（集中贴后排设备带，避免长在光伏阵列里穿模）
+      const ductMat = MAT.alu;
+      for (let i = 0; i < 4; i++) {
+        const duct = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 4.4), ductMat);
+        duct.position.set(-w * 0.30 + i * w * 0.20, h + 1.9, -(d / 2 - 2.0));
+        duct.castShadow = true;
+        g.add(duct);
+      }
+      // 屋顶前排设备带留空（原 3 台空调机组已按需求移除）
+
+      // 屋顶光伏（倾角 17°；原来按 d*0.18 反算实际约 38°，明显过陡像斜墙）
+      // 进深只铺 d-9，前后各留一条设备带，板阵与屋面设备互不穿插
+      addSolarRoof(g, w - 2.5, d - 9, h + 1.1, 17);
+
+      // 入口雨棚 / 门套 / 明门已并入下方 addMainEntrance()
+      // （原 15.6m 宽 4.5m 深的整片大平板雨棚过于扁平，横贯整面山墙，
+      //   反而把入口拉成"一道窗带"；改为随门洞尺度的窄雨棚 + 门套 + 开启的明门）
+
+      // ---- 正门（南立面主入口）：门套 + 玻璃幕 + 明装双开门（一扇开启）+ 雨棚 + 台阶 + 灯箱 ----
+      // 说明：主厂房是实心体块、无法真开洞，故整组入口构件沿 z 向外层层错开：
+      //   墙面 15.00 → 玻璃 15.14~15.24 → 竖梃 15.19~15.33 → 门框 15.29~15.39
+      //   → 门套 15.10~15.65 → 雨棚前檐 18.10。任何两个面都不同位，杜绝 z-fighting。
+      // 之前的问题：门洞 10.0×3.8 又宽又扁 + 整片玻璃 + 15.6m 大平板雨棚，
+      //   远看就是山墙上一道"窗带"；且 1.6m 勒脚把门的下半段整段埋掉。
+      (function addMainEntrance() {
+        const zWall = d / 2;                  // 南墙外表面 = 15.00
+        const OW = 7.2;                       // 门洞宽（收窄加高，接近"门"的比例）
+        const OH = 4.10;                      // 门洞高
+        const fD = 0.55;                      // 门套进深
+        const fZ = zWall + 0.10 + fD / 2;     // 门套中心 z
+        const SILL = 0.30;                    // 门槛平台高
+        const DOOR_H = 2.80;                  // 门扇净高（其上为固定亮子）
+        const dW = 3.30;                      // 双开门总宽
+        const CH = 5.00;                      // 雨棚中心标高
+        const CD = 3.00;                      // 雨棚外挑深度
+        const cz0 = zWall + 0.10;             // 雨棚内端起 z
+
+        // ① 门套：深色包边在浅色墙板上勾出清晰的"洞口"轮廓
+        for (const s of [-1, 1]) {
+          const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.55, OH, fD), MAT.darkMetal);
+          jamb.position.set(s * (OW / 2 + 0.275), OH / 2, fZ);
+          jamb.castShadow = true; jamb.receiveShadow = true;
+          g.add(jamb);
+
+          const edge = new THREE.Mesh(new THREE.BoxGeometry(0.14, OH + 0.55, fD + 0.06), MAT.alu);
+          edge.position.set(s * (OW / 2 + 0.62), (OH + 0.55) / 2, fZ);
+          edge.castShadow = true;
+          g.add(edge);
+        }
+        const head = new THREE.Mesh(new THREE.BoxGeometry(OW + 1.10, 0.55, fD), MAT.darkMetal);
+        head.position.set(0, OH + 0.275, fZ);
+        head.castShadow = true; head.receiveShadow = true;
+        g.add(head);
+
+        // ② 玻璃幕（贴墙 0.19）+ 竖梃 + 门上横梃
+        const glaze = new THREE.Mesh(new THREE.BoxGeometry(OW - 0.10, OH - 0.20, 0.10), MAT.glass);
+        glaze.position.set(0, (OH - 0.20) / 2, zWall + 0.19);
+        g.add(glaze);
+
+        for (const gx of [-2.55, 2.55]) {
+          const mull = new THREE.Mesh(new THREE.BoxGeometry(0.14, OH - 0.20, 0.14), MAT.alu);
+          mull.position.set(gx, (OH - 0.20) / 2, zWall + 0.26);
+          mull.castShadow = true;
+          g.add(mull);
+        }
+        const transom = new THREE.Mesh(new THREE.BoxGeometry(OW - 0.10, 0.16, 0.16), MAT.alu);
+        transom.position.set(0, SILL + DOOR_H + 0.34, zWall + 0.26);
+        transom.castShadow = true;
+        g.add(transom);
+
+        // ③ 明装双开门：深色门框 + 玻璃扇，两扇向外开启 26° —— 一眼是"门"而不是"窗"
+        const HINGE = dW / 2;
+        for (const s of [-1, 1]) {
+          const leafW = dW / 2 - 0.06;
+          const pivot = new THREE.Group();
+          pivot.position.set(s * HINGE, SILL, zWall + 0.34);
+
+          const mkBar = (bw, bh, px, py) => {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 0.10), MAT.darkMetal);
+            m.position.set(px, py, 0);
+            m.castShadow = true;
+            pivot.add(m);
+          };
+          mkBar(0.12, DOOR_H, -leafW / 2 + 0.06, DOOR_H / 2);   // 左（铰链侧）边梃
+          mkBar(0.12, DOOR_H, leafW / 2 - 0.06, DOOR_H / 2);    // 右（开启侧）边梃
+          mkBar(leafW, 0.12, 0, DOOR_H - 0.06);                 // 上冒头
+          mkBar(leafW, 0.34, 0, 0.17);                          // 下冒头
+          mkBar(leafW, 0.10, 0, DOOR_H * 0.42);                 // 中冒头
+
+          // 门上玻璃 + 门下夹板玻璃（分两段，避免整扇一块大玻璃又像窗）
+          const gl1 = new THREE.Mesh(new THREE.BoxGeometry(leafW - 0.24, DOOR_H * 0.50, 0.06), MAT.glassDeep);
+          gl1.position.set(0, DOOR_H * 0.72, 0);
+          pivot.add(gl1);
+          const gl2 = new THREE.Mesh(new THREE.BoxGeometry(leafW - 0.24, DOOR_H * 0.24, 0.06), MAT.glassDeep);
+          gl2.position.set(0, DOOR_H * 0.24, 0);
+          pivot.add(gl2);
+
+          // 拉手（装在开启侧竖边梃上）
+          const hd = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.10, 0.06), MAT.alu);
+          hd.position.set(-s * (leafW / 2 - 0.24), 1.35, 0.10);
+          hd.castShadow = true;
+          pivot.add(hd);
+
+          pivot.rotation.y = s * 0.46;        // 向外开启（左扇 -0.46 / 右扇 +0.46）
+          g.add(pivot);
+        }
+
+        // ④ 台阶：上层平台（与门槛同高）+ 下层踏步
+        const step1 = new THREE.Mesh(new THREE.BoxGeometry(OW + 1.30, SILL, 1.20), MAT.concrete);
+        step1.position.set(0, SILL / 2, zWall + 0.10 + 0.60);
+        step1.castShadow = true; step1.receiveShadow = true;
+        g.add(step1);
+
+        const step2 = new THREE.Mesh(new THREE.BoxGeometry(OW + 1.86, SILL / 2, 0.95), MAT.concrete);
+        step2.position.set(0, SILL / 4, zWall + 0.10 + 1.20 + 0.475);
+        step2.castShadow = true; step2.receiveShadow = true;
+        g.add(step2);
+
+        // ⑤ 雨棚（外挑 3.0m，宽度收到门洞尺度）+ 深色前檐 + 檐下发光带 + 两根方柱
+        const slab = new THREE.Mesh(new THREE.BoxGeometry(OW + 3.4, 0.34, CD), MAT.alu);
+        slab.position.set(0, CH, cz0 + CD / 2);
+        slab.castShadow = true; slab.receiveShadow = true;
+        g.add(slab);
+
+        const fascia = new THREE.Mesh(new THREE.BoxGeometry(OW + 3.4, 0.62, 0.20), MAT.darkMetal);
+        fascia.position.set(0, CH - 0.14, cz0 + CD + 0.02);
+        fascia.castShadow = true;
+        g.add(fascia);
+
+        const fglow = new THREE.Mesh(new THREE.BoxGeometry(OW + 2.4, 0.09, 0.06), MAT.signGlow);
+        fglow.position.set(0, CH - 0.38, cz0 + CD + 0.12);
+        g.add(fglow);
+
+        for (const s of [-1, 1]) {
+          const col = new THREE.Mesh(new THREE.BoxGeometry(0.30, CH - 0.17, 0.30), MAT.darkMetal);
+          col.position.set(s * (OW / 2 + 1.15), (CH - 0.17) / 2, cz0 + CD - 0.40);
+          col.castShadow = true; col.receiveShadow = true;
+          g.add(col);
+        }
+
+        // ⑥ 门头牌匾已按要求移除
+        //   （原为雨棚之上的深色底板 + 三条自发光字带，即"厂名 / 入口"牌匾）
+
+        // ⑦ 入口两侧立式灯箱（把入口从墙面上"拎"出来）
+        for (const s of [-1, 1]) {
+          const box = new THREE.Mesh(new THREE.BoxGeometry(0.46, 2.45, 0.36), MAT.darkMetal);
+          box.position.set(s * (OW / 2 + 2.60), 1.225, zWall + 0.78);
+          box.castShadow = true; box.receiveShadow = true;
+          g.add(box);
+
+          const lit = new THREE.Mesh(new THREE.BoxGeometry(0.28, 2.05, 0.05), MAT.signGlow);
+          lit.position.set(s * (OW / 2 + 2.60), 1.30, zWall + 0.97);
+          g.add(lit);
+        }
+      })();
+
+            addContactShade(g, w + 0.9, d + 0.9, 1.9);   // 接地阴影过渡带（主厂房）
+
+buildingGroup.add(g);
+    }
+
+    // 研发办公楼：玻璃幕墙塔楼 + 层间腰线
+    function addOfficeBuilding(x, z, w, d, floors) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+      const floorH = 3.4;
+      const h = floors * floorH;
+
+      // 核心体（混凝土）
+      const core = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), MAT.concrete);
+      core.position.y = h / 2;
+      core.castShadow = true; core.receiveShadow = true;
+      g.add(core);
+
+      // 四面幕墙（贴图玻璃分格）
+      const fMat = MAT.facadeOffice.clone();
+      // 【关键修正】clone 出来的材质不在 FACADE_MATS 里，applyTheme 只改原型，于是
+      // 这栋楼怎么都不亮（"最高的楼晚间楼层灯没亮"就是这个原因）。clone 的 userData
+      // 也不会跟着复制，所以这里要重新登记一次。
+      registerFacade(fMat, TEX.facadeOffice, TEX.facadeOfficeN);
+      for (const s of [1, -1]) {
+        const f1 = new THREE.Mesh(new THREE.BoxGeometry(w + 0.30, h - 1.2, 0.18), fMat);
+        f1.position.set(0, h / 2, s * (d / 2 + 0.16));
+        g.add(f1);
+        const f2 = new THREE.Mesh(new THREE.BoxGeometry(0.18, h - 1.2, d + 0.30), fMat);
+        f2.position.set(s * (w / 2 + 0.16), h / 2, 0);
+        g.add(f2);
+      }
+
+      // 层间腰线
+      for (let f = 1; f < floors; f++) {
+        const band = new THREE.Mesh(new THREE.BoxGeometry(w + 0.75, 0.44, d + 0.75), MAT.alu);
+        band.position.y = f * floorH;
+        band.castShadow = true;
+        g.add(band);
+      }
+
+      // 混凝土勒脚
+      const plinth = new THREE.Mesh(new THREE.BoxGeometry(w + 1.0, 2.0, d + 1.0), MAT.concrete);
+      plinth.position.y = 1.0;
+      plinth.castShadow = true; plinth.receiveShadow = true;
+      g.add(plinth);
+
+      // 顶部机房屋 + 女儿墙
+      const topHouse = new THREE.Mesh(new THREE.BoxGeometry(w * 0.55, 2.6, d * 0.55), MAT.concrete);
+      topHouse.position.y = h + 1.3;
+      topHouse.castShadow = true;
+      g.add(topHouse);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(w + 0.9, 0.9, d + 0.9), MAT.alu);
+      cap.position.y = h + 0.45;
+      cap.castShadow = true;
+      g.add(cap);
+
+      addSolarRoof(g, w * 0.62, d * 0.62, h + 2.6, 14);
+
+            addContactShade(g, w + 1.1, d + 1.1, 2.0);   // 接地阴影过渡带（办公楼·勒脚外扩 0.5）
+
+buildingGroup.add(g);
+    }
+
+    // 生产车间：压型钢板厂房 + 采光带 + 卷帘门
+    function addWorkshop(x, z, w, d, h) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+
+      const wallMat = MAT.wallPanel.clone();
+      wallMat.map = tiled(TEX.metalWall, Math.round(w / 8), Math.round(h / 5));
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, d),
+        [wallMat, wallMat, MAT.roof, MAT.concrete, wallMat, wallMat]
+      );
+      body.position.y = h / 2;
+      body.castShadow = true; body.receiveShadow = true;
+      g.add(body);
+
+      // 檐口带
+      const eave = new THREE.Mesh(new THREE.BoxGeometry(w + 0.6, 1.0, d + 0.6), MAT.darkMetal);
+      eave.position.y = h - 0.4;
+      eave.castShadow = true;
+      g.add(eave);
+
+      // 侧墙采光带
+      const band = new THREE.Mesh(new THREE.BoxGeometry(w - 1.5, h * 0.20, 0.24), MAT.glass);
+      for (const s of [1, -1]) {
+        const b = band.clone();
+        b.position.set(0, h * 0.66, s * (d / 2 + 0.12));
+        g.add(b);
+      }
+
+      // 大型卷帘门：门帘 + 三段式门框（左右竖框 + 上过梁）
+      // 修复 z-fighting：原写法门帘与门框外表面都落在 w/2+0.28 这一层，同向共面导致闪烁摩尔纹。
+      // 现改为「门帘贴墙 + 门框外凸」两层错开 0.07，且门框各段拼接不叠加，任何重合面法线均相反，彻底消除闪烁。
+      for (const s of [1, -1]) {
+        const xw = w / 2;                    // 墙面位置
+        const doorW = d * 0.26;              // 门洞宽（沿 z）
+        const doorH = h * 0.58;              // 门洞高
+        const doorBase = h * 0.02;           // 门帘离地高度
+
+        // 卷帘门帘：内表面离墙 0.03，外表面落在 +0.11
+        const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.08, doorH, doorW + 0.04), MAT.darkMetal);
+        leaf.position.set(s * (xw + 0.07), doorBase + doorH / 2, 0);
+        leaf.castShadow = true; leaf.receiveShadow = true;
+        g.add(leaf);
+
+        // 门框：竖框贯穿门洞高度，过梁压在竖框顶面（拼接关系，仅相邻不重叠）
+        const fD = 0.16;                     // 框厚（沿墙法向，外表面落在 +0.18）
+        const fW = 0.22;                     // 框截面宽
+        const fxC = s * (xw + 0.02 + fD / 2);
+        const jambGeo = new THREE.BoxGeometry(fD, doorH, fW);
+
+        const jambL = new THREE.Mesh(jambGeo, MAT.warn);
+        jambL.position.set(fxC, doorBase + doorH / 2, -(doorW + fW) / 2);
+        jambL.castShadow = true;
+        g.add(jambL);
+
+        const jambR = new THREE.Mesh(jambGeo, MAT.warn);
+        jambR.position.set(fxC, doorBase + doorH / 2, (doorW + fW) / 2);
+        jambR.castShadow = true;
+        g.add(jambR);
+
+        const lintel = new THREE.Mesh(new THREE.BoxGeometry(fD, fW, doorW + fW * 2), MAT.warn);
+        lintel.position.set(fxC, doorBase + doorH + fW / 2, 0);
+        lintel.castShadow = true;
+        g.add(lintel);
+      }
+
+      // 屋脊通风器
+      // 屋面通风器（贴后排设备带，让开光伏阵列）
+      for (let i = 0; i < 4; i++) {
+        const vent = new THREE.Mesh(new THREE.BoxGeometry(w * 0.16, 1.6, 2.0), MAT.alu);
+        vent.position.set(-w * 0.32 + i * w * 0.21, h + 0.9, -(d / 2 - 1.5));
+        vent.castShadow = true;
+        g.add(vent);
+      }
+
+      // 光伏避开后排通风器：进深收 6m，底部落到屋面板（h+0.1）上
+      addSolarRoof(g, w - 3.5, d - 6, h + 0.12, 18);
+
+            addContactShade(g, w + 0.7, d + 0.7, 1.8);   // 接地阴影过渡带（生产车间）
+
+buildingGroup.add(g);
+    }
+
+    // 储罐区：不锈钢罐 + 防火堤 + 管廊
+    function addStorageTanks(x, z) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+
+      // 罐区铺装
+      const pad = new THREE.Mesh(new THREE.PlaneGeometry(34, 32), pavingMat(7, 7));
+      pad.rotation.x = -Math.PI / 2;
+      pad.position.y = 0.06;
+      pad.receiveShadow = true;
+      g.add(pad);
+
+      const positions = [[-6.5, -6.5], [6.5, -6.5], [-6.5, 6.5], [6.5, 6.5]];
+      positions.forEach(function (p) {
+        const tx = p[0], tz = p[1];
+        // 混凝土基座
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(4.3, 4.3, 0.7, 32), MAT.concrete);
+        base.position.set(tx, 0.35, tz);
+        base.receiveShadow = true; base.castShadow = true;
+        g.add(base);
+
+        // 罐体（承压筒体，底 0.7、顶 10.7）
+        const SHELL_R = 3.9, SHELL_TOP = 10.7;
+        const tank = new THREE.Mesh(new THREE.CylinderGeometry(SHELL_R, SHELL_R, 10, 40, 1, true), MAT.steel);
+        tank.position.set(tx, 5.7, tz);
+        tank.castShadow = true; tank.receiveShadow = true;
+        g.add(tank);
+
+        // 罐顶（拱顶）【修正】原来用 thetaLength=0.30π 的球冠，基圆半径只有 3.155m
+        // （小于罐体 3.9m），球心又落在 y=10.7，导致拱顶底口悬在罐体上沿以上 2.29m —— 盖子是"飘"的。
+        // 现改为半球沿 Y 压扁：底圆半径 = 罐体半径 3.9，底口正好坐在罐体上沿 y=10.7 上。
+        const DOME_H = 1.58;                                   // 拱顶矢高（约 0.2 倍罐径，接近真实拱顶罐）
+        const domeGeo = new THREE.SphereGeometry(SHELL_R, 44, 20, 0, Math.PI * 2, 0, Math.PI / 2);
+        domeGeo.scale(1, DOME_H / SHELL_R, 1);
+        const dome = new THREE.Mesh(domeGeo, MAT.steel);
+        dome.position.set(tx, SHELL_TOP, tz);
+        dome.castShadow = true;
+        g.add(dome);
+
+        // 罐顶与筒体的对接焊缝环（把"盖"和"罐"在视觉上焊成一体，不留悬空缝）
+        const seam = new THREE.Mesh(
+          new THREE.CylinderGeometry(SHELL_R + 0.07, SHELL_R + 0.07, 0.30, 44, 1, true), MAT.alu);
+        seam.position.set(tx, SHELL_TOP - 0.10, tz);
+        seam.castShadow = true;
+        g.add(seam);
+
+        // 罐顶中心通气孔（拱顶罐的呼吸阀）
+        const vent = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.72, 14), MAT.alu);
+        vent.position.set(tx, SHELL_TOP + DOME_H + 0.24, tz);
+        vent.castShadow = true;
+        g.add(vent);
+        const ventCap = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.16, 14), MAT.steel);
+        ventCap.position.set(tx, SHELL_TOP + DOME_H + 0.66, tz);
+        ventCap.castShadow = true;
+        g.add(ventCap);
+
+        // 顶部加强环（贴在筒体上沿下方，不再是浮在空中的"圆环"）
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(SHELL_R + 0.05, 0.10, 8, 44), MAT.alu);
+        ring.position.set(tx, SHELL_TOP - 0.42, tz);
+        ring.rotation.x = Math.PI / 2;
+        g.add(ring);
+
+        // 爬梯
+        for (let i = 0; i < 11; i++) {
+          const step = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.10, 0.34), MAT.alu);
+          step.position.set(tx, 1.6 + i * 0.88, tz + 3.95);
+          g.add(step);
+        }
+
+        // 侧面加强环
+        for (let i = 0; i < 3; i++) {
+          const band = new THREE.Mesh(new THREE.CylinderGeometry(3.98, 3.98, 0.22, 40, 1, true), MAT.alu);
+          band.position.set(tx, 2.6 + i * 3.4, tz);
+          g.add(band);
+        }
+      });
+
+      // 防火堤
+      const bermMat = MAT.concrete;
+      const berms = [
+        [0, -15.6, 30, 0.9], [0, 15.6, 30, 0.9],
+        [-14.6, 0, 0.9, 32], [14.6, 0, 0.9, 32]
+      ];
+      berms.forEach(function (b) {
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(b[2], 1.5, b[3]), bermMat);
+        wall.position.set(b[0], 0.75, b[1]);
+        wall.castShadow = true; wall.receiveShadow = true;
+        g.add(wall);
+      });
+
+      buildingGroup.add(g);
+    }
+
+    /* ---- 园区围墙尺寸（门岗与围墙共用，保证大门柱子与墙体对齐咬合） ---- */
+    const WALL = { X: 80, ZS: 54, ZN: -62, H: 2.5, T: 0.34, GATE: 10.4 };
+
+    /* ---- 人行通道（岗亭西侧，与车行闸机同一条门线 z=53.2） ----
+       原来岗亭紧贴西侧门柱基座（柱基到亭壁净距只剩 0.45m），行人根本挤不过去；
+       本轮把岗亭东移 2.6m，在西侧让出 3.0m 宽人行通道，通道内设两通道翼闸。
+       x 范围下限取 -9.30：西侧门柱基座（2.10 宽）外沿在 -9.35，留 0.05 收口。 */
+    const PED = { X0: -9.30, X1: -6.30, W: 3.0, Z: 53.2 };
+
+    // 门岗 / 大门
+    function addGateHouse(x, z) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+
+      // 门卫亭（置于车道左侧墙内侧，不再堵住门洞正中；再往内让开大门柱）
+      // 【本轮调整】东移 2.6m（-6.8 → -4.2）：原来亭子紧贴西侧门柱基座，两者净距
+      // 只剩 0.45m，行人无处可走。东移后亭子正好夹在"人行通道"与"车行闸机"之间，
+      // 值守视野同时覆盖两侧；西侧让出的 3.0m 通道内布置翼闸（见本函数末尾）。
+      const BOOTH_X = PED.X1 + 2.1;                            // -4.20
+      const booth = new THREE.Mesh(new THREE.BoxGeometry(4.2, 3.6, 3.8), MAT.concrete);
+      booth.position.set(BOOTH_X, 1.8, 1.0);
+      booth.castShadow = true; booth.receiveShadow = true;
+      g.add(booth);
+
+      const win = new THREE.Mesh(new THREE.BoxGeometry(4.4, 1.7, 4.0), MAT.glass);
+      win.position.set(BOOTH_X, 2.1, 1.0);
+      g.add(win);
+
+      // 雨棚挑檐由 5.2m 收到 4.8m：西侧挑出人行道 0.3m 作遮蔽，
+      // 东侧檐口（-1.8）正好止于闸杆端头（-1.6）之内，不压到栏杆上
+      const roofSlab = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.45, 4.6), MAT.alu);
+      roofSlab.position.set(BOOTH_X, 3.85, 1.0);
+      roofSlab.castShadow = true;
+      g.add(roofSlab);
+
+      // 门柱（柱脚基座 + 柱身 + 压顶 + 柱顶灯）
+      // 【关键】柱心正对围墙门洞端头（x=±WALL.GATE、z=围墙轴线），柱体把墙端头包进去，
+      // 柱与围墙连成一体；此前柱位在 z=0（比围墙缩进 4m）且不在门洞端头，看着与围墙"脱开"
+      const pz = WALL.ZS - z;
+      const PH = 5.80;                    // 柱身高（无门楣后回调，6.6 会显得像两根杆子）
+      for (const side of [-1, 1]) {
+        const baseP = new THREE.Mesh(new THREE.BoxGeometry(2.10, 0.80, 2.10), MAT.fenceCap);
+        baseP.position.set(side * WALL.GATE, 0.40, pz);
+        baseP.castShadow = true; baseP.receiveShadow = true;
+        g.add(baseP);
+
+        const pillar = new THREE.Mesh(new THREE.BoxGeometry(1.50, PH, 1.50), MAT.concrete);
+        pillar.position.set(side * WALL.GATE, PH / 2, pz);
+        pillar.castShadow = true; pillar.receiveShadow = true;
+        g.add(pillar);
+
+        const capP = new THREE.Mesh(new THREE.BoxGeometry(1.98, 0.36, 1.98), MAT.fenceCap);
+        capP.position.set(side * WALL.GATE, PH + 0.18, pz);
+        capP.castShadow = true;
+        g.add(capP);
+
+        const lampBall = new THREE.Mesh(new THREE.SphereGeometry(0.44, 16, 12), MAT.lampGlass);
+        lampBall.position.set(side * WALL.GATE, PH + 0.95, pz);
+        g.add(lampBall);
+
+        const gl = new THREE.PointLight(S('#ffd9a0').getHex(), 0.9, 22, 2);
+        gl.position.set(side * WALL.GATE, PH + 0.85, pz);
+        g.add(gl);
+
+        // 夜间：灯球光晕 + 门口地面光斑（让大门口在晚间成为最亮的地方）
+        nightGlow(g, side * WALL.GATE, PH + 0.95, pz, 3.0, 0.95);
+        nightPool(g, side * WALL.GATE, 0.090, pz + 3.4, 6.2, 0.52);
+        registerNightLight(gl, 3.6, 0.45);
+      }
+
+      // 双向道闸：闸机立柱 + 左右两条短杆（各 5.0m）
+      // 位置贴在围墙门洞线上（z=+3.2），否则会被 2.5m 围墙完全遮挡、外侧看不见
+      // bx：整组右移，让开左侧门卫亭（原居中时左杆端头顶在岗亭上）
+      const bz = 3.2;
+      const bx = 3.4;
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.62, 1.55, 0.62), MAT.charger);
+      post.position.set(bx, 0.78, bz);
+      post.castShadow = true; post.receiveShadow = true;
+      g.add(post);
+      const postCap = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.14, 0.74), MAT.chargerTop);
+      postCap.position.set(bx, 1.62, bz);
+      g.add(postCap);
+
+      for (const side of [-1, 1]) {
+        // 闸杆拆成 4 段红黄相间（整根同色在浅色路面上太细看不清）
+        for (let k = 0; k < 4; k++) {
+          const seg = new THREE.Mesh(
+            new THREE.BoxGeometry(1.25, 0.34, 0.36),
+            (k % 2 === 0) ? MAT.warn : MAT.warnRed
+          );
+          seg.position.set(bx + side * (0.625 + 1.25 * k), 1.15, bz);
+          seg.castShadow = true;
+          g.add(seg);
+        }
+      }
+
+      /* ---------- 人行通道 + 翼闸（岗亭西侧，与车行闸机同一道门线） ----------
+         原来门口只有车行闸机、没有行人通道：岗亭紧贴西侧门柱基座（净距 0.45m），
+         行人只能贴着车流走。本轮岗亭东移让出 3.0m 人行通道，通道内布置
+         三立柱两通道翼闸（一进一出），立柱顶配读卡器与通行状态灯。 */
+      const PED_ZL = PED.Z - z;                    // 门线在组内的局部 z（= 3.2）
+      const PED_PW = 0.30;                         // 单根立柱宽
+      const PED_N = 3;                             // 立柱数（3 根 = 2 通道）
+      const PED_LANE = (PED.W - PED_PW * PED_N) / 2;   // 单通道净宽 1.05
+      const pedPx = [];
+      for (let i = 0; i < PED_N; i++) {
+        const cx = PED.X0 + PED_PW / 2 + i * (PED_PW + PED_LANE);
+        pedPx.push(cx);
+
+        // 闸机柱身（不锈钢拉丝面）
+        const body = new THREE.Mesh(new THREE.BoxGeometry(PED_PW, 1.05, 1.30), MAT.alu);
+        body.position.set(cx, 0.525, PED_ZL);
+        body.castShadow = true; body.receiveShadow = true;
+        g.add(body);
+
+        // 顶盖（深色件）
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(PED_PW + 0.06, 0.09, 1.34), MAT.chargerTop);
+        cap.position.set(cx, 1.10, PED_ZL);
+        cap.castShadow = true;
+        g.add(cap);
+
+        // 读卡器面板（面向园内一侧，进出各刷一次）
+        const reader = new THREE.Mesh(new THREE.BoxGeometry(PED_PW - 0.06, 0.05, 0.34), MAT.chargerTop);
+        reader.position.set(cx, 1.16, PED_ZL - 0.34);
+        g.add(reader);
+
+        // 通行状态灯（绿 = 允许通行）
+        const led = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.03, 0.15), MAT.chargeLed);
+        led.position.set(cx, 1.19, PED_ZL - 0.34);
+        g.add(led);
+      }
+      // 翼闸挡板：每条通道左右各一片（闭合位），深色玻璃翼板
+      for (let i = 0; i < PED_N - 1; i++) {
+        const laneC = (pedPx[i] + pedPx[i + 1]) / 2;
+        for (const s of [-1, 1]) {
+          const flap = new THREE.Mesh(
+            new THREE.BoxGeometry(PED_LANE / 2 - 0.02, 0.70, 0.05), MAT.glassDeep);
+          flap.position.set(laneC + s * (PED_LANE / 4), 0.68, PED_ZL);
+          flap.castShadow = true;
+          g.add(flap);
+        }
+      }
+      // 外侧（墙外一侧）导流护栏：把排队人流限制在通道内，不漫到车道上
+      for (const s of [0, 1]) {
+        const railX = (s === 0) ? PED.X0 + 0.06 : PED.X1 - 0.06;
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, 3.4), MAT.alu);
+        rail.position.set(railX, 1.02, PED_ZL - 1.55);
+        g.add(rail);
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.05, 0.05), MAT.alu);
+        post.position.set(railX, 0.525, PED_ZL - 3.20);
+        g.add(post);
+      }
+
+      buildingGroup.add(g);
+    }
+
+    /* ---- 车辆模型（停车场 / 充电站共用） ---- */
+
+    // 车轮：轮胎 + 铝轮毂
+    function makeWheel() {
+      const w = new THREE.Group();
+      const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.26, 20), MAT.tire);
+      tire.rotation.z = Math.PI / 2;
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.28, 16), MAT.alu);
+      hub.rotation.z = Math.PI / 2;
+      tire.castShadow = true;
+      w.add(tire, hub);
+      return w;
+    }
+
+    // 轿车：底部包围 + 车身 + 引擎盖 + 玻璃舱 + 车顶 + 灯组 + 四轮
+    function makeCar(bodyMat) {
+      const car = new THREE.Group();
+
+      const skirt = new THREE.Mesh(new THREE.BoxGeometry(2.10, 0.30, 4.30), MAT.carTrim);
+      skirt.position.y = 0.44;
+      skirt.castShadow = true;
+      car.add(skirt);
+
+      const body = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.88, 4.40), bodyMat);
+      body.position.y = 0.86;
+      body.castShadow = true; body.receiveShadow = true;
+      car.add(body);
+
+      const hood = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.34, 1.18), bodyMat);
+      hood.position.set(0, 1.26, -1.55);
+      hood.castShadow = true;
+      car.add(hood);
+
+      // 座舱：上窄下宽的棱台（4 段 CylinderGeometry 转 45°），比方盒子更接近真实车身
+      const cabinGeo = new THREE.CylinderGeometry(1.14, 1.33, 0.70, 4);
+      cabinGeo.rotateY(Math.PI / 4);
+      const cabin = new THREE.Mesh(cabinGeo, MAT.carGlass);
+      cabin.scale.set(1, 1, 1.18);
+      cabin.position.set(0, 1.50, 0.14);
+      cabin.castShadow = true;
+      car.add(cabin);
+
+      const roofTop = new THREE.Mesh(new THREE.BoxGeometry(1.44, 0.10, 1.52), bodyMat);
+      roofTop.position.set(0, 1.86, 0.14);
+      roofTop.castShadow = true;
+      car.add(roofTop);
+
+      // 前大灯 / 尾灯（略外凸，避免与车身共面）
+      for (const s of [1, -1]) {
+        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.16, 0.10), MAT.headLight);
+        hl.position.set(s * 0.60, 0.94, -2.24);
+        car.add(hl);
+        const tl = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.16, 0.10), MAT.tailLight);
+        tl.position.set(s * 0.62, 0.94, 2.24);
+        car.add(tl);
+      }
+
+      // 充电口盖（车尾左侧车身，供充电站接枪）
+      const port = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.30, 0.06), MAT.carTrim);
+      port.position.set(-1.04, 0.98, 1.55);
+      car.add(port);
+
+      for (const wx of [-1, 1]) {
+        for (const wz of [-1, 1]) {
+          const wheel = makeWheel();
+          wheel.position.set(wx * 0.98, 0.36, wz * 1.45);
+          car.add(wheel);
+        }
+      }
+
+      return car;
+    }
+
+    /* ---- 电动汽车充电站 ---- */
+
+    // 立柱式充电桩：混凝土基座 + 立柱 + 桩头 + 屏幕 + 状态灯 + 挂枪
+    function addCharger(parent, x, z) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.18, 0.86), MAT.concrete);
+      base.position.y = 0.09;
+      base.castShadow = true; base.receiveShadow = true;
+      g.add(base);
+
+      const pole = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.72, 0.26), MAT.charger);
+      pole.position.y = 0.54;
+      pole.castShadow = true; pole.receiveShadow = true;
+      g.add(pole);
+
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.80, 0.40), MAT.charger);
+      body.position.y = 1.20;
+      body.castShadow = true; body.receiveShadow = true;
+      g.add(body);
+
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.08, 0.46), MAT.chargerTop);
+      cap.position.y = 1.64;
+      cap.castShadow = true;
+      g.add(cap);
+
+      // 屏幕（内嵌 0.03，不与壳面共面）
+      const screen = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.28, 0.05), MAT.chargerScreen);
+      screen.position.set(0, 1.30, 0.212);
+      g.add(screen);
+
+      // 状态灯带（绿 = 正在充电）
+      const led = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.07, 0.05), MAT.chargeLed);
+      led.position.set(0, 1.50, 0.212);
+      g.add(led);
+
+      // 侧面挂枪座 + 充电枪
+      const holster = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.10, 0.18), MAT.chargerTop);
+      holster.position.set(0.29, 1.20, 0.06);
+      g.add(holster);
+
+      const gun = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.22, 0.12), MAT.chargerTop);
+      gun.position.set(0.34, 1.04, 0.08);
+      gun.rotation.z = 0.16;
+      gun.castShadow = true;
+      g.add(gun);
+
+      parent.add(g);
+      return g;
+    }
+
+    // 充电枪 → 车辆充电口的连接线缆：先自然下垂，沿地面拖行一段，再抬升接枪
+    function addChargeCable(parent, from, to) {
+      const pts = [
+        from,
+        new THREE.Vector3(from.x + 0.08, from.y - 0.46, from.z + 0.42),
+        new THREE.Vector3(from.x + 0.30, 0.29, from.z + 1.38),
+        new THREE.Vector3(to.x - 0.12, 0.33, to.z - 1.20),
+        new THREE.Vector3(to.x, 0.72, to.z - 0.55),
+        to
+      ];
+      const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.5);
+      const cable = new THREE.Mesh(new THREE.TubeGeometry(curve, 48, 0.055, 8, false), MAT.cable);
+      cable.castShadow = true;
+      parent.add(cable);
+    }
+
+    // 电动汽车充电站：充电车位一排 + 立柱式充电桩 + 正在充电的车辆
+    // ry 用于整体转向：π 表示「充电桩朝 +z 一侧」，便于把桩排贴着建筑北墙布置
+    function addChargingStation(x, z, ry) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+      if (ry) g.rotation.y = ry;
+
+      const SLOTS = 6;
+      const PITCH = 3.35;                       // 车位间距
+      const DEPTH = 5.6;                        // 车位进深
+      const W = SLOTS * PITCH;                  // 车位带总宽
+      const PILE_Z = -DEPTH / 2 - 1.45;         // 充电桩所在深度
+
+      // 沥青地坪
+      // 标高取 0.052（园区铺装 0.04 + 12mm）：车辆抬到地坪面上，轮胎不陷进沥青；
+      // 与铺装落差只有 1cm 级，地坪边缘不会露出 5.5cm 的"悬空浮板"立面
+      const PAD_Y = 0.052;
+      const MK_Y = PAD_Y + 0.008;                // 车位线：平贴地坪上方 8mm，零厚度面片
+      const pad = new THREE.Mesh(new THREE.PlaneGeometry(W + 3.4, DEPTH + 6.4), asphaltMat(7, 4));
+      pad.rotation.x = -Math.PI / 2;
+      pad.position.set(0, PAD_Y, -0.6);
+      pad.receiveShadow = true;
+      g.add(pad);
+
+      // 车位分隔线 + 后挡线
+      for (let i = 0; i <= SLOTS; i++) {
+        const line = new THREE.Mesh(new THREE.PlaneGeometry(0.14, DEPTH), MAT.marking);
+        line.rotation.x = -Math.PI / 2;
+        line.position.set(-W / 2 + i * PITCH, MK_Y, 0);
+        line.receiveShadow = true;
+        g.add(line);
+      }
+      const backLine = new THREE.Mesh(new THREE.PlaneGeometry(W, 0.14), MAT.marking);
+      backLine.rotation.x = -Math.PI / 2;
+      backLine.position.set(0, MK_Y, -DEPTH / 2);
+      backLine.receiveShadow = true;
+      g.add(backLine);
+
+      // 充电专用车位涂装（靠桩一侧的深绿带，含白色车位号区）
+      for (let i = 0; i < SLOTS; i++) {
+        const cx = -W / 2 + PITCH * (i + 0.5);
+        const zone = new THREE.Mesh(new THREE.PlaneGeometry(PITCH - 0.34, 1.35), MAT.chargeZone);
+        zone.rotation.x = -Math.PI / 2;
+        zone.position.set(cx, MK_Y, -DEPTH / 2 + 0.78);
+        zone.receiveShadow = true;
+        g.add(zone);
+      }
+
+      // 充电桩 + 充电中的车辆（第 5 位留空）
+      const CHARGING = [true, true, true, true, false, true];
+      const carColors = [MAT.carBody[0], MAT.carBody[1], MAT.carBody[2], MAT.carBody[3]];
+
+      for (let i = 0; i < SLOTS; i++) {
+        const cx = -W / 2 + PITCH * (i + 0.5);
+        addCharger(g, cx, PILE_Z);
+
+        if (!CHARGING[i]) continue;
+
+        // 车倒车入位（车头朝 +z 外侧，车尾靠充电桩）
+        const car = makeCar(carColors[i % carColors.length]);
+        car.position.set(cx, PAD_Y, 0.15);
+        car.rotation.y = Math.PI;
+        car.rotation.z = rnd(-0.005, 0.005);
+        g.add(car);
+
+        // 线缆：桩侧挂枪 → 车尾左侧充电口
+        addChargeCable(
+          g,
+          new THREE.Vector3(cx + 0.34, 1.04, PILE_Z + 0.08),
+          new THREE.Vector3(cx + 1.05, 0.98, 0.15 - 1.55)
+        );
+      }
+
+      buildingGroup.add(g);
+    }
+
+    // 停车场
+    // 【修正】原来 6 条 11m 长的车位线整条拉通、车骑在线上，没有中间通道，
+    // 俯视看像"沥青上画了一排长白条"。改为标准两排车位 + 中间通道
+    function addParkingLot(x, z) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+
+      const LOT_W = 24, LOT_D = 16;
+      // 场坪标高：园区铺装 0.04，路面 0.062。场坪取 0.052（比铺装高 12mm），
+      // 车辆抬到面上，轮胎不再陷进沥青；同时与铺装的落差压到 1cm 级，
+      // 场地边缘不会露出一圈 6.5cm 的"悬空浮板"立面
+      const LOT_Y = 0.052;
+      const BAY_W = 3.6, BAY_D = 5.4, AISLE = 5.2;   // 5.4 x 2 + 5.2 = 16
+      const BAYS = 5, BAY_X0 = -BAY_W * BAYS / 2;    // 车位带 x -9~9
+      const MK_Y = LOT_Y + 0.008;                    // 车位线：平贴场坪上方 8mm，零厚度
+
+      const lot = new THREE.Mesh(new THREE.PlaneGeometry(LOT_W, LOT_D), MAT.asphalt2);
+      lot.rotation.x = -Math.PI / 2;
+      lot.position.y = LOT_Y;
+      lot.receiveShadow = true;
+      g.add(lot);
+
+      // 【修正】进车道：停车场原来是一块"孤零零的沥青"——场坪北边（z 10）离主干道
+      // 南边线（z 28.5）还有 18.5m，中间没有任何进车道，车下不了路、进不了车位区。
+      // 现沿场坪东端补一条 6m 宽的进车道，北端上主干道、南端与场内通道东口对齐，
+      // 车下路后直接西拐进通道。纹理取 4.8x3.2 一格，与场坪的沥青纹密度一致。
+      const DRV_W = 6, DRV_L = 13.6;
+      const drv = new THREE.Mesh(new THREE.PlaneGeometry(DRV_W, DRV_L), asphaltMat(1.25, 4.25));
+      drv.rotation.x = -Math.PI / 2;
+      drv.position.set(LOT_W / 2 + DRV_W / 2, LOT_Y, 4.15);   // 局部 z -2.65~10.95（世界 15.35~28.95）
+      drv.receiveShadow = true;
+      g.add(drv);
+
+      // 车位分隔线（上下两排各 5 个车位，只到通道边，不再贯通整块场地）
+      for (let i = 0; i <= BAYS; i++) {
+        for (const s of [-1, 1]) {
+          const line = new THREE.Mesh(new THREE.PlaneGeometry(0.15, BAY_D), MAT.marking);
+          line.rotation.x = -Math.PI / 2;
+          line.position.set(BAY_X0 + i * BAY_W, MK_Y, s * (AISLE / 2 + BAY_D / 2));
+          line.receiveShadow = true;      // 让建筑/车辆的阴影能落在白线上，避免"阴影里白线还发亮"
+          g.add(line);
+        }
+      }
+      // 通道两侧的车位内边线
+      for (const s of [-1, 1]) {
+        const bar = new THREE.Mesh(new THREE.PlaneGeometry(BAY_W * BAYS, 0.15), MAT.marking);
+        bar.rotation.x = -Math.PI / 2;
+        bar.position.set(0, MK_Y, s * (AISLE / 2));
+        bar.receiveShadow = true;
+        g.add(bar);
+      }
+
+      // 车辆（复用 makeCar）：北排 4 辆、南排 3 辆，车头朝里（车尾朝通道）
+      const carColors = [MAT.carBody[0], MAT.carBody[1], MAT.carBody[2], MAT.carBody[3]];
+      const zBay = AISLE / 2 + BAY_D / 2;
+      for (let i = 0; i < 4; i++) {
+        const car = makeCar(carColors[i % carColors.length]);
+        car.position.set(BAY_X0 + BAY_W * (i + 0.5), LOT_Y, -zBay);
+        car.rotation.y = 0;
+        car.rotation.z = rnd(-0.006, 0.006);
+        g.add(car);
+      }
+      for (let i = 0; i < 3; i++) {
+        const car = makeCar(carColors[(i + 1) % carColors.length]);
+        car.position.set(BAY_X0 + BAY_W * (i + 1.5), LOT_Y, zBay);
+        car.rotation.y = Math.PI;
+        car.rotation.z = rnd(-0.006, 0.006);
+        g.add(car);
+      }
+
+      buildingGroup.add(g);
+    }
+
+    // 路侧绿带
+    // 【修正】原来 22x16 放在 (-30,42)：主干道占 z 28.5~43.5，绿化带整个压在马路南半幅上，
+    // 四条白色缘石横穿沥青、草坪盖住路面，俯视看就是"沥青上多出一圈白线网格"。
+    // 现移到主干道南侧、南墙之间（z 44.2~53），并改成平贴地面的石材收边（不再凸起）
+    function addGreenArea(x, z) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+
+      const LW = 22, LD = 8.8, B = 0.5;      // 绿带宽 x 深 / 收边宽
+
+      const lawn = new THREE.Mesh(new THREE.PlaneGeometry(LW, LD), MAT.grassPatch);
+      lawn.rotation.x = -Math.PI / 2;
+      lawn.position.y = 0.058;
+      lawn.receiveShadow = true;
+      g.add(lawn);
+
+      // 平贴石材收边（零厚度面片，压在地面上 8mm，不凸起、不投影）
+      const edges = [
+        [0, -(LD / 2 + B / 2), LW + B * 2, B],
+        [0, (LD / 2 + B / 2), LW + B * 2, B],
+        [-(LW / 2 + B / 2), 0, B, LD],
+        [(LW / 2 + B / 2), 0, B, LD]
+      ];
+      edges.forEach(function (e) {
+        const p = new THREE.Mesh(new THREE.PlaneGeometry(e[2], e[3]), MAT.curbFlat);
+        p.rotation.x = -Math.PI / 2;
+        p.position.set(e[0], 0.054, e[1]);
+        p.receiveShadow = true;
+        g.add(p);
+      });
+
+      const treePos = [[-7, -1.7], [0, -1.7], [7, -1.7], [-3.5, 1.9], [3.5, 1.9]];
+      treePos.forEach(function (p) {
+        addTree(g, p[0], p[1], rnd(0.9, 1.25));
+      });
+
+      // 灌木（限制在窄带内）
+      for (let i = 0; i < 8; i++) {
+        const b = new THREE.Mesh(new THREE.SphereGeometry(rnd(0.6, 0.9), 12, 8), MAT.bush);
+        b.position.set(rnd(-9.5, 9.5), 0.55, rnd(-3.0, 3.0));
+        b.scale.set(1, 0.72, 1);
+        b.castShadow = true;
+        g.add(b);
+      }
+
+      buildingGroup.add(g);
+    }
+
+    // 压力容器（储罐区）安全隔离区：防火堤外扩安全距离内严禁任何绿植
+    // 储罐区中心 (-44,-24)，4 罐 + 防火堤 x-58.6~-29.4 z-39.6~-8.4
+    function inTankSafetyZone(x, z) {
+      return x > -86 && x < -14 && z > -58 && z < 4;
+    }
+
+    // 写实树：锥形树干 + 多层球冠（远景树关闭投影以省性能）
+    function addTree(parent, x, z, s, noShadow, force) {
+      // 储罐区（压力容器）周边一律不种树，避免树冠穿罐 / 遮挡罐体。
+      // force=true 供"围墙内侧环带"使用：那里离罐区边界 ≥18m，不必被这个粗粒度矩形拦住
+      if (!force && inTankSafetyZone(x, z)) return;
+      const t = new THREE.Group();
+      t.position.set(x, 0, z);
+      t.scale.setScalar(s);
+      t.rotation.y = rnd(0, Math.PI * 2);
+
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.42, 3.2, 8), MAT.bark);
+      trunk.position.y = 1.6;
+      if (!noShadow) { trunk.castShadow = true; trunk.receiveShadow = true; }
+      t.add(trunk);
+
+      // 树冠：多个不规则椭球错落，模拟自然冠形
+      const lm = MAT.leafVariants[(Math.random() * MAT.leafVariants.length) | 0];
+      const crown = [
+        [0, 4.5, 0, 2.3], [-1.1, 3.9, 0.7, 1.6],
+        [1.2, 4.0, -0.6, 1.7], [0.3, 5.5, 0.9, 1.5], [-0.6, 5.3, -1.1, 1.4]
+      ];
+      crown.forEach(function (c) {
+        const leaf = new THREE.Mesh(new THREE.SphereGeometry(c[3] * rnd(0.86, 1.06), 10, 8), lm);
+        leaf.position.set(c[0] * rnd(0.85, 1.2), c[1] * rnd(0.94, 1.08), c[2] * rnd(0.85, 1.2));
+        leaf.scale.set(rnd(0.88, 1.14), rnd(0.76, 0.94), rnd(0.88, 1.14));
+        leaf.rotation.set(rnd(0, 3), rnd(0, 3), rnd(0, 3));
+        if (!noShadow) { leaf.castShadow = true; leaf.receiveShadow = true; }
+        t.add(leaf);
+      });
+
+      parent.add(t);
+    }
+
+    // 屋顶光伏阵列（倾斜支架）
+    // tiltDeg：面板倾角（度）。常规固定式屋顶光伏 15~22° 即可；
+    // 之前用"抬升高度 = d*0.18"反算，主厂房实际约 38°，视觉上像斜墙且前后排互相遮挡
+    function addSolarRoof(parent, w, d, y, tiltDeg) {
+      const rows = Math.max(1, Math.round(d / 7));
+      const cols = Math.max(1, Math.round(w / 7));
+      const pw = w / cols, ph = d / rows;
+      const deg = Math.max(6, Math.min(26, (typeof tiltDeg === 'number' ? tiltDeg : 18)));
+      const tilt = deg * Math.PI / 180;
+      const spanZ = ph * 0.94;                  // 板面沿坡向长度
+      const rise = spanZ * Math.sin(tilt);      // 高边相对低边的抬升
+      const legH = 0.42;                        // 矮边支架高度
+      const mat = solarMatFor(pw, ph);
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const px = -w / 2 + pw * (c + 0.5);
+          const pz = -d / 2 + ph * (r + 0.5);
+
+          // 面板中心按"低边落座在支架顶面"反算，保证每排低边高度一致、不悬空
+          const panel = new THREE.Mesh(new THREE.BoxGeometry(pw * 0.94, 0.14, spanZ), mat);
+          panel.position.set(px, y + legH + rise / 2, pz);
+          panel.rotation.x = tilt;                 // 坡向：低边朝 +z、高边朝 -z
+          panel.castShadow = true; panel.receiveShadow = true;
+          parent.add(panel);
+
+          // 前后通长檩条（前矮后高，与坡向一致）
+          const railF = new THREE.Mesh(new THREE.BoxGeometry(pw * 0.80, legH, 0.10), MAT.alu);
+          railF.position.set(px, y + legH / 2, pz + spanZ * 0.34);
+          const railB = new THREE.Mesh(new THREE.BoxGeometry(pw * 0.80, legH + rise, 0.10), MAT.alu);
+          railB.position.set(px, y + (legH + rise) / 2, pz - spanZ * 0.34);
+          railF.castShadow = true; railB.castShadow = true;
+          parent.add(railF, railB);
+        }
+      }
+    }
+
+    // 工艺管廊（曲线管道，工业质感）
+    function addPipeRack() {
+      const g = new THREE.Group();
+
+      // 管线走向：储罐区 → 主厂房西侧
+      const routes = [
+        [new THREE.Vector3(-44, 7.0, -12), new THREE.Vector3(-34, 7.0, -6), new THREE.Vector3(-26, 7.4, -4), new THREE.Vector3(-18, 7.4, -6), new THREE.Vector3(-10, 6.6, -10)],
+        [new THREE.Vector3(-44, 8.3, -15), new THREE.Vector3(-33, 8.3, -9), new THREE.Vector3(-25, 8.7, -7), new THREE.Vector3(-17, 8.7, -9), new THREE.Vector3(-9, 7.9, -13)]
+      ];
+      const colors = [MAT.steel, MAT.alu];
+
+      routes.forEach(function (pts, i) {
+        const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.4);
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, 0.34, 12, false), colors[i]);
+        tube.castShadow = true; tube.receiveShadow = true;
+        g.add(tube);
+      });
+
+      // 管架立柱 + 横梁
+      const supports = [
+        [-42, -13.5], [-34, -7.5], [-26, -5.5], [-18, -7.5], [-10, -11.5]
+      ];
+      supports.forEach(function (sp) {
+        for (const sx of [-1.6, 1.6]) {
+          const col = new THREE.Mesh(new THREE.BoxGeometry(0.42, 7.0, 0.42), MAT.alu);
+          col.position.set(sp[0] + sx, 3.5, sp[1]);
+          col.castShadow = true;
+          g.add(col);
+        }
+        const beam = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.34, 0.5), MAT.alu);
+        beam.position.set(sp[0], 7.0, sp[1]);
+        beam.castShadow = true;
+        g.add(beam);
+      });
+
+      buildingGroup.add(g);
+    }
+
+    /* ============ 5. 环境（道路 / 树木 / 路灯） ============ */
+
+    // 园区科技网格：矩形 + 逐条裁剪在围墙内（替代正方形 GridHelper，避免网格线穿到墙外草地）
+    function paintGrid() {
+      // 【第23轮】外围这一圈现在是绿化带 + 树池草皮，网格线再画过去就成了"草坪上的网格"，
+      //          所以内收到铺装主体范围（离树池内边 ≥1.4m）
+      const X0 = -74, X1 = 74, Z0 = -56, Z1 = 48, STEP = 6;
+      const pts = [];
+      for (let x = X0; x <= X1 + 0.01; x += STEP) { pts.push(x, 0, Z0, x, 0, Z1); }
+      for (let z = Z0; z <= Z1 + 0.01; z += STEP) { pts.push(X0, 0, z, X1, 0, z); }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+      const g = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({
+        color: 0x8fc0e4, transparent: true, opacity: 0.13, depthWrite: false
+      }));
+      g.position.y = 0.05;      // 低于路面（0.062），网格不会压在沥青上
+      return g;
+    }
+
+    function createEnvironment() {
+      // ---------- 道路系统 ----------
+      // 标高统一：铺装 0.04 → 路面 0.062 → 标线 0.070（任何"线"都平贴路面，不凸起）
+      // 次干道 / 引道比主干道低几毫米，交叉处让主干道压在上面（同高会 z-fighting）
+      const Y_ROAD = 0.062, Y_MK = 0.070;
+
+      // 主干道（东西向）：z 28.5~43.5，正对南大门
+      // 【修正】原来只铺到 x±75，距围墙（x±80）还差 4.8m，俯视看就是"半截路悬在铺装中间"。
+      // 现两端延到 x±79.6（墙内表面 79.83），道路通到东西厂界，端头被围墙收住
+      // 【第23轮·修正】上一版把两端一直铺到 x±79.6（贴到墙内表面）—— 用户反馈"马路尽头顶着围墙"
+      // 不合理。现两端各退回 7.6m 到 x±72，退出来的这条环带用来做围墙内侧绿化（绿带 + 乔木）。
+      const R1 = { zc: 36, hw: 7.5, x0: -72, x1: 72 };
+      // 主干道层次给 −3（其余沥青面是 −2）：它是全场最高的路面（0.062），
+      // 而停车场进车道（0.052）与大门引道（0.054）都跟它有 0.25~0.45m 的搭接重叠。
+      // 两者只差 8~10mm，拉远后同样会翻；给主干道更靠前的一档，重叠带永远显示主干道。
+      const road1 = new THREE.Mesh(
+        new THREE.PlaneGeometry(R1.x1 - R1.x0, R1.hw * 2), asphaltMat(28, 3, -3));
+      road1.rotation.x = -Math.PI / 2;
+      road1.position.set((R1.x0 + R1.x1) / 2, Y_ROAD, R1.zc);
+      road1.receiveShadow = true;
+      buildingGroup.add(road1);
+
+      // 次干道（南北向）：x -76~-64
+      // 【修正1】原为 x=-58 宽 15（x -65.5~-50.5），而储罐区防火堤一直伸到 x=-58.6，
+      //          防火堤把西侧 8m 路面整个压掉；东移会撞主厂房，故西移到 x=-70、宽 12
+      // 【修正2】原南端一直伸到 z=50，距南墙内表面（53.83）只剩 3.8m，形成"断头路顶着墙"。
+      //          现改为 T 字口：南端止于主干道北边线（z=28.5），汇入主干道
+      // 【第23轮·修正2】北端 z-58 → -52：同样不再顶到北墙；
+      //          半宽 6 → 5（x -75~-65）：西侧 x-77 要放围墙内侧树池，路面不能压到树池上
+      const R2 = { xc: -70, hw: 5, z0: -52, z1: R1.zc - R1.hw };
+      const road2 = new THREE.Mesh(
+        new THREE.PlaneGeometry(R2.hw * 2, R2.z1 - R2.z0), asphaltMat(3, 22));
+      road2.rotation.x = -Math.PI / 2;
+      road2.position.set(R2.xc, Y_ROAD - 0.006, (R2.z0 + R2.z1) / 2);
+      road2.receiveShadow = true;
+      buildingGroup.add(road2);
+
+      // 大门引道：门洞（z=54）→ 主干道南边缘（z=43.5）
+      // 【修正】原来门口与马路之间只有一块 10.5m 的空白铺装、主干道边线又通长不断，
+      // 车出了大门根本"接不上马路"。现补一条与门洞等宽的沥青引道，并在边线上开口
+      const DW = WALL.GATE;                       // 10.4（门洞半宽）
+      const drive = new THREE.Mesh(
+        new THREE.PlaneGeometry(DW * 2, WALL.ZS - (R1.zc + R1.hw) + 0.5), asphaltMat(6, 3));
+      drive.rotation.x = -Math.PI / 2;
+      drive.position.set(0, Y_ROAD - 0.008, (WALL.ZS + R1.zc + R1.hw) / 2);
+      drive.receiveShadow = true;
+      buildingGroup.add(drive);
+
+      // 厂外进厂引道：大门外一小段铺装，让"车从哪进来"有着落
+      // 注意：这段在围墙外，地面上不画任何标线（白线一律不出围墙）
+      const APRON_Y = Y_ROAD - 0.014;                        // 0.048
+      const apron = new THREE.Mesh(
+        new THREE.PlaneGeometry(DW * 2 + 3.2, 14), asphaltMat(7, 4));
+      apron.rotation.x = -Math.PI / 2;
+      apron.position.set(0, APRON_Y, WALL.ZS + 7.25);        // z 54.25~68.25
+      apron.receiveShadow = true;
+      buildingGroup.add(apron);
+
+      // 【修正】厂外进厂道路：上一轮只补了门外 14m 的一块引道，它在草地里戛然而止，
+      // 俯视看就是"草地中间孤零零铺了一块沥青"，仍看不出"车是从哪条路开进来的"。
+      // 现往南再接一条 13m 宽的道路，一直铺到远处树林带之前（z 68.2~170），
+      // 大门口因此真正"接在一条路上"。同样：围墙外一律不画任何标线。
+      // 标高比引道低 2mm，且两段严格首尾相接（z=68.25 处不多不少重叠一毫米都不留），
+      // 避免"共面 + 远距离深度精度不足"引起的 z-fighting 闪烁。
+      const ORD_Z0 = WALL.ZS + 14.25, ORD_Z1 = 170;          // z 68.25 ~ 170
+      const oroad = new THREE.Mesh(
+        new THREE.PlaneGeometry(13, ORD_Z1 - ORD_Z0), asphaltMat(4, 30));
+      oroad.rotation.x = -Math.PI / 2;
+      oroad.position.set(0, APRON_Y - 0.002, (ORD_Z0 + ORD_Z1) / 2);
+      oroad.receiveShadow = true;
+      buildingGroup.add(oroad);
+
+      // ---------- 人行道地面（岗亭西侧，行人全程与车流分开） ----------
+      // 【本轮新增】行人与车分流：厂外引道 → 门洞 → 人行横道 → 园内人行道。
+      // 标高 0.066：比厂外引道（0.048）高 18mm、比车行引道（0.054）高 12mm，
+      // 既做出"人行道高出车行道一个路缘"的真实观感，又给远距离共面留足深度余量，
+      // 不会像同高面片那样在远处 z-fighting 闪烁。
+      const WALK_Y = 0.066;
+      const PED_XC = (PED.X0 + PED.X1) / 2;
+      const walk = new THREE.Mesh(new THREE.PlaneGeometry(PED.W, 14.25), pavingMat(1, 5));
+      walk.rotation.x = -Math.PI / 2;
+      walk.position.set(PED_XC, WALK_Y, (WALL.ZS + 68.25) / 2);      // z 54 ~ 68.25（墙外段）
+      walk.receiveShadow = true;
+      buildingGroup.add(walk);
+
+      // 门内段：门洞 → 主干道南边线
+      const walk0 = new THREE.Mesh(new THREE.PlaneGeometry(PED.W, 10.5), pavingMat(1, 4));
+      walk0.rotation.x = -Math.PI / 2;
+      walk0.position.set(PED_XC, WALK_Y, (R1.zc + R1.hw + WALL.ZS) / 2);   // z 43.5 ~ 54
+      walk0.receiveShadow = true;
+      buildingGroup.add(walk0);
+
+      // 园内段：过了主干道继续北行，直达主厂房南侧（z 12 ~ 28.5）
+      const walk2 = new THREE.Mesh(new THREE.PlaneGeometry(PED.W, 16.5), pavingMat(1, 5));
+      walk2.rotation.x = -Math.PI / 2;
+      walk2.position.set(PED_XC, WALK_Y, (R1.zc - R1.hw + 12) / 2);
+      walk2.receiveShadow = true;
+      buildingGroup.add(walk2);
+
+      // ---------- 地面标线（全部零厚度面片，平贴路面） ----------
+      function paint(w, d, x, z) {
+        const p = new THREE.Mesh(new THREE.PlaneGeometry(w, d), MAT.marking);
+        p.rotation.x = -Math.PI / 2;
+        p.position.set(x, Y_MK, z);
+        // 【关键】标线也要接收阴影。此前漏了这一步：建筑/车辆的阴影投不到白线上，
+        // 阴影区里的白线依旧亮白，看上去像"浮在地面上的凸起白条"
+        p.receiveShadow = true;
+        buildingGroup.add(p);
+      }
+      // 带缺口的白实线：axis='x' 沿 x 延伸（fixed 是 z）；gaps 为需断开的 [起,止] 区间
+      function paintLine(axis, fixed, from, to, gaps, w) {
+        let segs = [[from, to]];
+        (gaps || []).forEach(function (gp) {
+          const out = [];
+          segs.forEach(function (sg) {
+            if (gp[1] <= sg[0] || gp[0] >= sg[1]) { out.push(sg); return; }
+            if (gp[0] > sg[0]) out.push([sg[0], gp[0]]);
+            if (gp[1] < sg[1]) out.push([gp[1], sg[1]]);
+          });
+          segs = out;
+        });
+        segs.forEach(function (sg) {
+          const len = sg[1] - sg[0];
+          if (len < 0.6) return;
+          const mid = (sg[0] + sg[1]) / 2;
+          if (axis === 'x') paint(len, w, mid, fixed);
+          else paint(w, len, fixed, mid);
+        });
+      }
+
+      const GATE_GAP = [-DW, DW];                          // 大门引道开口
+      const XING_GAP_X = [R2.xc - R2.hw, R2.xc + R2.hw];   // 西侧 T 字口（x 区间）
+      // 停车场进车道开口：停车场在 (50,18)、场坪宽 24 → 东端 x=62，进车道宽 6 → x 62~68。
+      // 【要点】凡是道路边线遇到出入口，必须断开——否则白线会横着画在入口上，
+      // 看上去就是"线画错了"。（边线断、中心虚线不断，符合让行规则）
+      const PARK_GAP = [62, 68];
+
+      // 主干道北侧边线：次干道汇入的 T 字口 + 大门引道处断开 + 停车场进车道处断开
+      paintLine('x', R1.zc - (R1.hw - 0.45), R1.x0 + 0.6, R1.x1 - 0.6,
+        [XING_GAP_X, GATE_GAP, PARK_GAP], 0.16);
+      // 主干道南侧边线：只在大门引道处断开（次干道止于北侧边线，不越到南半幅）
+      paintLine('x', R1.zc + (R1.hw - 0.45), R1.x0 + 0.6, R1.x1 - 0.6,
+        [GATE_GAP], 0.16);
+      for (let x = R1.x0 + 3; x < R1.x1 - 3; x += 7.2) {
+        const mid = x + 1.6;
+        if (mid > XING_GAP_X[0] - 1.6 && mid < XING_GAP_X[1] + 1.6) continue;
+        if (mid > GATE_GAP[0] - 1.6 && mid < GATE_GAP[1] + 1.6) continue;
+        paint(3.2, 0.24, mid, R1.zc);
+      }
+      // 次干道：两侧边线 + 中心虚线（南端止于 T 字口，不穿过主干道，无需断口）
+      for (const s of [1, -1]) {
+        paintLine('z', R2.xc + s * (R2.hw - 0.45), R2.z0 + 0.6, R2.z1 - 0.6, [], 0.16);
+      }
+      for (let z = R2.z0 + 3; z < R2.z1 - 3; z += 7.2) {
+        paint(0.24, 3.2, R2.xc, z + 1.6);
+      }
+      // 引道：两侧边线（沿门洞两侧，把"进门路线"框出来）+ 出园车道停止线
+      for (const s of [1, -1]) {
+        paintLine('z', s * (DW - 0.28), R1.zc + R1.hw + 0.5, WALL.ZS - 0.5, [], 0.16);
+      }
+      paint(7.2, 0.4, 4.4, R1.zc + R1.hw + 1.3);
+
+      // 人行横道（斑马线）：把墙外、墙内两段人行道在主干道上连通，行人不与车流抢道。
+      // 【本轮新增】此前门口只有车行闸机、没有任何行人设施，行人只能贴着车流进出。
+      // 现在行人路线是一条完整的线：厂外引道 → 门洞（过翼闸）→ 人行横道 → 园内人行道。
+      for (let z = R1.zc - R1.hw + 0.85; z < R1.zc + R1.hw - 0.5; z += 0.92) {
+        paint(PED.W - 0.4, 0.46, PED_XC, z);
+      }
+
+      // 树木（树位需避开所有建筑 / 道路 / 车位 / 围墙内设施，否则会出现树冠穿墙穿罐）
+      // 园区主要占位：主厂房 x-23~23 z-21~9 ｜ 办公楼 x-49~-27 z10~26 ｜ 车间 x26~54 z-26~-6
+      //              储罐区 x-61~-27 z-40~-8 ｜ 充电站 x28~52 z-36~-27 ｜ 停车场 x38~62 z10~26
+      //              路侧绿带 x-41~-19 z44.2~53 ｜ 主干道 z28.5~43.5 ｜ 次干道 x-76~-64
+      //              大门引道 x±10.4 z43.5~54 ｜ 围墙 x±80 / z-62~54
+      // 注：储罐区（压力容器）周边安全区内的树位已删除，并由 inTankSafetyZone() 兜底拦截
+      // 【本轮】原 [-8, -46]（主厂房北侧铺装面上的孤树）一并移除：
+      //        与上一轮移除的 [-48, 6] 同属"整片铺装上只孤零零一棵"，
+      //        紧贴厂房北侧、无树池、无伴生绿带，观感突兀
+      // 【第23轮·调整】南侧沿主干道那 5 棵（16/26/34/48/64, z≈47）与东侧 x=74 两棵，
+      // 改为由"围墙内侧环带"统一承担（它们离墙 6m、又没树池，且与新的环带树两两只差 3.5~4.3m）。
+      // 合并后南侧 / 东侧变成一条贴墙、等间距 15.5m 的连续树列。
+      const treePositions = [
+        [-61.5, 22],                                    // 原 [-48, 6]（储罐区南侧孤树）已按要求移除
+        [62, -22], [50, 4]
+      ];
+      treePositions.forEach(function (p) {
+        addTree(buildingGroup, p[0], p[1], rnd(0.85, 1.3));
+      });
+
+      // 外围远景树林带：成簇分布（均匀撒点会显得像人工摆设）
+      // 半径下限取 108，再逐棵判定必须落在围墙矩形之外（含拐角），否则会穿进园区
+      const CLUSTERS = 11;
+      for (let k = 0; k < CLUSTERS; k++) {
+        const ang = (k / CLUSTERS) * Math.PI * 2 + rnd(-0.13, 0.13);
+        const r = rnd(112, 172);
+        const cx = Math.cos(ang) * r, cz = Math.sin(ang) * r;
+        const n = 2 + ((Math.random() * 3) | 0);
+        for (let j = 0; j < n; j++) {
+          const tx = cx + rnd(-8, 8), tz = cz + rnd(-8, 8);
+          // 围墙（x±80 / z-62~54）外扩 6m 才允许种植
+          const outsideWall = (Math.abs(tx) > 86) || (tz < -68) || (tz > 60);
+          if (!outsideWall) continue;
+          // 厂外进厂道路（x±6.5，z 68~170）走廊内不种树。
+          // 走廊按 ±18m 留：远景树 scale 最大 1.95、冠半径可达 4.8m，
+          // 只留 ±12m 时树冠仍会探到路面上（本轮渲染里看到过路中的暗斑）
+          if (Math.abs(tx) < 18 && tz > 60) continue;
+          addTree(buildingGroup, tx, tz, rnd(1.15, 1.95), true);
+        }
+      }
+
+      // （原「环绕灌木」球阵已按要求移除，避免铺装面上散布绿色球体）
+
+      // ---------- 围墙内侧一圈绿化：紧贴围墙的等间距乔木 + 树池草皮 ----------
+      // 【第23轮·新增】配合上面"马路不再顶到围墙"：退出来的这条环带正好形成围墙内侧绿带，
+      // 沿四条边等间距种树。几何基准：墙内表面 x±79.83 / z-61.83~53.83；
+      // 树心距墙 2.8m（冠幅半径 ≈3.3m，树冠会略微探过墙顶，从墙外看是"墙后一片树"，自然）；
+      // 每棵树下铺 3.2×3.2m 草皮树池（不再出现"树直接长在铺装上"）。
+      const RING_OFF = 2.8, BED = 3.2, RING_STEP = 15.5;
+      const BED_Y = 0.050;                                    // 铺装 0.040 之上 10mm
+      const RX = WALL.X - WALL.T / 2 - RING_OFF;              // ±77.03
+      const RZS = WALL.ZS - WALL.T / 2 - RING_OFF;            // 51.03
+      const RZN = WALL.ZN + WALL.T / 2 + RING_OFF;            // -59.03
+      const bedMat = grassMat(1.6, 1.6, -4);                  // 树池草皮（独立铺贴密度，别用绿带那套 6×4）
+
+      // 树池与这些既有场地重叠则整棵不种（大门引道 / 既有路侧绿带 / 配电站围栏 / 次干道走廊）
+      const RING_BLOCK = [
+        [-12.5, 12.5, 42.5, 55.5],
+        [-42.5, -17.5, 43.5, 53.5],
+        [61.5, 76.2, -61.5, -46.8],
+        [R2.xc - R2.hw - 0.2, R2.xc + R2.hw + 0.2, R2.z0 - 1.2, R2.z1 + 1.2]
+      ];
+      function ringFree(x, z) {
+        const h = BED / 2;
+        return !RING_BLOCK.some(function (b) {
+          return (x + h > b[0]) && (x - h < b[1]) && (z + h > b[2]) && (z - h < b[3]);
+        });
+      }
+      // 还要与"既有树木"拉开 ≥8m：新树贴着老树会又攒成一坨（实测最紧只差 3.5m）。
+      // 既有树 = 园区内保留的 treePositions + 路侧绿带那 5 棵（addGreenArea(-30,48.6) 内的相对坐标）
+      const EXIST_TREES = treePositions.slice();
+      [[-37, 46.9], [-30, 46.9], [-23, 46.9], [-33.5, 50.5], [-26.5, 50.5]].forEach(function (p) {
+        EXIST_TREES.push(p);
+      });
+      function farFromTrees(x, z) {
+        return !EXIST_TREES.some(function (p) {
+          const dx = x - p[0], dz = z - p[1];
+          return dx * dx + dz * dz < 64;              // 8m
+        });
+      }
+      // 四边等间距布点：东/西两条边跑满 z 全段，南/北两条边只跑 x 内段（角部不重复堆树）
+      const ringPts = [];
+      for (let z = RZN; z <= RZS + 0.01; z += RING_STEP) { ringPts.push([RX, z], [-RX, z]); }
+      for (let x = -RX + RING_STEP; x <= RX - 2 + 0.01; x += RING_STEP) {
+        ringPts.push([x, RZN], [x, RZS]);
+      }
+      let ringN = 0;
+      ringPts.forEach(function (p) {
+        if (!ringFree(p[0], p[1]) || !farFromTrees(p[0], p[1])) return;
+        const bed = new THREE.Mesh(new THREE.PlaneGeometry(BED, BED), bedMat);
+        bed.rotation.x = -Math.PI / 2;
+        bed.position.set(p[0], BED_Y, p[1]);
+        bed.receiveShadow = true;
+        buildingGroup.add(bed);
+        // 远景树不投影：这一圈共 30 棵左右，全开 castShadow 会让阴影 pass 陡增，移动端掉帧
+        addTree(buildingGroup, p[0], p[1], rnd(0.80, 0.95), true, true);
+        ringN++;
+      });
+
+      // 路灯（第24轮重排：背面 7 盏 → 5 盏，按"每栋建筑背墙外 6m"等距布点）
+      // 【第24轮·修改】用户反馈"后面路灯太密集、只需要 5 个；建筑背后右边一盏路灯也没有；
+      //   充电桩那边有汽车进出，路灯的位置不能影响汽车进出"。
+      //   改前背面共 7 盏：① 主厂房背墙外 z=-27 一行 4 盏（间距仅 12m —— 就是"太密集"）；
+      //                    ② 车间背墙外 z=-42 一行 3 盏（其中 x=32/44 正好压在充电车位带北侧的
+      //                       "车头朝北驶离通道"里，会挡住倒车入库与出场）。
+      //   改后背面 5 盏，规则 = "每栋建筑背墙外 6m、等距、覆盖到东侧"：
+      //     · 主厂房（背墙 z=-21）→ 灯列 z=-27：x = -22 / 0 / 22   间距 22m，关于 x=0 对称
+      //     · 车间  （背墙 z=-26）→ 灯列 z=-32：x = 56 / 72        间距 16m，位于充电站以东
+      //   这样"建筑背后右边"（东段）终于有灯，且间距由 12m 放大到 16~22m，不再密密麻麻。
+      //   ★ 充电车位带（x 28.25~51.75 / z -36.1~-26）与其北侧驶离通道
+      //     （x 25.75~54.25 / z -48.1~-36.1）**整段留空，一根灯都不放**；
+      //     东段这两盏禁止再往西挪，往西就是车位带。
+      //   灯臂一律朝北（ry=π/2 → -Z），照向建筑背后的作业面，不朝墙打。
+      //   真假光分配：背面 5 盏里 4 盏挂真实点光源（x=72 那盏是远景，只留光晕/光锥/光斑），
+      //   全园实光仍为 11 盏，与上一版持平，移动端帧率不受影响。
+      const LAMPS = [
+        // ① 南侧 · 沿主干道南沿（z=46）
+        [-64, 46, Math.PI / 2, false],
+        [-40, 46, Math.PI / 2],
+        [-15, 46, 0],                        // 大门引道西（灯臂伸向引道）
+        [15, 46, Math.PI],                   // 大门引道东
+        [40, 46, Math.PI / 2],
+        [64, 46, Math.PI / 2, false],
+        // ② 建筑背面 · 主厂房段（背墙 z=-21 → 灯列 z=-27），间距 22m
+        [-22, -27, Math.PI / 2],
+        [0, -27, Math.PI / 2],
+        [22, -27, Math.PI / 2],
+        // ③ 建筑背面 · 充电站以东段（车间背墙 z=-26 → 灯列 z=-32），间距 16m
+        [56, -32, Math.PI / 2],              // 充电站东侧（照车位带出口，但不进通道）
+        [72, -32, Math.PI / 2, false],       // 园区东北侧（远景，不挂实光）
+        // ④ 办公楼背面（北墙外 z=5）
+        [-44, 5, Math.PI / 2, false],
+        [-32, 5, Math.PI / 2, false],
+        // ⑤ 东西两翼 / 主厂房南广场 / 罐区东侧
+        [-52.5, 20, -Math.PI / 2],
+        [66, 16, Math.PI],                   // 停车场东侧
+        [0, 21, Math.PI / 2],                // 主厂房南广场（正对入口）
+        [-61.5, -20, -Math.PI / 2, false]    // 储罐区东侧（远景，不挂实光）
+      ];
+      LAMPS.forEach(function (L) {
+        addLampPost(buildingGroup, L[0], L[1], L[2], L[3] !== false);
+      });
+    }
+
+    /* ---- 园区围墙（混凝土板 + 立柱 + 压顶，南侧留大门洞口） ---- */
+    // 尺寸常量 WALL 定义在 addGateHouse 之前（大门柱子需与门洞端头对齐）
+
+    function addPerimeterWall() {
+      const g = new THREE.Group();
+      const H = WALL.H, T = WALL.T, WX = WALL.X, ZS = WALL.ZS, ZN = WALL.ZN, GATE = WALL.GATE;
+
+      // 一段围墙：起点 → 终点（墙身 + 压顶 + 立柱），立柱间距约 8m
+      function run(x1, z1, x2, z2) {
+        const dx = x2 - x1, dz = z2 - z1;
+        const len = Math.sqrt(dx * dx + dz * dz);
+        if (len < 0.01) return;
+        const ry = Math.atan2(dx, dz);          // 局部 z 轴对准墙段方向
+        const cx = (x1 + x2) / 2, cz = (z1 + z2) / 2;
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(T, H, len), fenceMat(len));
+        body.position.set(cx, H / 2, cz);
+        body.rotation.y = ry;
+        body.castShadow = true; body.receiveShadow = true;
+        g.add(body);
+
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(T + 0.20, 0.16, len), MAT.fenceCap);
+        cap.position.set(cx, H + 0.08, cz);
+        cap.rotation.y = ry;
+        cap.castShadow = true; cap.receiveShadow = true;
+        g.add(cap);
+
+        const n = Math.max(1, Math.round(len / 8));
+        for (let i = 0; i <= n; i++) {
+          const t = i / n;
+          const px = x1 + dx * t, pz = z1 + dz * t;
+          const col = new THREE.Mesh(new THREE.BoxGeometry(0.60, H + 0.62, 0.60), MAT.fenceCap);
+          col.position.set(px, (H + 0.62) / 2, pz);
+          col.castShadow = true; col.receiveShadow = true;
+          g.add(col);
+          const cap2 = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.16, 0.78), MAT.fenceCap);
+          cap2.position.set(px, H + 0.70, pz);
+          cap2.castShadow = true;
+          g.add(cap2);
+        }
+      }
+
+      // 南墙（大门两侧）→ 东墙 → 北墙 → 西墙（闭合）
+      // 注意：南墙必须从 +GATE 起画到 WX，否则会横跨门洞把大门封死
+      run(GATE, ZS, WX, ZS);
+      run(WX, ZS, WX, ZN);
+      run(-WX, ZN, WX, ZN);
+      run(-WX, ZN, -WX, ZS);
+      run(-WX, ZS, -GATE, ZS);
+
+      buildingGroup.add(g);
+    }
+
+    /* ---- 小型配电站（箱式变电站）：园区东北角内侧 ----
+       只做"园区自己用"的规模：7.2 x 5.0 x 3.0 的金属箱体坐在混凝土平台上，
+       外面一圈 1.9m 高金属栅栏、南面留双开栅栏门；正面双开门，两侧与背面散热百叶，
+       顶部 3 只高压进线套管，门侧一块黄色警示牌；晚间门口一盏灯。 */
+    function addSubstation(x, z) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+
+      const BW = 7.2, BD = 5.0, BH = 3.0;   // 箱体宽 / 深 / 高
+      const PF = 0.45;                       // 平台外挑
+
+      // 混凝土基础平台
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(BW + PF * 2, 0.40, BD + PF * 2), MAT.concrete);
+      slab.position.y = 0.20;
+      slab.castShadow = true; slab.receiveShadow = true;
+      g.add(slab);
+
+      // 箱体（浅灰压型钢板，与厂房同族材质）
+      const bodyMat = MAT.wallPanel.clone();
+      bodyMat.map = tiled(TEX.metalWall, 2, 1);
+      const body = new THREE.Mesh(new THREE.BoxGeometry(BW, BH, BD), bodyMat);
+      body.position.y = 0.40 + BH / 2;
+      body.castShadow = true; body.receiveShadow = true;
+      g.add(body);
+
+      // 压顶 + 四角通风帽
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.34, 0.26, BD + 0.34), MAT.alu);
+      cap.position.y = 0.40 + BH + 0.13;
+      cap.castShadow = true;
+      g.add(cap);
+      for (const sx of [-1, 1]) {
+        for (const sz of [-1, 1]) {
+          const vent = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.20, 0.30, 12), MAT.alu);
+          vent.position.set(sx * (BW / 2 - 0.85), 0.40 + BH + 0.40, sz * (BD / 2 - 0.80));
+          g.add(vent);
+        }
+      }
+
+      // 正面（朝园区 = +z）双开门 + 门楣
+      for (const sx of [-1, 1]) {
+        const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.05, 2.20, 0.10), MAT.darkMetal);
+        leaf.position.set(sx * 0.56, 0.40 + 1.10, BD / 2 + 0.03);
+        leaf.castShadow = true;
+        g.add(leaf);
+      }
+      const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.52, 0.18, 0.14), MAT.alu);
+      lintel.position.set(0, 0.40 + 2.34, BD / 2 + 0.05);
+      g.add(lintel);
+
+      // 散热百叶：做成一条条横向格栅（不是两块大深色"窗户"—— 那看着像开窗的库房）
+      for (const sx of [-1, 1]) {
+        for (let i = 0; i < 5; i++) {
+          const lv = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.15, 3.05), MAT.alu);
+          lv.position.set(sx * (BW / 2 + 0.045), 0.98 + i * 0.30, 0.55);
+          g.add(lv);
+        }
+      }
+      for (let i = 0; i < 5; i++) {
+        const lvB = new THREE.Mesh(new THREE.BoxGeometry(2.95, 0.15, 0.09), MAT.alu);
+        lvB.position.set(0, 0.98 + i * 0.30, -(BD / 2 + 0.045));
+        g.add(lvB);
+      }
+
+      // 顶部高压进线套管
+      for (const dx of [-0.9, 0, 0.9]) {
+        const bush = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 0.62, 10), MAT.alu);
+        bush.position.set(dx, 0.40 + BH + 0.55, -BD / 2 + 1.05);
+        g.add(bush);
+      }
+
+      // 黄色警示牌（正面门侧）
+      const sign = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.44, 0.06), MAT.warn);
+      sign.position.set(BW / 2 - 0.85, 0.40 + 1.85, BD / 2 + 0.06);
+      g.add(sign);
+
+      // ---- 金属栅栏围合（南侧留 2.6m 双开栅栏门） ----
+      const FW = BW + 3.6, FD = BD + 3.6, FH = 1.90, GATE_W = 2.6;
+      const postG = new THREE.BoxGeometry(0.13, FH, 0.13);
+      const railG = new THREE.BoxGeometry(1, 0.07, 0.05);
+      function fenceRun(x0, z0, x1, z1) {
+        const len = Math.hypot(x1 - x0, z1 - z0);
+        const n = Math.max(1, Math.round(len / 0.62));
+        for (let i = 0; i <= n; i++) {
+          const t = i / n;
+          const post = new THREE.Mesh(postG, MAT.fenceCap);
+          post.position.set(x0 + (x1 - x0) * t, FH / 2, z0 + (z1 - z0) * t);
+          post.castShadow = true;
+          g.add(post);
+        }
+        for (const yy of [FH - 0.16, 0.28]) {
+          const rail = new THREE.Mesh(railG, MAT.darkMetal);
+          rail.scale.x = len;
+          rail.position.set((x0 + x1) / 2, yy, (z0 + z1) / 2);
+          rail.rotation.y = Math.atan2(-(z1 - z0), x1 - x0);
+          g.add(rail);
+        }
+      }
+      fenceRun(-FW / 2, -FD / 2, -FW / 2, FD / 2);
+      fenceRun(FW / 2, -FD / 2, FW / 2, FD / 2);
+      fenceRun(-FW / 2, -FD / 2, FW / 2, -FD / 2);
+      fenceRun(-FW / 2, FD / 2, -GATE_W / 2, FD / 2);
+      fenceRun(GATE_W / 2, FD / 2, FW / 2, FD / 2);
+      for (const sx of [-1, 1]) {
+        const leaf = new THREE.Mesh(new THREE.BoxGeometry(GATE_W / 2 - 0.08, FH - 0.24, 0.06), MAT.darkMetal);
+        leaf.position.set(sx * (GATE_W / 4 + 0.02), (FH - 0.24) / 2, FD / 2);
+        leaf.castShadow = true;
+        g.add(leaf);
+      }
+
+      // ---- 夜间门灯（晚间自动点亮） ----
+      const dlamp = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.16, 0.22), MAT.lampGlass);
+      dlamp.position.set(0, 0.40 + 2.72, BD / 2 + 0.16);
+      g.add(dlamp);
+      nightGlow(g, 0, 0.40 + 2.72, BD / 2 + 0.30, 2.4, 0.90);
+      const subLight = new THREE.PointLight(S('#ffd9a0').getHex(), 0, 18, 2);
+      subLight.position.set(0, 0.40 + 2.55, BD / 2 + 0.95);
+      g.add(subLight);
+      registerNightLight(subLight, 2.4, 0);
+      nightPool(g, 0, 0.090, BD / 2 + 1.6, 3.2, 0.42);
+
+            addContactShade(g, FW, FD, 1.3);             // 接地阴影过渡带（配电站·按围栏外围）
+
+buildingGroup.add(g);
+    }
+
+    // withLight：是否挂真实点光源。远景处的灯只保留光晕/光锥/地面光斑（表现"灯亮着"），
+    // 不挂点光源 —— 点光源数量直接进入所有材质的片元着色器循环，13 盏全挂会让移动端掉帧。
+    function addLampPost(parent, x, z, ry, withLight) {
+      const useLight = (withLight !== false);
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+      g.rotation.y = ry;
+
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 0.5, 12), MAT.concrete);
+      base.position.y = 0.25;
+      base.castShadow = true;
+      g.add(base);
+
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.20, 9, 12), MAT.alu);
+      pole.position.y = 4.5;
+      pole.castShadow = true;
+      g.add(pole);
+
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.18, 0.18), MAT.alu);
+      arm.position.set(1.2, 8.9, 0);
+      arm.castShadow = true;
+      g.add(arm);
+
+      const head = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.30, 0.72), MAT.alu);
+      head.position.set(2.3, 8.66, 0);
+      head.rotation.z = -0.10;
+      head.castShadow = true;
+      g.add(head);
+
+      const lens = new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.12, 0.56), MAT.lampGlass);
+      lens.position.set(2.3, 8.48, 0);
+      lens.rotation.z = -0.10;
+      g.add(lens);
+
+      // ---- 夜间照明（晚间模式自动点亮）----
+      // 灯头局部位置：灯具整体绕 Y 旋转 ry，故光晕/光锥/光斑全部用局部坐标挂在同一 group 下，
+      // 世界自转时自动跟随，不需要另外算世界坐标。
+      const HX = 2.3, HY = 8.44;
+      nightGlow(g, HX, HY, 0, 3.5, 1.00);                 // 灯泡光晕
+      nightCone(g, HX, HY - 0.05, 0, 3.30, 0.10, 0.072);  // 空气散射光锥
+      nightPool(g, HX, 0.090, 0, 5.6, 0.62);              // 地面光斑（0.09：与路面/标线拉开 2cm，配合 polygonOffset 不闪）
+      if (useLight) {
+        const lampLight = new THREE.PointLight(S('#ffd9a0').getHex(), 0, 32, 2);
+        lampLight.position.set(HX, HY - 0.30, 0);
+        g.add(lampLight);
+        registerNightLight(lampLight, 3.2, 0);            // 白天熄灭
+      }
+
+      parent.add(g);
+    }
+
+    /* ============ 6. 主循环 / 视角 / 主题 ============ */
+    /* ---------- 雾随观察距离等比缩放 ----------
+       雾是按"默认机位（距注视点约 107m）"配的固定 near/far。现在能拉到 300m 看全景，
+       固定雾会把整个园区糊白；贴近到 14m 时又希望纵深不变。按距离/107 等比放缩两端即可。 */
+    const FOG_REF = 107;
+    let fogCfg = { near: 160, far: 520 };
+    function updateFogScale() {
+      if (!scene || !scene.fog || !camera || !controls) return;
+      const d = camera.position.distanceTo(controls.target);
+      const k = Math.min(3.4, Math.max(1, d / FOG_REF));
+      scene.fog.near = fogCfg.near * k;
+      scene.fog.far = fogCfg.far * k;
+    }
+
+    function onWindowResize() {
+      if (!camera || !renderer) return;
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      // 窗口拖到另一块屏（dpr 变了）时同步重设采样倍率，否则超采样策略会失配
+      renderer.setPixelRatio(Math.min(Math.max(window.devicePixelRatio, SUPERSAMPLE_MIN), 2));
+    }
+
+    /* ---------- "自转"改成"相机绕园区公转" ----------
+       原来是把 worldGroup 绕 Y 转（园区的建筑、地面、连太阳光一起转）。问题是世界在动，
+       而 shadowMap 用 autoUpdate=false 冻结（为了消除 texel 抖动的闪烁），两者必然打架；
+       物体转走、影子还留在原方位，"阴影不对""按钮定位不对"都由此而来。
+
+       现在改成世界完全静止、相机（连同注视点）一起绕原点反向旋转 dθ —— 数学上等价于
+       整个场景相对相机转 +dθ，观感与原来的自转一模一样，但是：
+         · 太阳、天空、物体、阴影贴图全部恒定 → 阴影永远正确、不再错位；
+         · 按钮定位用的是世界坐标，永远对准目标；
+         · 冻结阴影贴图的前提（世界静止）成立，闪烁也不会回来。
+       用户一交互（拖动 / 滚轮 / 点功能按钮）就暂停公转，点「总览」恢复。 */
+    // 【第19轮·环视提速】0.09 rad/s ≈ 70 秒一圈（原 0.00035/帧 @60Hz = 299 秒一圈，
+    // 快了约 4.3 倍）。改按真实时间推进而非"每帧固定步长"：后者在 120Hz 屏上会快一倍、
+    // 帧率抖动时还会忽快忽慢。
+    const ORBIT_RATE = 0.09;       // 弧度/秒
+    // 【闪烁治理】默认不公转：相机一静止，帧间像素差实测为 0（零闪烁）。
+    // 需要动感时点底部「环视」按钮开启。
+    let autoOrbit = false;
+    /* 相机绕「注视点」旋转（不是绕世界原点）。
+       原写法把 camera.position 与 controls.target 各自绕世界原点转 —— 两者不同心
+       （target = (0,8,0)，离原点 8m），于是相机到注视点的距离会在 107~123m 之间周期性伸缩：
+         · updateFogScale() 每帧据此改写 scene.fog.near/far → 整幅画面明暗、远景浓度一直在变；
+         · 注视点本身也在绕小圈跑 → 建筑在画面里缓慢平移 + 忽远忽近。
+       改成只转相机、注视点钉死，距离严格恒定（探针可验），看着才是"绕园区环视"。 */
+    let orbitLast = 0;                // 上一帧时间戳（暂停/开启后重新计时，避免跳帧大跳）
+    function orbitStep(now) {
+      now = now || (window.performance && performance.now ? performance.now() : Date.now());
+      const dt = orbitLast ? Math.min(0.1, (now - orbitLast) / 1000) : 0.016;
+      orbitLast = now;
+      const a = -ORBIT_RATE * dt;     // 负号＝与原来的自转方向一致
+      const c = Math.cos(a), sn = Math.sin(a);
+      const t = controls.target;
+      const dx = camera.position.x - t.x, dz = camera.position.z - t.z;
+      camera.position.x = t.x + dx * c + dz * sn;
+      camera.position.z = t.z - dx * sn + dz * c;
+    }
+    // OrbitControls 每次 update 都是从 camera.position 反推球坐标的，这里直接改 position 安全。
+    function stopOrbit() {
+      autoOrbit = false;
+      orbitLast = 0;                  // 下次开启时重新起算，不会因为间隔很久而"猛跳一下"
+      const b = document.getElementById('orbitBtn');
+      if (b) b.classList.remove('active');
+    }
+    // 「环视」按钮：开/关自动公转（默认关——相机静止时帧间像素差为 0，没有任何抖动）
+    function toggleOrbit(el) {
+      autoOrbit = !autoOrbit;
+      orbitLast = 0;
+      const b = el || document.getElementById('orbitBtn');
+      if (b && b.classList) b.classList.toggle('active', autoOrbit);
+    }
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+      if (autoOrbit && camera && controls) orbitStep(now);
+      controls.update();
+      updateFogScale();
+      renderer.render(scene, camera);
+    }
+
+    // 视角切换
+    // charge：车间北墙外那排充电桩（6 桩 @ 世界 z=-26.45，x 31.6~48.4），从东北侧 3/4 近景看桩与充电中的车
+    // tank  ：西北储罐区（4 罐 @ (-44±6.5, -24±6.5)），从东北侧看全 4 罐 + 防火堤 + 管廊
+    /* ---------- 按钮机位（全部按目标物真实世界坐标重新核过）----------
+       charge 车间北墙外那排充电车位：6 根立柱式充电桩 @ x 31.63~48.38（步距 3.35）、z=-26.45，
+              车位进深 5.6（车尾朝北，车身中心 z≈-30.85）。原来机位 (40,15,-41) 压得太低，
+              车把桩下半段挡掉、桩只剩一排小方块。现在抬到 17m、后退到 z=-45（俯角约 47°），
+              6 桩 + 6 个车位 + 5 辆充电中的车一屏看清，桩的屏幕与绿灯带也露出来。
+       tank   西北储罐区：4 座拱顶罐 @ (-44±6.5, -24±6.5)，罐体 y0.7~10.7、拱顶到 12.3，
+              防火堤 x-58.6~-29.4 / z-39.6~-8.4。原机位 (-8,21,-46) 太贴、罐身被裁、前景空。
+              现在拉到 (-6,30,-52) 俯角约 47°，4 罐完整入画且防火堤边界清楚。
+       sub    东北角小型配电站 @ (69,-54)，正面（双开门 / 警示牌 / 栅栏门）朝 +z（南）。
+              原机位 (46,12,-34) 距离 35m，7.2×5.0×3.0 的箱体在画面里只有一小块。
+              现在收到 (63,7,-41)（距离约 14m、俯角约 22°），正对西南面 + 正面。 */
+    const viewPositions = {
+      all: { pos: [72, 54, 72], target: [0, 8, 0] },
+      pv: { pos: [0, 82, 10], target: [0, 42, 0] },
+      charge: { pos: [40, 17, -45], target: [40, 0.7, -28.6] },
+      tank: { pos: [-6, 30, -52], target: [-44, 4, -24] },
+      sub: { pos: [63, 7, -41], target: [69, 1.7, -54] }
+    };
+
+    function setView(name, el) {
+      stopOrbit();                       // 定位到具体设施后停止公转，否则看着看着目标又转走了
+      // el：由按钮传入的 this；老写法依赖全局 event，键盘/程序触发时会取不到
+      const btn = el || (typeof event !== 'undefined' && event && event.currentTarget);
+      document.querySelectorAll('.func-btn').forEach(function (b) { b.classList.remove('active'); });
+      if (btn && btn.classList) btn.classList.add('active');
+      const v = viewPositions[name];
+      if (!v) return;
+      const startPos = camera.position.clone();
+      const endPos = new THREE.Vector3(v.pos[0], v.pos[1], v.pos[2]);
+      const startTarget = controls.target.clone();
+      const endTarget = new THREE.Vector3(v.target[0], v.target[1], v.target[2]);
+      // 按真实时间推进（而不是"每帧走 2%"）：飞行时长固定 0.9s，
+      // 120Hz 屏与 60Hz 屏速度一致；帧率抖动时也不会忽快忽慢。
+      const DURATION = 900;
+      const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      function fly(now) {
+        const ts = (now == null) ? t0 : now;
+        const t = Math.min(1, (ts - t0) / DURATION);
+        const ease = 1 - Math.pow(1 - t, 3);
+        camera.position.lerpVectors(startPos, endPos, ease);
+        controls.target.lerpVectors(startTarget, endTarget, ease);
+        controls.update();
+        if (t < 1) requestAnimationFrame(fly);
+      }
+      requestAnimationFrame(fly);
+    }
+
+    function resetCamera() {
+      autoOrbit = false;                 // 复位 = 回到总览机位并静止
+      const v = viewPositions.all;
+      camera.position.set(v.pos[0], v.pos[1], v.pos[2]);
+      controls.target.set(v.target[0], v.target[1], v.target[2]);
+      controls.update();
+      document.querySelectorAll('.func-btn').forEach(function (btn) { btn.classList.remove('active'); });
+      document.querySelector('.func-btn').classList.add('active');
+    }
+
+    // ===================== 主题切换（写实光照联动 + 夜间照明） =====================
+    function applyTheme(theme) {
+      const key = THEME_ORDER.indexOf(theme) >= 0 ? theme : 'dark';
+      const L = THEME_LOOK[key];
+      const night = (key === 'black');     // 晚间模式
+
+      if (scene) {
+        scene.fog = new THREE.Fog(S(L.fogHex).getHex(), L.fogNear, L.fogFar);
+        fogCfg = { near: L.fogNear, far: L.fogFar };
+        scene.environment = getEnvMap(key);
+      }
+      if (renderer) renderer.toneMappingExposure = L.exposure;
+
+      if (skyMesh) {
+        const u = skyMesh.material.uniforms;
+        u.uZenith.value.set(L.zenith);
+        u.uMid.value.set(L.mid);
+        u.uHorizon.value.set(L.horizon);
+        u.uBottom.value.set(L.bottom);
+        u.uSunColor.value.set(L.sunHex);
+        u.uSunDir.value.set(L.sunDir[0], L.sunDir[1], L.sunDir[2]).normalize();
+        u.uCloudColor.value.set(L.cloudColor);
+        u.uCloud.value = L.cloud;
+      }
+
+      if (sunLight) {
+        sunLight.color.set(L.sunHex);
+        sunLight.intensity = L.sunI;
+        sunLight.position.set(L.sunDir[0] * 160, L.sunDir[1] * 160, L.sunDir[2] * 160);
+      }
+      if (hemiLight) {
+        hemiLight.color.set(L.hemiSky);
+        hemiLight.groundColor.set(L.hemiGround);
+        hemiLight.intensity = L.hemiI;
+      }
+      if (ambientLight) ambientLight.intensity = L.ambI;
+
+      // 光照明暗变了 → 让阴影贴图重算一帧（配合 shadowMap.autoUpdate = false）
+      if (renderer && renderer.shadowMap) renderer.shadowMap.needsUpdate = true;
+
+      if (ground) ground.material.color.copy(C(L.ground));
+      if (groundPad) groundPad.material.color.copy(C(L.pad));
+      if (gridHelper) {
+        // 自绘矩形网格（LineSegments）：改线色 + 透明度
+        // （原来是 GridHelper，有 setColors()，换成线网格后没有这个方法，直接改材质）
+        gridHelper.material.color.setHex(S(L.grid1).getHex());
+        gridHelper.material.opacity = L.gridOp;
+      }
+
+      /* ---------- 夜间照明总开关 ---------- */
+      // ① 只在晚间出现的灯具构件：灯泡光晕 / 光锥 / 地面光斑 / 星空
+      NIGHT_PROPS.forEach(function (o) { o.visible = night; });
+      // ② 路灯、门口灯球：晚间提亮（白天路灯全灭）
+      NIGHT_LIGHTS.forEach(function (l) { l.intensity = night ? l.userData.nightI : l.userData.dayI; });
+      // ③ 灯具玻璃罩自发光：晚间明显加强，配合 ACES 曝光形成"过曝灯泡"的发光感
+      if (MAT.lampGlass) MAT.lampGlass.emissiveIntensity = night ? 3.8 : 1.6;
+      // ④ 大楼房间灯：晚间换成"亮灯"幕墙贴图，并把窗格作为自发光贴图点亮
+      FACADE_MATS.forEach(function (m) {
+        const wantMap = night ? m.userData.nightMap : m.userData.dayMap;
+        const wantEmi = night ? m.userData.nightMap : null;
+        let dirty = false;
+        if (m.map !== wantMap) { m.map = wantMap; dirty = true; }
+        if (m.emissiveMap !== wantEmi) { m.emissiveMap = wantEmi; dirty = true; }
+        if (m.emissive) m.emissive.set(night ? 0xffffff : 0x000000);
+        m.emissiveIntensity = night ? 1.30 : 0;
+        if (dirty) m.needsUpdate = true;
+      });
+      // ⑤ 接地阴影：晚间地面本来就暗，再足量叠一层会让建筑根部糊成一团；
+      //    傍晚基调偏暖，也稍收一点。白天保持满强度（那时地面最亮、交线对比最大）。
+      CONTACT_MATS.forEach(function (m) { m.opacity = night ? 0.85 : (key === 'dark' ? 0.92 : 1.0); });
+      // ⑤ 植被 / 光伏等：晚间压暗（白天原样恢复）——否则夜里树还是亮绿的，"夜色"立不住
+      NIGHT_DIM.forEach(function (d) {
+        d.mat.color.copy(d.mat.userData.dayColor).multiplyScalar(night ? d.k : 1);
+      });
+    }
+
+    function updateThemeBtn() {
+      const btn = document.getElementById('themeBtn');
+      if (!btn) return;
+      const span = btn.querySelector('span');
+      if (span) span.textContent = THEME_LABEL[currentTheme] || '傍晚';
+    }
+
+    /* ---------- 按本机时间自动判定该用哪套光 ----------
+       06:00–17:00 白天 ｜ 17:00–19:00 傍晚 ｜ 19:00–次日 06:00 晚间
+       · 每次打开页面，先按当前钟点自动落到对应模式（不再依赖上次的手动选择）；
+       · 页面长时间开着时每分钟复查一次，跨过时间点会自己切（比如 17:00 自动转傍晚）；
+       · 一旦用户手动点过切换按钮，本次会话就听用户的，不再被时间抢走。 */
+    function autoThemeByClock() {
+      const d = new Date();
+      const h = d.getHours() + d.getMinutes() / 60;
+      if (h >= 6 && h < 17) return 'light';     // 白天
+      if (h >= 17 && h < 19) return 'dark';     // 傍晚
+      return 'black';                           // 晚间
+    }
+
+    function setTheme(t, manual) {
+      if (THEME_ORDER.indexOf(t) < 0) t = 'dark';
+      currentTheme = t;
+      if (manual) themeManual = true;
+      document.body.classList.remove('light', 'black');
+      if (t === 'light') document.body.classList.add('light');
+      else if (t === 'black') document.body.classList.add('black');
+      applyTheme(t);
+      updateThemeBtn();
+    }
+
+    function toggleTheme() {
+      // 手动循环：白天 → 傍晚 → 晚间 → 白天（手动之后不再自动跟随时间）
+      const i = THEME_ORDER.indexOf(currentTheme);
+      setTheme(THEME_ORDER[(i + 1) % THEME_ORDER.length], true);
+    }
+
+    function initTheme() {
+      setTheme(autoThemeByClock(), false);
+      setInterval(function () {
+        if (themeManual) return;
+        const t = autoThemeByClock();
+        if (t !== currentTheme) setTheme(t, false);
+      }, 60000);
+    }
+
+    // 初始化
+    initTheme();
+    init3D();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  </script>
+</body>
+</html>
+

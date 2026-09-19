@@ -1,0 +1,3051 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#03060f" />
+    <title>万象织网：点云智联城市 · Point Cloud Connected City</title>
+
+    <!--
+      ============================================================================
+      Scene 07 · 万象织网：点云智联城市（Single-file / CDN）
+      ----------------------------------------------------------------------------
+      · three.js 0.186 走 importmap（three + three/addons）
+      · GSAP 3 走普通 script 标签（全局 gsap），避免 esm 解析差异
+      · 全部点云程序化生成，无任何外部模型 / 贴图依赖
+      · 所有可调参数集中在下方 CONFIG 对象（含注释）
+      ============================================================================
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <style>
+      /* ==========================================================================
+         数字孪生赛博风 HUD：细线框 + 等宽字体 + 冷青描边
+         ========================================================================== */
+      :root {
+        --wx-cyan: #2ee8ff;
+        --wx-magenta: #ff3ecb;
+        --wx-violet: #8f5cff;
+        --wx-amber: #ffc24a;
+        --wx-steel: #6f9bd8;
+        --wx-orange: #ff9a3c;
+        --wx-green: #37ffb0;
+        --wx-red: #ff5f5f;
+        --wx-ink: #dcecff;
+        --wx-muted: rgba(140, 175, 220, 0.62);
+        --wx-line: rgba(88, 180, 225, 0.28);
+        --wx-line-strong: rgba(96, 226, 255, 0.62);
+        --wx-glass: rgba(4, 12, 24, 0.52);
+        --wx-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo,
+          Consolas, "Noto Sans Mono CJK SC", "Microsoft YaHei", monospace;
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #03060f;
+        color: var(--wx-ink);
+        font-family: var(--wx-mono);
+        -webkit-font-smoothing: antialiased;
+        user-select: none;
+      }
+
+      /* ---- 背景：深墨蓝 → 黑 渐变（昼夜由 night 层透明度交叉淡入） ---- */
+      #wx-bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+      }
+      #wx-bg i {
+        position: absolute;
+        inset: 0;
+        display: block;
+      }
+      #wx-bg .day {
+        background:
+          radial-gradient(120% 90% at 50% 108%, rgba(36, 96, 132, 0.55) 0%, rgba(8, 22, 40, 0) 58%),
+          linear-gradient(180deg, #0a1d33 0%, #071527 42%, #040a15 100%);
+      }
+      #wx-bg .night {
+        opacity: 0;
+        background:
+          radial-gradient(90% 70% at 50% 104%, rgba(50, 24, 96, 0.38) 0%, rgba(0, 0, 0, 0) 62%),
+          linear-gradient(180deg, #02040c 0%, #01030a 46%, #000106 100%);
+      }
+
+      canvas { display: block; }
+      #wx-canvas { position: fixed; inset: 0; z-index: 1; }
+
+      /* ---- 全屏后期叠加：暗角 / 扫描线 / 栅格噪点 ---- */
+      .wx-fx { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+      .wx-vignette {
+        background: radial-gradient(115% 105% at 50% 46%, rgba(0, 0, 0, 0) 52%, rgba(0, 2, 8, 0.72) 100%);
+      }
+      .wx-scan {
+        background: repeating-linear-gradient(
+          to bottom,
+          rgba(140, 235, 255, 0.045) 0px,
+          rgba(140, 235, 255, 0.045) 1px,
+          rgba(0, 0, 0, 0) 1px,
+          rgba(0, 0, 0, 0) 3px
+        );
+        mix-blend-mode: screen;
+        opacity: 0.5;
+      }
+      .wx-beam {
+        background: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(46, 232, 255, 0.055) 48%, rgba(46, 232, 255, 0.11) 50%, rgba(46, 232, 255, 0.055) 52%, rgba(0, 0, 0, 0) 100%);
+        animation: wx-beam-slide 9s linear infinite;
+        mix-blend-mode: screen;
+      }
+      @keyframes wx-beam-slide {
+        0% { transform: translateX(-62%); }
+        100% { transform: translateX(62%); }
+      }
+
+      /* ---- HUD 根 ---- */
+      #wx-hud { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+      #wx-hud .pane { pointer-events: auto; }
+
+      .wx-box {
+        position: relative;
+        background: var(--wx-glass);
+        border: 1px solid var(--wx-line);
+        backdrop-filter: blur(3px);
+        padding: 10px 12px;
+      }
+      /* 细线框四角 */
+      .wx-box::before, .wx-box::after {
+        content: "";
+        position: absolute;
+        width: 9px; height: 9px;
+        border: 1px solid var(--wx-line-strong);
+        pointer-events: none;
+      }
+      .wx-box::before { left: -1px; top: -1px; border-right: 0; border-bottom: 0; }
+      .wx-box::after { right: -1px; bottom: -1px; border-left: 0; border-top: 0; }
+
+      .wx-title {
+        font-size: 10px;
+        letter-spacing: 0.24em;
+        color: var(--wx-cyan);
+        text-transform: uppercase;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        border-bottom: 1px solid var(--wx-line);
+        padding-bottom: 6px;
+        margin-bottom: 8px;
+        white-space: nowrap;
+      }
+      .wx-title em { font-style: normal; color: var(--wx-muted); letter-spacing: 0.1em; }
+
+      /* ---- 左上：标识（下移给顶部站点导航让出整条横幅） ---- */
+      #wx-brand {
+        position: absolute;
+        left: 18px; top: 68px;
+        display: flex;
+        gap: 11px;
+        align-items: flex-start;
+        pointer-events: none;
+      }
+      #wx-brand .mark {
+        width: 40px; height: 40px;
+        flex: none;
+        display: grid;
+        place-items: center;
+        font-size: 20px;
+        color: var(--wx-cyan);
+        border: 1px solid var(--wx-line-strong);
+        background: rgba(6, 22, 38, 0.6);
+        box-shadow: 0 0 22px rgba(46, 232, 255, 0.22) inset;
+      }
+      .wx-kicker {
+        font-size: 9.5px;
+        letter-spacing: 0.3em;
+        color: var(--wx-muted);
+        text-transform: uppercase;
+      }
+      .wx-kicker b { color: var(--wx-cyan); font-weight: 400; }
+      #wx-brand h1 {
+        margin: 3px 0 2px;
+        font-size: 25px;
+        font-weight: 600;
+        letter-spacing: 0.2em;
+        text-shadow: 0 0 20px rgba(46, 232, 255, 0.42);
+      }
+      #wx-brand p { margin: 0; font-size: 10px; letter-spacing: 0.16em; color: var(--wx-muted); }
+
+      /* ---- 顶部居中：站点导航（连接其余六个场景） ---- */
+      #wx-sitenav {
+        position: absolute;
+        left: 50%; top: 16px;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 4px;
+        padding: 5px 6px;
+        z-index: 4;
+      }
+      .wx-sn-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 9px;
+        border: 1px solid transparent;
+        color: var(--wx-muted);
+        text-decoration: none;
+        white-space: nowrap;
+        transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+      }
+      .wx-sn-icon { font-size: 11px; color: rgba(46, 232, 255, 0.5); }
+      .wx-sn-text { font-size: 10.5px; letter-spacing: 0.1em; }
+      .wx-sn-item:hover {
+        color: var(--wx-ink);
+        background: rgba(46, 232, 255, 0.08);
+        border-color: var(--wx-line);
+      }
+      .wx-sn-item.is-active {
+        color: #eafcff;
+        border-color: var(--wx-line-strong);
+        background: linear-gradient(180deg, rgba(46, 232, 255, 0.24), rgba(46, 232, 255, 0.05));
+        box-shadow: 0 0 16px rgba(46, 232, 255, 0.22);
+      }
+      .wx-sn-item.is-active .wx-sn-icon { color: var(--wx-cyan); }
+
+      /* ---- 右上：数据面板 ---- */
+      #wx-panel {
+        position: absolute;
+        right: 18px; top: 68px;
+        width: 258px;
+      }
+      .wx-row {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        font-size: 10.5px;
+        padding: 2.5px 0;
+      }
+      .wx-row-label { color: var(--wx-muted); letter-spacing: 0.08em; flex: none; }
+      .wx-row-dots {
+        flex: 1 1 auto;
+        border-bottom: 1px dotted rgba(120, 170, 210, 0.22);
+        transform: translateY(-3px);
+      }
+      .wx-row-value {
+        color: var(--wx-ink);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.04em;
+        flex: none;
+      }
+      .wx-row-unit { color: var(--wx-muted); font-size: 9px; flex: none; width: 34px; }
+      .wx-value-hi { color: var(--wx-cyan); text-shadow: 0 0 10px rgba(46, 232, 255, 0.5); }
+      .wx-value-am { color: var(--wx-amber); }
+      .wx-value-mg { color: var(--wx-magenta); }
+
+      #wx-spark { display: block; width: 100%; height: 46px; margin: 6px 0 2px; opacity: 0.95; }
+
+      .wx-meter {
+        height: 3px;
+        background: rgba(120, 180, 220, 0.14);
+        overflow: hidden;
+        margin: 4px 0 2px;
+      }
+      .wx-meter i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--wx-green), var(--wx-cyan)); }
+      .wx-meter.is-rec i { background: linear-gradient(90deg, var(--wx-red), var(--wx-amber)); }
+
+      #wx-log {
+        margin-top: 8px;
+        border-top: 1px solid var(--wx-line);
+        padding-top: 6px;
+        height: 92px;
+        overflow: hidden;
+        font-size: 9.5px;
+        line-height: 1.55;
+        color: var(--wx-muted);
+      }
+      #wx-log div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #wx-log b { color: var(--wx-cyan); font-weight: 400; }
+      #wx-log .e-warn b { color: var(--wx-red); }
+      #wx-log .e-ok b { color: var(--wx-green); }
+      #wx-log .e-am b { color: var(--wx-amber); }
+
+      /* ---- 左下：图层开关 + 图例 ---- */
+      #wx-layers { position: absolute; left: 18px; bottom: 132px; width: 214px; }
+      .wx-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 10.5px;
+        padding: 4px 0;
+        cursor: pointer;
+        letter-spacing: 0.06em;
+        color: var(--wx-ink);
+      }
+      .wx-toggle .led {
+        width: 26px; height: 12px;
+        flex: none;
+        border: 1px solid var(--wx-line-strong);
+        position: relative;
+        background: rgba(6, 20, 34, 0.7);
+      }
+      .wx-toggle .led i {
+        position: absolute; top: 1px; left: 1px;
+        width: 8px; height: 8px;
+        background: var(--wx-cyan);
+        box-shadow: 0 0 9px var(--wx-cyan);
+        transition: transform 0.18s ease, background 0.18s, box-shadow 0.18s;
+      }
+      .wx-toggle.off .led i { transform: translateX(0); background: rgba(120,150,175,0.45); box-shadow: none; }
+      .wx-toggle.on .led i { transform: translateX(12px); }
+      .wx-toggle .key { margin-left: auto; color: var(--wx-muted); font-size: 9px; }
+      .wx-legend { margin-top: 8px; border-top: 1px solid var(--wx-line); padding-top: 7px; }
+      .wx-legend div { display: flex; align-items: center; gap: 7px; font-size: 9.5px; color: var(--wx-muted); padding: 1.5px 0; }
+      .wx-legend s { width: 8px; height: 8px; text-decoration: none; display: block; flex: none; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+      .wx-legend span { letter-spacing: 0.05em; }
+
+      /* ---- 右下：实体数据卡片 ---- */
+      #wx-card {
+        position: absolute;
+        right: 18px; bottom: 132px;
+        width: 258px;
+        display: none;
+      }
+      #wx-card.show { display: block; }
+      #wx-card .kind {
+        font-size: 9px; letter-spacing: 0.24em; color: var(--wx-cyan);
+      }
+      #wx-card .name { font-size: 15px; letter-spacing: 0.1em; margin: 3px 0 8px; }
+      #wx-card .name small { font-size: 9.5px; color: var(--wx-muted); letter-spacing: 0.1em; }
+      #wx-neighbors { margin-top: 7px; border-top: 1px solid var(--wx-line); padding-top: 6px; font-size: 9.5px; color: var(--wx-muted); max-height: 74px; overflow: hidden; }
+      #wx-card .close {
+        pointer-events: auto; cursor: pointer;
+        position: absolute; right: 6px; top: 4px;
+        color: var(--wx-muted); font-size: 12px;
+      }
+      #wx-card .close:hover { color: var(--wx-red); }
+
+      /* ---- 底部：时间轴旋钮 + 速度 ---- */
+      #wx-time {
+        position: absolute;
+        left: 50%; bottom: 20px;
+        transform: translateX(-50%);
+        width: min(660px, calc(100vw - 40px));
+      }
+      #wx-rail {
+        position: relative;
+        height: 40px;
+        cursor: ew-resize;
+        /* 左右留 14px：刻度线与首尾时间标签不再顶到面板边框外 */
+        margin: 4px 14px 0;
+      }
+      #wx-rail .track {
+        position: absolute; left: 0; right: 0; top: 19px;
+        height: 2px;
+        background: linear-gradient(90deg, rgba(80,150,200,0.25), rgba(96,226,255,0.5), rgba(80,150,200,0.25));
+      }
+      #wx-rail .fill {
+        position: absolute; left: 0; top: 19px; height: 2px; width: 0;
+        background: var(--wx-cyan);
+        box-shadow: 0 0 12px var(--wx-cyan);
+      }
+      #wx-rail .ticks { position: absolute; inset: 0; }
+      #wx-rail .ticks s {
+        position: absolute; top: 6px; width: 1px; height: 7px;
+        background: rgba(130, 180, 215, 0.4); text-decoration: none;
+      }
+      #wx-rail .ticks s.big { height: 11px; top: 4px; background: rgba(150, 220, 250, 0.75); }
+      #wx-rail .ticks b {
+        position: absolute; top: 27px; transform: translateX(-50%);
+        font-weight: 400; font-size: 8.5px; color: var(--wx-muted); letter-spacing: 0.08em;
+      }
+      #wx-knob {
+        position: absolute; top: 20px; left: 0;
+        width: 22px; height: 22px; margin: -11px 0 0 -11px;
+        border: 1px solid var(--wx-line-strong);
+        background: rgba(4, 16, 28, 0.9);
+        border-radius: 50%;
+        display: grid; place-items: center;
+        box-shadow: 0 0 16px rgba(46, 232, 255, 0.35);
+      }
+      #wx-knob i {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--wx-cyan); box-shadow: 0 0 12px var(--wx-cyan);
+        display: block;
+      }
+      #wx-knob::after {
+        content: ""; position: absolute; inset: 3px; border-radius: 50%;
+        border: 1px dashed rgba(150, 225, 255, 0.45);
+        animation: wx-spin 6s linear infinite;
+      }
+      @keyframes wx-spin { to { transform: rotate(360deg); } }
+
+      #wx-time .meta { display: flex; align-items: center; gap: 14px; font-size: 10px; color: var(--wx-muted); }
+      #wx-clock { font-size: 20px; letter-spacing: 0.12em; color: var(--wx-ink); font-variant-numeric: tabular-nums; }
+      #wx-phase { letter-spacing: 0.2em; }
+      #wx-speeds { display: flex; gap: 4px; margin-left: auto; }
+      .wx-speed {
+        pointer-events: auto; cursor: pointer;
+        min-width: 40px; text-align: center;
+        padding: 4px 6px;
+        font-size: 10px;
+        color: var(--wx-muted);
+        border: 1px solid var(--wx-line);
+        background: rgba(5, 16, 28, 0.5);
+        letter-spacing: 0.06em;
+      }
+      .wx-speed.on {
+        color: #041018; background: var(--wx-cyan); border-color: var(--wx-cyan);
+        box-shadow: 0 0 14px rgba(46, 232, 255, 0.45);
+      }
+      #wx-play { pointer-events: auto; cursor: pointer; border: 1px solid var(--wx-line); padding: 4px 9px; font-size: 10px; color: var(--wx-ink); letter-spacing: 0.14em; }
+      #wx-play:hover { border-color: var(--wx-line-strong); }
+
+      /* ---- 操作提示 ---- */
+      #wx-hint {
+        position: absolute; left: 18px; bottom: 20px;
+        font-size: 9.5px; line-height: 1.7; color: var(--wx-muted);
+        max-width: 216px;
+      }
+      #wx-hint b { color: var(--wx-cyan); font-weight: 400; }
+
+      /* ---- 悬浮数据标签（DOM 投影） ---- */
+      #wx-labels { position: absolute; inset: 0; pointer-events: none; }
+      .wx-lab {
+        position: absolute; transform: translate(-50%, -100%);
+        font-size: 9px; line-height: 1.45;
+        padding: 3px 5px;
+        border: 1px solid rgba(96, 200, 240, 0.34);
+        background: rgba(3, 12, 22, 0.66);
+        color: var(--wx-ink);
+        white-space: pre;
+        letter-spacing: 0.03em;
+      }
+      .wx-lab s { text-decoration: none; color: var(--wx-muted); }
+      .wx-lab.person { border-color: rgba(255, 154, 60, 0.42); }
+      .wx-lab.car { border-color: rgba(46, 232, 255, 0.42); }
+      .wx-lab.bus { border-color: rgba(143, 92, 255, 0.5); }
+      .wx-lab.acc { border-color: rgba(255, 95, 95, 0.6); color: #ffd9d9; }
+      .wx-lab.focus { box-shadow: 0 0 16px rgba(46, 232, 255, 0.3); border-color: var(--wx-line-strong); }
+
+      /* ---- 相机遥测（左下偏上） ---- */
+      #wx-cam {
+        position: absolute; right: 18px; top: auto; bottom: 62px;
+        font-size: 9px; color: var(--wx-muted); letter-spacing: 0.1em;
+        text-align: right;
+      }
+
+      /* ---- 顶部提示条 ---- */
+      #wx-toast {
+        position: absolute; left: 50%; bottom: 152px;
+        transform: translateX(-50%);
+        max-width: 62vw; overflow: hidden; text-overflow: ellipsis;
+        font-size: 11px; letter-spacing: 0.16em;
+        padding: 7px 16px;
+        border: 1px solid rgba(255, 95, 95, 0.55);
+        background: rgba(30, 5, 10, 0.6);
+        color: #ffd7d7;
+        opacity: 0;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+
+      /* ---- 启动遮罩 ---- */
+      #wx-boot {
+        position: fixed; inset: 0; z-index: 9;
+        display: grid; place-items: center;
+        background: radial-gradient(60% 60% at 50% 50%, #06111f 0%, #01040b 100%);
+        gap: 0;
+      }
+      #wx-boot .inner { text-align: center; }
+      #wx-boot .ring {
+        width: 78px; height: 78px; margin: 0 auto 18px;
+        border: 1px solid rgba(96, 226, 255, 0.25);
+        border-top-color: var(--wx-cyan);
+        border-radius: 50%;
+        animation: wx-spin 1.1s linear infinite;
+      }
+      #wx-boot p { font-size: 10.5px; letter-spacing: 0.3em; color: var(--wx-muted); margin: 0; }
+      #wx-boot .sub { margin-top: 8px; font-size: 9px; letter-spacing: 0.16em; color: rgba(120,160,200,0.5); }
+      #wx-boot b { color: var(--wx-cyan); font-weight: 400; }
+
+      @media (max-width: 900px) {
+        #wx-panel, #wx-card { width: 216px; }
+        #wx-layers { width: 186px; }
+        #wx-hint { display: none; }
+        #wx-brand h1 { font-size: 19px; }
+        /* 窄屏时导航只留图标，避免与左右面板重叠 */
+        #wx-sitenav .wx-sn-text { display: none; }
+        #wx-sitenav .wx-sn-item { padding: 5px 8px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="wx-bg"><i class="day"></i><i class="night"></i></div>
+    <canvas id="wx-canvas"></canvas>
+    <div class="wx-fx wx-vignette"></div>
+    <div class="wx-fx wx-scan"></div>
+    <div class="wx-fx wx-beam"></div>
+
+    <div id="wx-hud">
+      <nav id="wx-sitenav" class="wx-box pane">
+        <a class="wx-sn-item" href="../index.html"><span class="wx-sn-icon">◈</span><span class="wx-sn-text">万物联动</span></a>
+        <a class="wx-sn-item" href="../park/index.html"><span class="wx-sn-icon">▣</span><span class="wx-sn-text">万里科技园</span></a>
+        <a class="wx-sn-item" href="../energy/index.html"><span class="wx-sn-icon">⚡</span><span class="wx-sn-text">数智能源</span></a>
+        <a class="wx-sn-item" href="../crystal/index.html"><span class="wx-sn-icon">❖</span><span class="wx-sn-text">晶体共振</span></a>
+        <a class="wx-sn-item" href="../gears/index.html"><span class="wx-sn-icon">⧗</span><span class="wx-sn-text">齿轮轴</span></a>
+        <a class="wx-sn-item" href="../quantum/index.html"><span class="wx-sn-icon">❋</span><span class="wx-sn-text">纠缠之隙</span></a>
+        <a class="wx-sn-item is-active" href="./index.html" aria-current="page"><span class="wx-sn-icon">⬡</span><span class="wx-sn-text">万象织网</span></a>
+      </nav>
+
+      <header id="wx-brand">
+        <div class="mark">⬡</div>
+        <div>
+          <div class="wx-kicker">Scene 07 / <b>Point Cloud Connected City</b></div>
+          <h1>万象织网</h1>
+          <p>点云智联城市 · LIDAR DIGITAL TWIN · V2X MESH</p>
+        </div>
+      </header>
+
+      <section id="wx-panel" class="wx-box pane">
+        <div class="wx-title"><span>城市遥测 / TELEMETRY</span><em id="wx-fps">60 FPS</em></div>
+        <div class="wx-row"><span class="wx-row-label">点云总量</span><span class="wx-row-dots"></span><span class="wx-row-value" id="wx-m-points">0</span><span class="wx-row-unit">PTS</span></div>
+        <div class="wx-row"><span class="wx-row-label">活跃连接</span><span class="wx-row-dots"></span><span class="wx-row-value wx-value-mg" id="wx-m-links">0</span><span class="wx-row-unit">LINK</span></div>
+        <div class="wx-row"><span class="wx-row-label">数据吞吐</span><span class="wx-row-dots"></span><span class="wx-row-value wx-value-hi" id="wx-m-through">0.00</span><span class="wx-row-unit">GB/S</span></div>
+        <div class="wx-row"><span class="wx-row-label">平均通行</span><span class="wx-row-dots"></span><span class="wx-row-value" id="wx-m-transit">0.0</span><span class="wx-row-unit">S/KM</span></div>
+        <div class="wx-row"><span class="wx-row-label">全网能耗</span><span class="wx-row-dots"></span><span class="wx-row-value wx-value-am" id="wx-m-power">0</span><span class="wx-row-unit">MW</span></div>
+        <canvas id="wx-spark" width="468" height="92"></canvas>
+        <div class="wx-row"><span class="wx-row-label">路网占用</span><span class="wx-row-dots"></span><span class="wx-row-value" id="wx-m-load">0%</span><span class="wx-row-unit">LOAD</span></div>
+        <div class="wx-meter"><i id="wx-load-bar"></i></div>
+        <div class="wx-row"><span class="wx-row-label">自愈进度</span><span class="wx-row-dots"></span><span class="wx-row-value" id="wx-m-heal">—</span><span class="wx-row-unit">REPAIR</span></div>
+        <div class="wx-meter is-rec"><i id="wx-heal-bar"></i></div>
+        <div id="wx-log"></div>
+      </section>
+
+      <section id="wx-layers" class="wx-box pane">
+        <div class="wx-title"><span>图层 / LAYERS</span><em>LAYERS</em></div>
+        <div class="wx-toggle on" data-layer="entities"><span class="led"><i></i></span>实体点云<span class="key">1</span></div>
+        <div class="wx-toggle on" data-layer="links"><span class="led"><i></i></span>数据连线<span class="key">2</span></div>
+        <div class="wx-toggle on" data-layer="heat"><span class="led"><i></i></span>活动热力图<span class="key">3</span></div>
+        <div class="wx-toggle on" data-layer="labels"><span class="led"><i></i></span>悬浮标签<span class="key">4</span></div>
+        <div class="wx-legend">
+          <div><s style="background:var(--wx-orange)"></s><span>行人 HUMAN · 30 pts</span></div>
+          <div><s style="background:var(--wx-cyan)"></s><span>车辆 VEHICLE · 点阵体</span></div>
+          <div><s style="background:var(--wx-steel)"></s><span>建筑 STATIC · 扫描纹理</span></div>
+          <div><s style="background:var(--wx-amber)"></s><span>能源节点 ENERGY</span></div>
+          <div><s style="background:var(--wx-magenta)"></s><span>V2I 请求 / 放行</span></div>
+          <div><s style="background:var(--wx-violet)"></s><span>V2X 广播 / 公交</span></div>
+        </div>
+      </section>
+
+      <section id="wx-card" class="wx-box pane">
+        <span class="close" id="wx-card-close">✕ ESC</span>
+        <div class="kind" id="wx-card-kind">STATIC NODE</div>
+        <div class="name" id="wx-card-name">— <small id="wx-card-id"></small></div>
+        <div class="wx-row"><span class="wx-row-label">状态</span><span class="wx-row-dots"></span><span class="wx-row-value" id="wx-card-status">—</span></div>
+        <div class="wx-row"><span class="wx-row-label">速度</span><span class="wx-row-dots"></span><span class="wx-row-value" id="wx-card-speed">—</span><span class="wx-row-unit">KM/H</span></div>
+        <div class="wx-row"><span class="wx-row-label">连接数</span><span class="wx-row-dots"></span><span class="wx-row-value wx-value-mg" id="wx-card-links">—</span></div>
+        <div class="wx-row"><span class="wx-row-label">负载</span><span class="wx-row-dots"></span><span class="wx-row-value wx-value-am" id="wx-card-load">—</span><span class="wx-row-unit">kW</span></div>
+        <div class="wx-row"><span class="wx-row-label">坐标</span><span class="wx-row-dots"></span><span class="wx-row-value" id="wx-card-pos">—</span></div>
+        <div id="wx-neighbors"></div>
+      </section>
+
+      <div id="wx-cam">AZ <span id="wx-cam-az">000°</span> · EL <span id="wx-cam-el">00°</span> · DIST <span id="wx-cam-d">000</span> m</div>
+
+      <nav id="wx-time" class="wx-box pane">
+        <div class="meta">
+          <span id="wx-clock">14:20</span>
+          <span id="wx-phase">DAY / 白昼</span>
+          <span id="wx-play">▮▮ 暂停</span>
+          <div id="wx-speeds">
+            <div class="wx-speed" data-speed="0.5">0.5×</div>
+            <div class="wx-speed on" data-speed="1">1×</div>
+            <div class="wx-speed" data-speed="2">2×</div>
+            <div class="wx-speed" data-speed="4">4×</div>
+            <div class="wx-speed" data-speed="8">8×</div>
+          </div>
+        </div>
+        <div id="wx-rail">
+          <div class="track"></div>
+          <div class="fill" id="wx-rail-fill"></div>
+          <div class="ticks" id="wx-rail-ticks"></div>
+          <div id="wx-knob"><i></i></div>
+        </div>
+      </nav>
+
+      <div id="wx-hint">
+        <p><b>点击</b>实体 → 关系聚焦（50 m 内连线高亮）</p>
+        <p><b>点击道路</b> → 制造交通事故，观察路网自愈</p>
+        <p><b>拖动底部旋钮</b> → 昼夜与模拟速度 · <b>1~4</b> 图层</p>
+        <p><b>拖拽</b>环绕 · <b>滚轮</b>缩放 · <b>空格</b>暂停 · <b>R</b> 复位</p>
+      </div>
+
+      <div id="wx-labels"></div>
+      <div id="wx-toast"></div>
+    </div>
+
+    <div id="wx-boot">
+      <div class="inner">
+        <div class="ring"></div>
+        <p>点云重建中 · REBUILDING POINT CLOUD</p>
+        <div class="sub" id="wx-boot-sub">LiDAR 扫描 · 城市体素解算 · V2X 组网</div>
+      </div>
+    </div>
+
+    <script type="module">
+      import * as THREE from 'three';
+      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+      import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+      import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+      import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+      import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+      import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+      /* ======================================================================
+         1. CONFIG —— 所有可调参数集中在此
+         ====================================================================== */
+      const CONFIG = {
+        city: {
+          roadSpan: 3,        // 半跨数 → 7 条横向 + 7 条纵向道路
+          cell: 120,          // 路网间距（米）
+          roadWidth: 26,      // 车行道宽度
+          groundPad: 78,      // 地面网格超出城区的余量
+        },
+        points: {
+          staticCap: 340000,  // 静态点云缓冲上限（建筑/地面/道路/信标塔…）
+          dynamicCap: 26000,  // 动态点云（车/人/拖尾）
+          highlightCap: 46000,// 聚焦模式下高亮点云
+          sizeScale: 1.0,     // 全局点尺寸倍率
+          maxPixelRatio: 2,   // 像素比上限
+          farCull: 640,       // LOD：低优先级点在该距离外剔除
+          lowPriority: true,  // 是否启用 LOD 剔除
+          pickPx: 38,         // 拾取半径（屏幕像素）
+        },
+        buildings: {
+          towerBlocks: 5,     // 中心商务区栋数
+          perBlock: [1, 3],   // 每地块建筑数
+          bandStep: 1.55,     // 垂直扫描带间距（米）→ 扫描纹理
+          colStep: 2.1,       // 立面采样间距
+          keepRate: 0.42,     // 保留概率（稀疏度）
+          beaconMax: 34,      // 数据信标脉冲环最大半径
+        },
+        agents: {
+          cars: 54,
+          buses: 3,
+          people: 230,
+          carSlots: 84,       // 每辆车预留点数（大客车用满）
+          carPts: 52,
+          busPts: 82,
+          personPts: 30,
+          trailPts: 20,       // 拖尾采样点数
+          trailEvery: 0.07,   // 拖尾采样间隔（秒）
+          carSpeed: [11, 19], // 巡航速度 m/s
+          busSpeed: [8, 11],
+          walkSpeed: [1.1, 1.9],
+          turnRate: 1.5,      // 最大转向角速度 rad/s
+          followGap: 13,      // 跟驰间距
+        },
+        links: {
+          max: 84,
+          flowDots: 18,       // 每条连线流动光点数
+          wireDots: 12,       // 每条连线静态线码点
+          life: [0.55, 1.15], // 存活时间（秒）
+        },
+        traffic: {
+          nsGreen: 15, nsYellow: 2.5, ewGreen: 13, ewYellow: 2.5, allRed: 2,
+          stopDist: 30,       // 红灯前减速距离
+        },
+        sim: {
+          hour0: 14.3,        // 初始时刻
+          speed0: 1,
+          dayLen: 168,        // 拖动一格 = 分钟推进基准
+        },
+        focus: { radius: 50, dim: 0.14 }, // 关系聚焦半径（米）与非聚焦衰减
+        accident: {
+          redHold: 13,        // 附近路口强制红灯时长
+          amberHold: 7,       // 黄灯闪烁恢复期
+          radius: 170,        // 广播半径
+        },
+        heat: { res: 168, decay: 0.93, radius: 2 },  // 热力图分辨率 / 衰减 / 单次涂抹半径（格）
+        colors: {
+          base: '#d8f0ff',    // 冷白/青基底
+          grid: '#1c6b88',
+          road: '#8fb6cf',
+          person: '#ff9a3c',  // 人 = 暖橙
+          car: '#2ee8ff',     // 车 = 电光青
+          bus: '#7ef0d2',
+          building: '#5f8fd0',// 建筑 = 钢蓝
+          buildingTop: '#a8e6ff',
+          steel: '#4c7095',   // 灯杆 / 构筑物
+          energy: '#ffc24a',  // 能源节点 = 琥珀金
+          lightGo: '#37ffb0',
+          lightWait: '#ffc24a',
+          lightStop: '#ff5f5f',
+          dataA: '#ff3ecb',   // 数据流：洋红
+          dataB: '#8f5cff',   // 数据流：紫
+        },
+        dataType: {
+          v2i: '#ff3ecb',     // 车 → 红绿灯：通行请求
+          go: '#37ffb0',      // 红绿灯 → 车：放行脉冲
+          transit: '#8f5cff', // 行人 ↔ 站台 ↔ 公交：到站时刻
+          energy: '#ffc24a',  // 建筑 → 电网：能耗
+          charge: '#37ffb0',  // 电网 → 充电站：能量包
+          v2x: '#ff5f5f',     // 事故广播
+        },
+      };
+
+      /* ======================================================================
+         2. 工具函数
+         ====================================================================== */
+      const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+      const lerp = (a, b, t) => a + (b - a) * t;
+      const smoothstep = (e0, e1, x) => {
+        const t = clamp((x - e0) / (e1 - e0), 0, 1);
+        return t * t * (3 - 2 * t);
+      };
+      // 确定性随机：同一刷新参数下城市完全一致
+      function mulberry32(seed) {
+        let a = seed >>> 0;
+        return function () {
+          a = (a + 0x6d2b79f5) >>> 0;
+          let t = Math.imul(a ^ (a >>> 15), 1 | a);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+      const rng = mulberry32(20260919);
+      const rand = (a, b) => a + rng() * (b - a);
+      const randInt = (a, b) => Math.floor(rand(a, b + 1));
+      const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+      const C = (hex) => new THREE.Color(hex);
+      const COL = {};
+      for (const k in CONFIG.colors) COL[k] = C(CONFIG.colors[k]);
+      const DTC = {};
+      for (const k in CONFIG.dataType) DTC[k] = { hex: CONFIG.dataType[k], c: C(CONFIG.dataType[k]) };
+
+      const fmt = (n, d = 0) => n.toFixed(d).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+      const $ = (id) => document.getElementById(id);
+
+      /* ======================================================================
+         3. 点云池 —— 一次性分配、批量写入的 BufferGeometry 装配器
+         ====================================================================== */
+      class PointPool {
+        constructor(cap) {
+          this.cap = cap;
+          this.count = 0;
+          this.position = new Float32Array(cap * 3);
+          this.color = new Float32Array(cap * 3);
+          this.size = new Float32Array(cap);
+          this.seed = new Float32Array(cap);
+          this.fade = new Float32Array(cap);
+          this.lod = new Float32Array(cap); // 0 = 常驻，1 = 低优先级（远距剔除）
+        }
+        // 写入一个点；col 复用 THREE.Color 实例避免 GC
+        add(x, y, z, col, size, fade = 1, lod = 0) {
+          if (this.count >= this.cap) return;
+          const i = this.count++;
+          const i3 = i * 3;
+          this.position[i3] = x;
+          this.position[i3 + 1] = y;
+          this.position[i3 + 2] = z;
+          this.color[i3] = col.r;
+          this.color[i3 + 1] = col.g;
+          this.color[i3 + 2] = col.b;
+          this.size[i] = size;
+          this.seed[i] = rng();
+          this.fade[i] = fade;
+          this.lod[i] = lod;
+        }
+        toGeometry() {
+          const g = new THREE.BufferGeometry();
+          const put = (name, arr, item, dyn) => {
+            const a = new THREE.BufferAttribute(arr, item);
+            if (dyn) a.setUsage(THREE.DynamicDrawUsage);
+            g.setAttribute(name, a);
+          };
+          put('position', this.position, 3, this.dynamic);
+          put('aColor', this.color, 3, this.dynamic);
+          put('aSize', this.size, 1, this.dynamic);
+          put('aSeed', this.seed, 1, false);
+          put('aFade', this.fade, 1, this.dynamic);
+          put('aLod', this.lod, 1, false);
+          g.setDrawRange(0, this.count);
+          g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 60, 0), 1400);
+          return g;
+        }
+      }
+
+      /* ======================================================================
+         4. 城市结构生成（路网 / 地块 / 建筑 / 能源节点 / 站台）
+         ====================================================================== */
+      const SPAN = CONFIG.city.roadSpan;
+      const CELL = CONFIG.city.cell;
+      const ROADW = CONFIG.city.roadWidth;
+      const ROADS = [];
+      for (let i = -SPAN; i <= SPAN; i++) ROADS.push(i * CELL);
+      const CITY_R = SPAN * CELL;                       // 最外圈道路中心
+      const GROUND = CITY_R + CONFIG.city.groundPad;    // 地面网格半边长
+      const BLOCKS = [];                                 // 地块中心
+      for (let i = -SPAN; i < SPAN; i++) {
+        for (let j = -SPAN; j < SPAN; j++) {
+          BLOCKS.push({ x: i * CELL + CELL / 2, z: j * CELL + CELL / 2 });
+        }
+      }
+      const BH = (CELL - ROADW) / 2; // 地块半径（不含路）
+
+      function nearRoad(x, z, pad = 0) {
+        for (const r of ROADS) {
+          if (Math.abs(x - r) <= ROADW / 2 + pad) return 'x';
+          if (Math.abs(z - r) <= ROADW / 2 + pad) return 'z';
+        }
+        return null;
+      }
+      const isRoad = (x, z) => nearRoad(x, z, 0) !== null;
+
+      // 实体登记表（供聚焦/拾取/连线使用）
+      const ENT = [];
+      function makeEntity(kind, x, y, z, radius, data) {
+        const e = {
+          id: ENT.length,
+          kind,
+          pos: new THREE.Vector3(x, y, z),
+          radius,
+          ranges: [],      // [池名][起始, 数量]
+          links: 0,
+          data: data || {},
+        };
+        ENT.push(e);
+        return e;
+      }
+      const BUILDINGS = [];
+      const LIGHTS = [];
+      const CARS = [];
+      const PEOPLE = [];
+      const STOPS = [];
+      const GRID = [];
+
+      /* ---- 4.1 建筑点云：稀疏立面 + 垂直扫描条纹 + 顶部数据信标 ---- */
+      const tmpC = new THREE.Color();
+      function addBuildingCloud(pool, b, entId) {
+        const start = pool.count;
+        const { w, d, h, x, z } = b;
+        const perim = 2 * (w + d);
+        const cols = Math.max(6, Math.floor(perim / CONFIG.buildings.colStep));
+        // 立面列遮罩：连续保留段 + 空段 → 竖向扫描纹理（模拟遮挡与稀疏回波）
+        const mask = new Uint8Array(cols);
+        let i = 0;
+        while (i < cols) {
+          const run = randInt(2, 9);
+          const on = rng() < CONFIG.buildings.keepRate + 0.22;
+          for (let k = 0; k < run && i < cols; k++, i++) mask[i] = on ? 1 : 0;
+          if (on) { const gap = randInt(1, 4); for (let k = 0; k < gap && i < cols; k++, i++) mask[i] = 0; }
+        }
+        const bands = Math.floor(h / CONFIG.buildings.bandStep);
+        const bandAlpha = new Float32Array(bands);
+        for (let y2 = 0; y2 < bands; y2++) {
+          // 少数带为强扫描线（更亮更密）
+          bandAlpha[y2] = rng() < 0.16 ? rand(0.85, 1.15) : rand(0.24, 0.62);
+        }
+        const step = perim / cols;
+        for (let bi = 0; bi < bands; bi++) {
+          const yy = 1.2 + bi * CONFIG.buildings.bandStep + rand(-0.35, 0.35);
+          const ht = yy / h;
+          for (let ci = 0; ci < cols; ci++) {
+            if (!mask[ci]) continue;
+            if (rng() > bandAlpha[bi]) continue;
+            const u = ci * step + rand(-0.9, 0.9);
+            let px, pz, face;
+            if (u < w) { px = -w / 2 + u; pz = -d / 2; face = 0; }
+            else if (u < w + d) { px = w / 2; pz = -d / 2 + (u - w); face = 1; }
+            else if (u < 2 * w + d) { px = w / 2 - (u - w - d); pz = d / 2; face = 2; }
+            else { px = -w / 2; pz = d / 2 - (u - 2 * w - d); face = 3; }
+            // 立面法向抖出一点厚度，避免完全共面
+            const ex = face === 0 ? -1 : face === 2 ? 1 : 0;
+            const ez = face === 1 ? -1 : face === 3 ? 1 : 0;
+            const off = rand(0, 0.9);
+            tmpC.copy(b.cLow).lerp(b.cHigh, smoothstep(0.15, 1, ht));
+            const lit = rng() < 0.05 ? rand(0.55, 1) : 0; // 少量暖白窗点
+            if (lit > 0) tmpC.lerp(COL.base, 0.72);
+            pool.add(
+              x + px + ex * off, yy, z + pz + ez * off,
+              tmpC, rand(1.05, 1.75) + lit * 0.5,
+              (0.4 + bandAlpha[bi] * 0.55) * (lit ? 1.5 : 1), 0
+            );
+          }
+        }
+        // 屋顶轮廓
+        const edge = Math.floor(perim / 3.2);
+        for (let k = 0; k < edge; k++) {
+          const u = (k / edge) * perim;
+          let px, pz;
+          if (u < w) { px = -w / 2 + u; pz = -d / 2; }
+          else if (u < w + d) { px = w / 2; pz = -d / 2 + (u - w); }
+          else if (u < 2 * w + d) { px = w / 2 - (u - w - d); pz = d / 2; }
+          else { px = -w / 2; pz = d / 2 - (u - 2 * w - d); }
+          pool.add(x + px + rand(-0.5, 0.5), h + rand(0, 0.8), z + pz + rand(-0.5, 0.5),
+            COL.buildingTop, rand(1.2, 2.0), 0.85, 0);
+        }
+        // 信标塔：顶部一撮竖点 + 信标头
+        const mast = Math.floor(rand(4, 9));
+        for (let k = 0; k < mast; k++) {
+          pool.add(x + rand(-0.5, 0.5), h + 1 + k * 1.6, z + rand(-0.5, 0.5),
+            COL.buildingTop, 1.3, 0.9, 0);
+        }
+        b.beacon = { x, y: h + mast * 1.6 + 2.2, z };
+        pool.add(b.beacon.x, b.beacon.y, b.beacon.z, COL.base, 3.4, 1.6, 0);
+        entId.ranges.push(['static', start, pool.count - start]);
+      }
+
+      function buildCity() {
+        // 中心商务区：少量超高层塔楼
+        let towersLeft = CONFIG.buildings.towerBlocks;
+        for (const blk of BLOCKS) {
+          const distC = Math.hypot(blk.x, blk.z);
+          const downtown = distC < CELL * 1.6 && towersLeft > 0;
+          const n = downtown ? 1 : randInt(CONFIG.buildings.perBlock[0], CONFIG.buildings.perBlock[1]);
+          for (let k = 0; k < n; k++) {
+            // 地块内切分：2x2 子格避免重叠
+            const slot = k % 4;
+            const sx = blk.x + (slot % 2 ? 1 : -1) * BH * 0.48;
+            const sz = blk.z + (slot > 1 ? 1 : -1) * BH * 0.48;
+            const maxW = BH * 0.92;
+            let w, d, h, type;
+            if (downtown) {
+              type = 'tower';
+              w = rand(18, 30); d = rand(18, 30); h = rand(110, 205);
+              towersLeft--;
+            } else {
+              const r = rng();
+              if (r < 0.4) { type = 'office'; w = rand(16, 30); d = rand(14, 26); h = rand(34, 88); }
+              else if (r < 0.72) { type = 'resident'; w = rand(13, 22); d = rand(12, 20); h = rand(20, 46); }
+              else if (r < 0.94) { type = 'factory'; w = rand(26, Math.min(46, BH * 1.6)); d = rand(20, 34); h = rand(12, 24); }
+              else { type = 'charge'; w = rand(18, 28); d = rand(14, 20); h = rand(6, 9); }
+            }
+            const x = clamp(sx, blk.x - BH + w / 2 + 1, blk.x + BH - w / 2 - 1);
+            const z = clamp(sz, blk.z - BH + d / 2 + 1, blk.z + BH - d / 2 - 1);
+            const cLow = COL.building.clone().multiplyScalar(type === 'factory' ? 0.72 : 0.6);
+            const cHigh = type === 'charge' ? COL.energy.clone() : COL.buildingTop.clone();
+            const b = {
+              x, z, w, d, h, type, cLow, cHigh,
+              blocks: Math.round(rand(40, 2600)),
+              people: Math.round(rand(20, 4200)),
+              load: 0,
+              grid: null,
+            };
+            b.load = (type === 'factory' ? rand(2200, 6800) : h * rand(1.6, 3.4)) | 0;
+            const e = makeEntity('building', x, h / 2, z, Math.max(w, d, h) * 0.6, {
+              label: type === 'charge' ? '充电站' : type === 'factory' ? '工厂' : type === 'resident' ? '住宅楼' : '商务塔楼',
+              code: `${type.slice(0, 2).toUpperCase()}-${String(BUILDINGS.length + 1).padStart(3, '0')}`,
+              h, w, d, type, load: b.load, people: b.people, flow: b.blocks,
+              state: type === 'charge' ? '能量包接收中' : h > 100 ? '信标广播中' : '静态节点',
+            });
+            b.ent = e;
+            BUILDINGS.push(b);
+          }
+        }
+        // 4 座能源节点（电网），置于四象限外圈空地
+        const gridPos = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+        gridPos.forEach(([gx, gz], gi) => {
+          const x = gx * (CITY_R - 55) + rand(-14, 14);
+          const z = gz * (CITY_R - 55) + rand(-14, 14);
+          const g = { x, z, h: rand(52, 74), cap: rand(42, 96), out: 0, ent: null };
+          g.ent = makeEntity('grid', x, g.h / 2, z, 26, {
+            label: '电网节点', code: `GRID-${gi + 1}`,
+            h: g.h, load: Math.round(g.cap * 100), people: Math.round(g.cap * 320), flow: Math.round(g.cap * 4),
+            state: '电网调度 · 能量分发',
+          });
+          g.ent.grid = g;
+          GRID.push(g);
+        });
+        // 公交站台：贴人行道的路侧点
+        for (let k = 0; k < 9; k++) {
+          const r = pick(ROADS);
+          const along = rand(-CITY_R + 40, CITY_R - 40);
+          const side = rng() < 0.5 ? 1 : -1;
+          const horiz = rng() < 0.5;
+          const x = horiz ? along : r + side * (ROADW / 2 + 4.5);
+          const z = horiz ? r + side * (ROADW / 2 + 4.5) : along;
+          const s = { x, z, line: `B${randInt(2, 87)}`, eta: 0, ent: null };
+          s.ent = makeEntity('stop', x, 2, z, 8, {
+            label: 'BRT 站台', code: s.line, h: 3, load: 0, people: randInt(3, 46), flow: randInt(2, 9),
+            state: '公交 ETA 分发',
+          });
+          STOPS.push(s);
+        }
+        // 路口信号灯
+        for (const rx of ROADS) {
+          for (const rz of ROADS) {
+            const L = {
+              x: rx + ROADW / 2 - 2, z: rz + ROADW / 2 - 2,
+              nx: rx, nz: rz,                  // 所属路口节点（车辆按节点查灯）
+              t: rng() * 26, ns: 'green', ew: 'red', timer: 0,
+              forced: null, ent: null,
+            };
+            L.ent = makeEntity('light', L.x, 6, L.z, 7, {
+              label: '路口信号', code: `SIG-${Math.abs(rx / CELL + SPAN)}.${Math.abs(rz / CELL + SPAN)}`,
+              h: 7, load: 1, people: 0, flow: 0,
+            });
+            L.ent.light = L;
+            LIGHTS.push(L);
+          }
+        }
+      }
+
+      /* ======================================================================
+         5. 渲染器 / 场景 / 相机
+         ====================================================================== */
+      const canvas = $('wx-canvas');
+      const renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: false,
+        alpha: true,
+        powerPreference: 'high-performance',
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, CONFIG.points.maxPixelRatio));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(0x000000, 0);
+
+      const scene = new THREE.Scene();
+      const FOG_DAY = C('#081827');
+      const FOG_NIGHT = C('#01030a');
+      scene.fog = new THREE.FogExp2(FOG_DAY.clone(), 0.00072);
+
+      const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 1.2, 6000);
+      camera.position.set(430, 340, 520);
+
+      const controls = new OrbitControls(camera, canvas);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.06;
+      controls.screenSpacePanning = false;
+      controls.minDistance = 46;
+      controls.maxDistance = 1500;
+      controls.maxPolarAngle = Math.PI * 0.492;
+      controls.target.set(0, 40, 0);
+
+      const state = {
+        hour: CONFIG.sim.hour0,
+        night: 0,
+        speed: CONFIG.sim.speed0,
+        paused: false,
+        time: 0,
+        focus: null,
+        dim: 1,
+        accidents: [],
+        heal: 0,
+        links: 0,
+        bytes: 0,
+        transit: [],
+        power: 0,
+        frames: 0,
+        fps: 60,
+      };
+
+      /* ======================================================================
+         6. 点云着色器
+         ====================================================================== */
+      const GLSL_POINT_ATTR = `
+        attribute vec3 aColor;
+        attribute float aSize;
+        attribute float aSeed;
+        attribute float aFade;
+        attribute float aLod;
+        uniform float uTime, uPr, uSizeScale, uOpacity, uDim, uNight, uFarCull, uFogK;
+        varying vec3 vColor;
+        varying float vAlpha;
+      `;
+      // 顶点：距离衰减点尺寸 + 呼吸闪烁 + 距离雾化 + 低优先级点 LOD 剔除
+      const GLSL_POINT_VS = `
+        void main() {
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          float dist = max(-mv.z, 0.001);
+          #ifdef USE_LOD
+          if (aLod > 0.5 && dist > uFarCull) {
+            gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+            gl_PointSize = 0.0;
+            vColor = vec3(0.0);
+            vAlpha = 0.0;
+            return;
+          }
+          #endif
+          float breathe = 0.80 + 0.20 * sin(uTime * (0.6 + aSeed * 2.3) + aSeed * 47.0);
+          float ps = aSize * uSizeScale * uPr * breathe * (520.0 / dist);
+          gl_PointSize = clamp(ps, 0.65, 30.0);
+          float haze = exp(-pow(dist * uFogK, 1.7));
+          vColor = aColor * mix(1.0, 1.16, uNight) * mix(1.0, 0.86, 1.0 - haze);
+          vAlpha = aFade * breathe * haze * uOpacity * uDim;
+          gl_Position = projectionMatrix * mv;
+        }
+      `;
+      const GLSL_POINT_FS = `
+        varying vec3 vColor;
+        varying float vAlpha;
+        void main() {
+          vec2 q = gl_PointCoord - 0.5;
+          float d = length(q);
+          float a = smoothstep(0.5, 0.06, d);
+          a *= a;
+          float core = smoothstep(0.19, 0.0, d);
+          vec3 c = vColor * (0.6 + core * 1.45);
+          float alpha = a * vAlpha;
+          if (alpha < 0.004) discard;
+          gl_FragColor = vec4(c, alpha);
+        }
+      `;
+
+      function pointMaterial(opacity, dim, opts = {}) {
+        return new THREE.ShaderMaterial({
+          uniforms: {
+            uTime: { value: 0 },
+            uPr: { value: renderer.getPixelRatio() },
+            uSizeScale: { value: CONFIG.points.sizeScale * (opts.sizeMul || 1) },
+            uOpacity: { value: opacity },
+            uDim: { value: dim },
+            uNight: { value: 0 },
+            uFarCull: { value: CONFIG.points.farCull },
+            uFogK: { value: opts.fogK || 0.00072 },
+          },
+          vertexShader: GLSL_POINT_ATTR + GLSL_POINT_VS,
+          fragmentShader: GLSL_POINT_FS,
+          transparent: true,
+          depthWrite: false,
+          depthTest: opts.depthTest !== false,
+          blending: THREE.AdditiveBlending,
+          defines: opts.lod ? { USE_LOD: '' } : {},
+        });
+      }
+
+      const mats = {
+        static: pointMaterial(0.8, 1, { lod: CONFIG.points.lowPriority, fogK: 0.0007 }),
+        dynamic: pointMaterial(1.0, 1, { sizeMul: 1.12, fogK: 0.00068 }),
+        highlight: pointMaterial(1.0, 1, { sizeMul: 1.5, depthTest: false, fogK: 0.0002 }),
+      };
+      mats.highlight.uniforms.uDim.value = 1;
+      const ALL_POINT_MATS = [mats.static, mats.dynamic, mats.highlight];
+
+      /* ======================================================================
+         7. 静态点云装配
+         ====================================================================== */
+      const staticPool = new PointPool(CONFIG.points.staticCap);
+      const dynamicPool = new PointPool(CONFIG.points.dynamicCap);
+      dynamicPool.dynamic = true;
+      const hiPool = new PointPool(CONFIG.points.highlightCap);
+      hiPool.dynamic = true;
+      const fxPool = new PointPool(9000);
+      fxPool.dynamic = true;
+
+      /* ---- 7.1 地面网格 / 路网 / 经纬刻度 / 行道树 ---- */
+      function addGroundAndRoads() {
+        const treeC = C('#2f7d6a');
+        const baseC = COL.base.clone();
+        // 地面主格线 + 次格线（次格线标为低优先级，远距剔除）
+        for (let a = -GROUND; a <= GROUND; a += 30) {
+          const major = Math.abs(a) % 120 === 0;
+          const step = major ? 9 : 15;
+          for (let b = -GROUND; b <= GROUND; b += step) {
+            tmpC.copy(COL.grid).lerp(baseC, major ? 0.35 : 0);
+            staticPool.add(a, 0, b, tmpC, major ? 1.15 : 0.85, major ? 0.5 : 0.3, major ? 0 : 1);
+            staticPool.add(b, 0, a, tmpC, major ? 1.15 : 0.85, major ? 0.5 : 0.3, major ? 0 : 1);
+          }
+        }
+        // 道路面：稀疏回波点 + 车道虚线 + 路缘
+        for (const r of ROADS) {
+          const half = CITY_R + ROADW / 2;
+          const lane = new THREE.Color('#3d5f76');
+          for (let u = -half; u <= half; u += 3.4) {
+            const n = rng() < 0.55 ? 2 : 1;
+            for (let k = 0; k < n; k++) {
+              const off = rand(-ROADW / 2 + 1.5, ROADW / 2 - 1.5);
+              tmpC.copy(lane).lerp(baseC, rng() * 0.12);
+              staticPool.add(r + off, 0.25, u, tmpC, rand(0.7, 1.1), 0.34, 1);
+              staticPool.add(u, 0.25, r + off, tmpC, rand(0.7, 1.1), 0.34, 1);
+            }
+            if (Math.round(u / 9) % 2 === 0) {
+              tmpC.copy(baseC).multiplyScalar(0.8);
+              staticPool.add(r, 0.4, u, tmpC, 1.15, 0.7, 1);
+              staticPool.add(u, 0.4, r, tmpC, 1.15, 0.7, 1);
+            }
+            // 路缘亮线
+            for (const s of [-1, 1]) {
+              if (rng() < 0.55) {
+                tmpC.copy(baseC).lerp(COL.cyan || COL.grid, 0.3);
+                staticPool.add(r + s * (ROADW / 2 + 1.2), 0.5, u, tmpC, 1.0, 0.62, 1);
+                staticPool.add(u, 0.5, r + s * (ROADW / 2 + 1.2), tmpC, 1.0, 0.62, 1);
+              }
+            }
+          }
+          // 路口斑马线
+          for (const r2 of ROADS) {
+            for (let k = -3; k <= 3; k++) {
+              const off = k * 3.1;
+              for (let t = 0; t < 5; t++) {
+                const d = rand(-ROADW / 2, ROADW / 2);
+                tmpC.copy(baseC).multiplyScalar(0.92);
+                staticPool.add(r + off, 0.5, r2 + d, tmpC, 1.15, 0.55, 0);
+                staticPool.add(r2 + d, 0.5, r + off, tmpC, 1.15, 0.55, 0);
+              }
+            }
+          }
+        }
+        // 经纬刻度：同心测距环 + 5° 方位刻度
+        for (const rr of [160, 320, 480, 640]) {
+          const seg = Math.floor(rr * 1.6);
+          for (let k = 0; k < seg; k++) {
+            const a = (k / seg) * Math.PI * 2;
+            tmpC.copy(COL.grid).lerp(COL.cyan || COL.base, 0.25);
+            staticPool.add(Math.cos(a) * rr, 0.15, Math.sin(a) * rr, tmpC, 0.9, rr > 500 ? 0.24 : 0.36, 1);
+          }
+        }
+        for (let deg = 0; deg < 360; deg += 5) {
+          const a = (deg * Math.PI) / 180;
+          const big = deg % 15 === 0;
+          for (let k = 0; k < (big ? 5 : 3); k++) {
+            const rr = 690 + k * (big ? 5 : 3.2);
+            tmpC.copy(COL.grid).lerp(COL.base, big ? 0.5 : 0.1);
+            staticPool.add(Math.cos(a) * rr, 0.2, Math.sin(a) * rr, tmpC, big ? 1.4 : 1, big ? 0.8 : 0.42, 1);
+          }
+        }
+        // 行道树：人行道旁的小型点团
+        const treeSpots = [];
+        for (const r of ROADS) {
+          for (let u = -CITY_R + 20; u <= CITY_R - 20; u += 34) {
+            for (const s of [-1, 1]) {
+              if (rng() < 0.62) treeSpots.push([r + s * (ROADW / 2 + 6.5), u]);
+              if (rng() < 0.62) treeSpots.push([u, r + s * (ROADW / 2 + 6.5)]);
+            }
+          }
+        }
+        for (const [tx, tz] of treeSpots) {
+          const h = rand(4.5, 9);
+          staticPool.add(tx, h * 0.3, tz, C('#4a6d78'), 1.1, 0.6, 0);
+          const blob = 118;
+          for (let k = 0; k < blob; k++) {
+            const a = rng() * Math.PI * 2;
+            const yy = rng();
+            const rad = (0.6 + yy * 0.4) * h * 0.34 * Math.sqrt(1 - (yy - 0.72) * (yy - 0.72) * 1.6);
+            tmpC.copy(treeC).lerp(COL.grid, rng() * 0.5);
+            staticPool.add(
+              tx + Math.cos(a) * rad, h * 0.62 + yy * h * 0.42, tz + Math.sin(a) * rad,
+              tmpC, rand(0.8, 1.35), rand(0.34, 0.62), 1
+            );
+          }
+        }
+      }
+
+      /* ---- 7.2 建筑 / 能源节点 / 站台 ---- */
+      function addStructures() {
+        for (const b of BUILDINGS) addBuildingCloud(staticPool, b, b.ent);
+
+        // 能源节点：锥形格构塔（琥珀金）
+        for (const g of GRID) {
+          const start = staticPool.count;
+          const legs = 4;
+          const rows = Math.floor(g.h / 2.2);
+          for (let r = 0; r < rows; r++) {
+            const t = r / rows;
+            const y = 1 + r * 2.2;
+            const rad = lerp(13, 2.6, t);
+            for (let l = 0; l < legs; l++) {
+              const a = (l / legs) * Math.PI * 2 + t * 0.5;
+              tmpC.copy(COL.energy).lerp(COL.base, 0.1 + t * 0.35);
+              staticPool.add(g.x + Math.cos(a) * rad, y, g.z + Math.sin(a) * rad, tmpC, rand(1.1, 1.7), 0.9, 0);
+            }
+            if (r % 3 === 0) {
+              const seg = 22;
+              for (let k = 0; k < seg; k++) {
+                const a = (k / seg) * Math.PI * 2;
+                staticPool.add(g.x + Math.cos(a) * rad, y, g.z + Math.sin(a) * rad, COL.energy, 1.0, 0.45, 0);
+              }
+            }
+          }
+          for (let k = 0; k < 130; k++) {
+            const a = rng() * Math.PI * 2;
+            const rad = rand(15, 27);
+            staticPool.add(g.x + Math.cos(a) * rad, 0.6, g.z + Math.sin(a) * rad, COL.energy, 1.05, 0.3, 1);
+          }
+          g.beacon = { x: g.x, y: g.h + 5, z: g.z };
+          staticPool.add(g.x, g.h + 4, g.z, COL.base, 3.6, 1.8, 0);
+          g.ent.ranges.push(['static', start, staticPool.count - start]);
+        }
+
+        // 公交站台：雨棚 + 立柱 + 站牌
+        for (const s of STOPS) {
+          const start = staticPool.count;
+          const w = 9, d = 2.6, h = 3.2;
+          for (let k = 0; k < 120; k++) {
+            tmpC.copy(COL.bus).lerp(COL.base, rng() * 0.4);
+            staticPool.add(s.x + rand(-w / 2, w / 2), h + rand(-0.2, 0.2), s.z + rand(-d / 2, d / 2), tmpC, 1.1, 0.75, 0);
+          }
+          for (const sx of [-w / 2, w / 2]) {
+            for (let y = 0.5; y < h; y += 0.7) {
+              staticPool.add(s.x + sx, y, s.z, COL.bus, 1.1, 0.6, 0);
+            }
+          }
+          for (let y = 0.5; y < 4.4; y += 0.65) {
+            staticPool.add(s.x + w / 2 + 1.6, y, s.z, COL.energy, 1.5, 1.0, 0);
+          }
+          s.ent.ranges.push(['static', start, staticPool.count - start]);
+        }
+      }
+
+      buildCity();
+      addGroundAndRoads();
+      addStructures();
+      const STATIC_TOTAL = staticPool.count;
+
+      /* ======================================================================
+         8. 动态点云（车 / 人 / 拖尾 / 信号灯头）
+         ====================================================================== */
+      const A = CONFIG.agents;
+      const VEH = A.cars + A.buses;
+      const LAYOUT = {
+        veh: { start: 0, stride: A.carSlots, count: VEH * A.carSlots },
+        trail: { start: VEH * A.carSlots, stride: A.trailPts, count: VEH * A.trailPts },
+        people: { start: (VEH + 0) * (A.carSlots + A.trailPts), stride: A.personPts, count: A.people * A.personPts },
+      };
+      LAYOUT.lights = { start: LAYOUT.people.start + LAYOUT.people.count, stride: 40, count: LIGHTS.length * 40 };
+      const DYN_TOTAL = LAYOUT.lights.start + LAYOUT.lights.count;
+      // 位置/颜色/透明度全部按帧上传 → 标记为 DynamicDrawUsage
+      dynamicPool.count = DYN_TOTAL;
+
+      // 车辆局部点阵（长方体壳）
+      function vehicleOffsets(pts, l, w, h) {
+        for (let i = 0; i < pts.length; i += 3) {
+          const n = i / 3;
+          const face = n % 6;
+          const u = rand(-0.5, 0.5), v = rand(-0.5, 0.5);
+          let x, y, z;
+          if (face === 0) { x = l / 2; y = v * h; z = u * w; }
+          else if (face === 1) { x = -l / 2; y = v * h; z = u * w; }
+          else if (face === 2) { x = u * l; y = h; z = w / 2; }
+          else if (face === 3) { x = u * l; y = v * h * 0.9; z = -w / 2; }
+          else if (face === 4) { x = u * l; y = h * 0.55; z = w / 2; }
+          else { x = u * l; y = h; z = v * w; }
+          pts[i] = x + (face === 2 || face === 4 ? rand(0, 0.9) : 0);
+          pts[i + 1] = y + 0.45;
+          pts[i + 2] = z;
+        }
+      }
+
+      function axisFor(a) { return a === 0 ? 'x' : 'z'; }
+      // 从当前路口节点向前推进一个 waypoint（沿路网走，可随机转向）
+      function nextNode(node, axis, sign) {
+        let nx = node.x, nz = node.z, nAxis = axis, nSign = sign;
+        if (rng() < 0.38) {
+          nAxis = axis === 'x' ? 'z' : 'x';
+          nSign = rng() < 0.5 ? 1 : -1;
+        } else if (rng() < 0.16) {
+          nSign = -nSign;
+        }
+        if (nAxis === 'x') {
+          nx = clamp(node.x + nSign * CELL, -CITY_R, CITY_R);
+          if (nx === node.x) { nSign = -nSign; nx = clamp(node.x + nSign * CELL, -CITY_R, CITY_R); }
+        } else {
+          nz = clamp(node.z + nSign * CELL, -CITY_R, CITY_R);
+          if (nz === node.z) { nSign = -nSign; nz = clamp(node.z + nSign * CELL, -CITY_R, CITY_R); }
+        }
+        return { x: nx, z: nz, axis: nAxis, sign: nSign };
+      }
+      function nearestNode(x, z) {
+        let bx = 0, bz = 0, bd = Infinity;
+        for (const rx of ROADS) for (const rz of ROADS) {
+          const d = (rx - x) ** 2 + (rz - z) ** 2;
+          if (d < bd) { bd = d; bx = rx; bz = rz; }
+        }
+        return { x: bx, z: bz };
+      }
+      function lightAt(x, z) {
+        for (const L of LIGHTS) {
+          if (Math.abs(L.x - x) < 1 && Math.abs(L.z - z) < 1) return L;
+        }
+        return null;
+      }
+
+      function spawnVehicles() {
+        for (let i = 0; i < VEH; i++) {
+          const isBus = i >= A.cars;
+          const n0 = { x: pick(ROADS), z: pick(ROADS) };
+          const axis = rng() < 0.5 ? 'x' : 'z';
+          const sign = rng() < 0.5 ? 1 : -1;
+          const nxt = nextNode(n0, axis, sign);
+          const l = isBus ? 12.4 : rand(7.4, 9.2);
+          const w = isBus ? 2.8 : rand(2.2, 2.8);
+          const h = isBus ? 3.4 : rand(1.7, 2.5);
+          const off = new Float32Array(A.carSlots * 3);
+          vehicleOffsets(off.subarray(0, (isBus ? A.busPts : A.carPts) * 3), l, w, h);
+          const col = isBus ? COL.bus.clone() : COL.car.clone();
+          col.lerp(COL.base, rand(0, 0.32));
+          const car = {
+            i, isBus, off, nPts: isBus ? A.busPts : A.carPts,
+            x: n0.x, z: n0.z, y: 0,
+            heading: Math.atan2(nxt.z - n0.z, nxt.x - n0.x),
+            axis: nxt.axis, sign: nxt.sign,
+            node: { x: n0.x, z: n0.z }, next: nxt,
+            speed: rand(A.carSpeed[0], A.carSpeed[1]) * 0.6,
+            cruise: rand(...(isBus ? A.busSpeed : A.carSpeed)),
+            color: col,
+            trail: new Float32Array(A.trailPts * 2),
+            trailHead: 0, trailFill: 0, trailT: 0,
+            blocked: 0, reroute: 0, trip: 0, lap: 0, lapT: 0,
+            stopTimer: 0, stopLine: null,
+            ent: null,
+          };
+          car.ent = makeEntity(isBus ? 'bus' : 'car', car.x, 2, car.z, 9, {
+            label: isBus ? '公交车' : '网联车辆',
+            code: isBus ? `BUS-${B2(i - A.cars)}` : `VEH-${B2(i)}`,
+            h: l, load: isBus ? 120 : randInt(8, 42),
+            people: isBus ? randInt(4, 46) : randInt(1, 4),
+            flow: randInt(2, 12),
+          });
+          car.ent.ranges.push(['dynamic', LAYOUT.veh.start + i * LAYOUT.veh.stride, car.nPts]);
+          car.ent.ranges.push(['dynamic', LAYOUT.trail.start + i * LAYOUT.trail.stride, A.trailPts]);
+          CARS.push(car);
+        }
+      }
+      const B2 = (n) => String(n + 1).padStart(2, '0');
+
+      /* ======================================================================
+         9. 行人生成 + 信号灯点簇（写入动态池）
+         ====================================================================== */
+      const SIDEWALK = ROADW / 2 + 3.4;
+      const ridx = (v) => {
+        let best = 0, bd = Infinity;
+        for (let k = 0; k < ROADS.length; k++) {
+          const d = Math.abs(ROADS[k] - v);
+          if (d < bd) { bd = d; best = k; }
+        }
+        return best;
+      };
+      // 从某个路口角点生成一段人行道路径（沿某条路的人行道，长度为一格）
+      function segFromCorner(cx, cz, axisIn) {
+        const axis = axisIn || (rng() < 0.5 ? 'x' : 'z');
+        const side = rng() < 0.5 ? 1 : -1;
+        let x0, z0, x1, z1, c1x, c1z;
+        if (axis === 'x') {
+          const k2 = clamp(ridx(cx) + (rng() < 0.5 ? -1 : 1), 0, ROADS.length - 1);
+          x0 = cx; x1 = ROADS[k2]; z0 = z1 = cz + side * SIDEWALK;
+          c1x = x1; c1z = cz;
+        } else {
+          const k2 = clamp(ridx(cz) + (rng() < 0.5 ? -1 : 1), 0, ROADS.length - 1);
+          z0 = cz; z1 = ROADS[k2]; x0 = x1 = cx + side * SIDEWALK;
+          c1x = cx; c1z = z1;
+        }
+        if (Math.hypot(x1 - x0, z1 - z0) < 30) return segFromCorner(cx, cz, axis === 'x' ? 'z' : 'x');
+        return {
+          x0, z0, x1, z1, axis, len: Math.hypot(x1 - x0, z1 - z0),
+          c0: { x: cx, z: cz }, c1: { x: c1x, z: c1z },
+        };
+      }
+      function spawnPeople() {
+        for (let i = 0; i < A.people; i++) {
+          const cx = pick(ROADS), cz = pick(ROADS);
+          const seg = segFromCorner(cx, cz);
+          const p = {
+            i, seg, t: rng(), dir: rng() < 0.5 ? 1 : -1,
+            speed: rand(...A.walkSpeed), cruise: rand(...A.walkSpeed),
+            phase: rng() * 10, x: seg.x0, z: seg.z0, y: 0, heading: 0,
+            pause: rng() * 3,
+            dest: `${pick(['TWR', 'PLZ', 'DEP', 'STN', 'HUB'])}-${randInt(1, 96)}`,
+            ent: null,
+          };
+          p.ent = makeEntity('person', p.x, 1, p.z, 2.6, {
+            label: '行人', code: `HUM-${String(i + 1).padStart(3, '0')}`,
+            h: 1.75, load: 0.14, people: 1, flow: randInt(1, 4), dest: p.dest,
+          });
+          p.ent.ranges.push(['dynamic', LAYOUT.people.start + i * A.personPts, A.personPts]);
+          PEOPLE.push(p);
+        }
+      }
+
+      // 信号灯点簇（40 点/盏）：灯杆 0-19 · 东西向灯头 20-23 · 南北向灯头 24-27
+      // · 灯壳 28-31 · 基座辉光 32-39。位置一次写入，颜色按相位每帧刷新。
+      function initLightClusters() {
+        LIGHTS.forEach((L, li) => {
+          const base = LAYOUT.lights.start + li * LAYOUT.lights.stride;
+          const dp = dynamicPool.position, dc = dynamicPool.color, df = dynamicPool.fade;
+          const ds = dynamicPool.size, dseed = dynamicPool.seed;
+          for (let k = 0; k < LAYOUT.lights.stride; k++) {
+            const i3 = (base + k) * 3;
+            let x = L.x, y = 0.6, z = L.z, bright = 0.7, size = 1.15;
+            if (k < 20) {
+              const t = k / 20;
+              y = 0.6 + t * 7.4;
+              const a = t * 9.4, r = lerp(1.4, 0.5, t);
+              x = L.x + Math.cos(a) * r; z = L.z + Math.sin(a) * r;
+              dc[i3] = COL.steel.r; dc[i3 + 1] = COL.steel.g; dc[i3 + 2] = COL.steel.b;
+            } else if (k < 28) {
+              const head = k < 24 ? 0 : 1;            // 0 = EW 头，1 = NS 头
+              const j = (k % 4) / 4;
+              y = 8.9 - j * 1.15;
+              x = L.x + (head ? 1.7 : 0); z = L.z + (head ? 0 : 1.7);
+              dc[i3] = 0.3; dc[i3 + 1] = 0.32; dc[i3 + 2] = 0.36;
+              size = 2.6; bright = 1;
+            } else if (k < 32) {
+              y = 8.6 - ((k - 28) / 4) * 0.6;
+              x = L.x - 1.5; z = L.z - 1.5;
+              dc[i3] = 0.22; dc[i3 + 1] = 0.24; dc[i3 + 2] = 0.28;
+              size = 1.5; bright = 0.8;
+            } else {
+              const a = rng() * Math.PI * 2, r = rand(1.2, 4.2);
+              x = L.x + Math.cos(a) * r; z = L.z + Math.sin(a) * r; y = rand(0.2, 1.1);
+              dc[i3] = COL.steel.r * 0.6; dc[i3 + 1] = COL.steel.g * 0.6; dc[i3 + 2] = COL.steel.b * 0.6;
+              bright = 0.32;
+            }
+            dp[i3] = x; dp[i3 + 1] = y; dp[i3 + 2] = z;
+            ds[base + k] = size;
+            df[base + k] = bright;
+            dseed[base + k] = rng();
+          }
+          L.dynBase = base;
+          L.ent.ranges.push(['dynamic', base, LAYOUT.lights.stride]);
+        });
+      }
+
+      spawnVehicles();
+      spawnPeople();
+      initLightClusters();
+      // 动态池的呼吸种子（位置/颜色/尺寸每帧刷新，种子固定避免闪烁抖动）
+      for (let i = 0; i < DYN_TOTAL; i++) if (!dynamicPool.seed[i]) dynamicPool.seed[i] = rng();
+
+      /* ======================================================================
+         10. 场景对象：点云 / 天穹 / 信标环 / 雷达扫描 / 连线 / 热力图
+         ====================================================================== */
+      const groups = {
+        entities: new THREE.Group(),
+        links: new THREE.Group(),
+        heat: new THREE.Group(),
+      };
+      scene.add(groups.entities, groups.links, groups.heat);
+
+      /* ---- 10.1 渐变天穹（背景直接进渲染管线，避免后期透明通道问题） ---- */
+      const skyMat = new THREE.ShaderMaterial({
+        uniforms: {
+          uNight: { value: 0 },
+          uTop: { value: C('#030711').toArray() },
+          uHorizon: { value: C('#0b2338').toArray() },
+          uTopN: { value: C('#000105').toArray() },
+          uHorizonN: { value: C('#0a0522').toArray() },
+        },
+        vertexShader: `
+          varying vec3 vP;
+          void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
+        `,
+        fragmentShader: `
+          uniform float uNight; uniform vec3 uTop, uHorizon, uTopN, uHorizonN;
+          varying vec3 vP;
+          void main(){
+            float h = clamp(normalize(vP).y * 0.5 + 0.5, 0.0, 1.0);
+            vec3 day = mix(uHorizon, uTop, pow(h, 0.7));
+            vec3 night = mix(uHorizonN, uTopN, pow(h, 0.55));
+            vec3 c = mix(day, night, uNight);
+            // 地平线附近的城市辉光
+            float glow = pow(max(0.0, 1.0 - abs(normalize(vP).y) * 3.4), 3.0);
+            c += mix(vec3(0.035,0.10,0.13), vec3(0.055,0.03,0.11), uNight) * glow * 2.2;
+            gl_FragColor = vec4(c, 1.0);
+          }
+        `,
+        side: THREE.BackSide,
+        depthWrite: false,
+      });
+      const sky = new THREE.Mesh(new THREE.SphereGeometry(2600, 24, 16), skyMat);
+      sky.frustumCulled = false;
+      scene.add(sky);
+
+      /* ---- 10.2 主点云 ---- */
+      const staticGeo = staticPool.toGeometry();
+      const dynamicGeo = dynamicPool.toGeometry();
+      const highlightGeo = hiPool.toGeometry();
+      const fxGeo = fxPool.toGeometry();
+
+      const cloudStatic = new THREE.Points(staticGeo, mats.static);
+      const cloudDynamic = new THREE.Points(dynamicGeo, mats.dynamic);
+      const cloudHi = new THREE.Points(highlightGeo, mats.highlight);
+      const cloudFx = new THREE.Points(fxGeo, pointMaterial(1.0, 1, { sizeMul: 1.3, depthTest: false, fogK: 0.0002 }));
+      cloudHi.visible = false;
+      cloudFx.frustumCulled = false;
+      cloudHi.frustumCulled = false;
+      groups.entities.add(cloudStatic, cloudDynamic, cloudHi, cloudFx);
+      const dynAttrs = dynamicGeo.attributes;
+
+      /* ---- 10.3 数据信标脉冲环（全部在顶点着色器里推进，CPU 零开销） ---- */
+      const BEACONS = [];
+      for (const b of BUILDINGS) if (b.beacon) BEACONS.push({ p: b.beacon, c: b.type === 'charge' ? COL.energy : COL.base, kind: 'b' });
+      for (const g of GRID) if (g.beacon) BEACONS.push({ p: g.beacon, c: COL.energy, kind: 'g' });
+
+      const RING_PTS = 30, RING_PULSES = 3;
+      const bn = BEACONS.length * RING_PTS * RING_PULSES;
+      const bCenter = new Float32Array(bn * 3);
+      const bAng = new Float32Array(bn);
+      const bPh = new Float32Array(bn);
+      const bCol = new Float32Array(bn * 3);
+      const bSeed = new Float32Array(bn);
+      let bi = 0;
+      for (const bc of BEACONS) {
+        for (let p = 0; p < RING_PULSES; p++) {
+          for (let k = 0; k < RING_PTS; k++) {
+            bCenter[bi * 3] = bc.p.x; bCenter[bi * 3 + 1] = bc.p.y; bCenter[bi * 3 + 2] = bc.p.z;
+            bAng[bi] = (k / RING_PTS) * Math.PI * 2 + p * 0.4;
+            bPh[bi] = p / RING_PULSES + rng() * 0.08;
+            bCol[bi * 3] = bc.c.r; bCol[bi * 3 + 1] = bc.c.g; bCol[bi * 3 + 2] = bc.c.b;
+            bSeed[bi] = rng();
+            bi++;
+          }
+        }
+      }
+      const beaconMat = new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 }, uPr: { value: renderer.getPixelRatio() },
+          uMax: { value: CONFIG.buildings.beaconMax }, uOpacity: { value: 1 }, uNight: { value: 0 },
+          uSpeed: { value: 0.24 }, uSizeScale: { value: CONFIG.points.sizeScale },
+        },
+        vertexShader: `
+          attribute vec3 aCenter; attribute vec3 aColor;
+          attribute float aAng; attribute float aPh; attribute float aSeed;
+          uniform float uTime, uPr, uMax, uOpacity, uNight, uSpeed, uSizeScale;
+          varying vec3 vColor; varying float vAlpha;
+          void main(){
+            float k = fract(uTime * uSpeed + aPh);
+            float r = 1.5 + k * uMax;
+            vec3 p = aCenter + vec3(cos(aAng) * r, sin(k * 3.14159) * 2.2 - 1.0, sin(aAng) * r);
+            vec4 mv = modelViewMatrix * vec4(p, 1.0);
+            float dist = max(-mv.z, 0.001);
+            float fade = pow(1.0 - k, 2.0) * smoothstep(0.0, 0.12, k);
+            gl_PointSize = clamp((1.4 + aSeed * 1.2) * uSizeScale * uPr * (520.0 / dist), 0.6, 16.0);
+            vColor = aColor * (1.2 + uNight * 0.5);
+            vAlpha = fade * uOpacity * (0.55 + 0.45 * sin(uTime * 5.0 + aSeed * 30.0));
+            gl_Position = projectionMatrix * mv;
+          }
+        `,
+        fragmentShader: GLSL_POINT_FS,
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      });
+      const beaconGeo = new THREE.BufferGeometry();
+      beaconGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bn * 3), 3));
+      beaconGeo.setAttribute('aCenter', new THREE.BufferAttribute(bCenter, 3));
+      beaconGeo.setAttribute('aColor', new THREE.BufferAttribute(bCol, 3));
+      beaconGeo.setAttribute('aAng', new THREE.BufferAttribute(bAng, 1));
+      beaconGeo.setAttribute('aPh', new THREE.BufferAttribute(bPh, 1));
+      beaconGeo.setAttribute('aSeed', new THREE.BufferAttribute(bSeed, 1));
+      const beacons = new THREE.Points(beaconGeo, beaconMat);
+      beacons.frustumCulled = false;
+      groups.entities.add(beacons);
+
+      /* ---- 10.4 雷达扫描线 + 距离环 + 地面网格扫描 ---- */
+      const RAY = 210, SWEEPRINGS = 4, SWEEP_SEG = 190;
+      const sn = RAY + SWEEPRINGS * SWEEP_SEG;
+      const sKind = new Float32Array(sn), sT = new Float32Array(sn), sPh = new Float32Array(sn), sSeed = new Float32Array(sn);
+      for (let k = 0; k < RAY; k++) { sKind[k] = 0; sT[k] = k / RAY; sPh[k] = 0; sSeed[k] = rng(); }
+      for (let r = 0; r < SWEEPRINGS; r++) {
+        for (let k = 0; k < SWEEP_SEG; k++) {
+          const idx = RAY + r * SWEEP_SEG + k;
+          sKind[idx] = 1; sT[idx] = k / SWEEP_SEG; sPh[idx] = r / SWEEPRINGS; sSeed[idx] = rng();
+        }
+      }
+      const radarMat = new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 }, uPr: { value: renderer.getPixelRatio() }, uR: { value: GROUND * 1.25 },
+          uOpacity: { value: 1 }, uNight: { value: 0 }, uSizeScale: { value: CONFIG.points.sizeScale },
+        },
+        vertexShader: `
+          attribute float aKind, aT, aPh, aSeed;
+          uniform float uTime, uPr, uR, uOpacity, uNight, uSizeScale;
+          varying vec3 vColor; varying float vAlpha;
+          void main(){
+            float ang, rr, a;
+            if (aKind < 0.5) {
+              float spin = uTime * 0.42;
+              ang = spin - aT * 0.30;                       // 拖尾弯曲
+              rr = aT * uR;
+              a = pow(1.0 - aT, 0.55) * (0.35 + 0.65 * pow(1.0 - aT, 3.0));
+              vColor = mix(vec3(0.10,0.62,0.72), vec3(0.32,0.95,1.0), 1.0 - aT) * (1.0 + uNight * 0.4);
+            } else {
+              float k = fract(uTime * 0.075 + aPh);
+              ang = aT * 6.2831853;
+              rr = k * uR;
+              a = pow(1.0 - k, 1.6) * 0.5;
+              vColor = vec3(0.12, 0.55, 0.68) * (1.0 + uNight * 0.6);
+            }
+            vec3 p = vec3(cos(ang) * rr, 0.35 + sin(aSeed * 9.0 + uTime) * 0.4, sin(ang) * rr);
+            vec4 mv = modelViewMatrix * vec4(p, 1.0);
+            float dist = max(-mv.z, 0.001);
+            gl_PointSize = clamp((1.1 + aSeed * 0.9) * uSizeScale * uPr * (520.0 / dist), 0.5, 10.0);
+            vAlpha = a * uOpacity * (0.8 + 0.2 * sin(uTime * 7.0 + aSeed * 40.0));
+            gl_Position = projectionMatrix * mv;
+          }
+        `,
+        fragmentShader: GLSL_POINT_FS,
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      });
+      const radarGeo = new THREE.BufferGeometry();
+      radarGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(sn * 3), 3));
+      radarGeo.setAttribute('aKind', new THREE.BufferAttribute(sKind, 1));
+      radarGeo.setAttribute('aT', new THREE.BufferAttribute(sT, 1));
+      radarGeo.setAttribute('aPh', new THREE.BufferAttribute(sPh, 1));
+      radarGeo.setAttribute('aSeed', new THREE.BufferAttribute(sSeed, 1));
+      const radar = new THREE.Points(radarGeo, radarMat);
+      radar.frustumCulled = false;
+      groups.entities.add(radar);
+
+      /* ---- 10.5 数据连线：端点 + 流动光点（位置全部在顶点着色器解算） ---- */
+      const DOTS_FLOW = CONFIG.links.flowDots;
+      const DOTS_WIRE = CONFIG.links.wireDots;
+      const DOTS = DOTS_FLOW + DOTS_WIRE;
+      const LMAX = CONFIG.links.max;
+      const LN = LMAX * DOTS;
+      const lkA = new Float32Array(LN * 3);
+      const lkB = new Float32Array(LN * 3);
+      const lkCol = new Float32Array(LN * 3);
+      const lkMul = new Float32Array(LN);
+      const lkT = new Float32Array(LN);
+      const lkSeed = new Float32Array(LN);
+      const lkFlow = new Float32Array(LN);
+      for (let l = 0; l < LMAX; l++) {
+        for (let v = 0; v < DOTS; v++) {
+          const idx = l * DOTS + v;
+          const flow = v < DOTS_FLOW;
+          lkFlow[idx] = flow ? 1 : 0;
+          lkT[idx] = flow ? v / DOTS_FLOW : (v - DOTS_FLOW) / (DOTS_WIRE - 1);
+          lkSeed[idx] = rng();
+          lkMul[idx] = 0;
+        }
+      }
+      const linkMat = new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 }, uPr: { value: renderer.getPixelRatio() }, uOpacity: { value: 1 },
+          uNight: { value: 0 }, uDim: { value: 1 }, uSizeScale: { value: CONFIG.points.sizeScale },
+        },
+        vertexShader: `
+          attribute vec3 aA, aB, aColor;
+          attribute float aT, aSeed, aFlow, aMul;
+          uniform float uTime, uPr, uOpacity, uNight, uDim, uSizeScale;
+          varying vec3 vColor; varying float vAlpha;
+          void main(){
+            float speed = 0.10 + aSeed * 0.20;
+            float t = aFlow > 0.5 ? fract(aT + uTime * speed) : aT;
+            float span = distance(aA, aB);
+            vec3 ctrl = (aA + aB) * 0.5 + vec3(0.0, 6.0 + span * 0.10 + aSeed * 14.0, 0.0);
+            ctrl += vec3(cos(aSeed * 6.283), 0.0, sin(aSeed * 6.283)) * (3.0 + span * 0.045);
+            vec3 p = mix(mix(aA, ctrl, t), mix(ctrl, aB, t), t);
+            vec4 mv = modelViewMatrix * vec4(p, 1.0);
+            float dist = max(-mv.z, 0.001);
+            float puls = 0.72 + 0.28 * sin(uTime * 8.0 + aSeed * 40.0);
+            gl_PointSize = clamp((aFlow > 0.5 ? 2.4 : 1.1) * uSizeScale * uPr * (520.0 / dist) * puls, 0.5, 22.0);
+            float edge = smoothstep(0.0, 0.07, t) * smoothstep(1.0, 0.93, t);
+            vColor = aColor * (aFlow > 0.5 ? 1.35 : 0.75);
+            vAlpha = (aFlow > 0.5 ? 1.0 : 0.22) * aMul * edge * uOpacity * uDim * mix(0.8, 1.25, uNight) * puls;
+            gl_Position = projectionMatrix * mv;
+          }
+        `,
+        fragmentShader: GLSL_POINT_FS,
+        transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending,
+      });
+      const linkGeo = new THREE.BufferGeometry();
+      linkGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(LN * 3), 3));
+      linkGeo.setAttribute('aA', new THREE.BufferAttribute(lkA, 3).setUsage(THREE.DynamicDrawUsage));
+      linkGeo.setAttribute('aB', new THREE.BufferAttribute(lkB, 3).setUsage(THREE.DynamicDrawUsage));
+      linkGeo.setAttribute('aColor', new THREE.BufferAttribute(lkCol, 3).setUsage(THREE.DynamicDrawUsage));
+      linkGeo.setAttribute('aMul', new THREE.BufferAttribute(lkMul, 1).setUsage(THREE.DynamicDrawUsage));
+      linkGeo.setAttribute('aT', new THREE.BufferAttribute(lkT, 1));
+      linkGeo.setAttribute('aSeed', new THREE.BufferAttribute(lkSeed, 1));
+      linkGeo.setAttribute('aFlow', new THREE.BufferAttribute(lkFlow, 1));
+      linkGeo.setDrawRange(0, 0);
+      const linkCloud = new THREE.Points(linkGeo, linkMat);
+      linkCloud.frustumCulled = false;
+      groups.links.add(linkCloud);
+
+      // 连线池（紧凑数组，保证活跃连线始终占据前 N 个槽位）
+      const LINKS = [];
+      function addLink(aEnt, bx, by, bz, type, opts = {}) {
+        if (LINKS.length >= LMAX) return null;
+        const l = {
+          aEnt, bEnt: opts.bEnt || null,
+          ax: aEnt ? aEnt.pos.x : bx, ay: aEnt ? aEnt.pos.y : by, az: aEnt ? aEnt.pos.z : bz,
+          bx, by, bz, type,
+          life: 0, max: opts.max || rand(...CONFIG.links.life),
+          mul: opts.mul || 1,
+        };
+        if (aEnt) aEnt.links++;
+        if (l.bEnt) l.bEnt.links++;
+        LINKS.push(l);
+        state.bytes += rand(12, 260);   // 单条链路载荷，单位 MB（遥测按 GB/s 展示）
+        return l;
+      }
+      function bakeLinks() {
+        for (let li = LINKS.length - 1; li >= 0; li--) {
+          const l = LINKS[li];
+          if (l.life > l.max) {
+            if (l.aEnt) l.aEnt.links = Math.max(0, l.aEnt.links - 1);
+            if (l.bEnt) l.bEnt.links = Math.max(0, l.bEnt.links - 1);
+            LINKS[li] = LINKS[LINKS.length - 1];
+            LINKS.pop();
+          }
+        }
+        let hi = state.focus;
+        for (let li = 0; li < LINKS.length; li++) {
+          const l = LINKS[li];
+          if (l.aEnt) { l.ax = l.aEnt.pos.x; l.ay = l.aEnt.pos.y; l.az = l.aEnt.pos.z; }
+          if (l.bEnt) { l.bx = l.bEnt.pos.x; l.by = l.bEnt.pos.y; l.bz = l.bEnt.pos.z; }
+          const col = DTC[l.type].c;
+          // 关系聚焦：仅与焦点实体相关的连线保持高亮，其余压暗
+          let mul = l.mul * smoothstep(l.max, l.max * 0.72, l.life);
+          if (hi) {
+            const rel = l.aEnt === hi || l.bEnt === hi;
+            mul *= rel ? 2.1 : 0.1;
+          }
+          const base = li * DOTS;
+          for (let v = 0; v < DOTS; v++) {
+            const i = base + v, i3 = i * 3;
+            lkA[i3] = l.ax; lkA[i3 + 1] = l.ay; lkA[i3 + 2] = l.az;
+            lkB[i3] = l.bx; lkB[i3 + 1] = l.by; lkB[i3 + 2] = l.bz;
+            lkCol[i3] = col.r; lkCol[i3 + 1] = col.g; lkCol[i3 + 2] = col.b;
+            lkMul[i] = mul;
+          }
+        }
+        linkGeo.setDrawRange(0, LINKS.length * DOTS);
+        linkGeo.attributes.aA.needsUpdate = true;
+        linkGeo.attributes.aB.needsUpdate = true;
+        linkGeo.attributes.aColor.needsUpdate = true;
+        linkGeo.attributes.aMul.needsUpdate = true;
+        state.links = LINKS.length;
+      }
+
+      /* ---- 10.6 活动热力图（CPU 累加 → DataTexture → 着色器配色） ---- */
+      const HRES = CONFIG.heat.res;
+      const heatData = new Uint8Array(HRES * HRES);
+      const heatTex = new THREE.DataTexture(heatData, HRES, HRES, THREE.RedFormat);
+      heatTex.minFilter = THREE.LinearFilter;
+      heatTex.magFilter = THREE.LinearFilter;
+      heatTex.wrapS = heatTex.wrapT = THREE.ClampToEdgeWrapping;
+      heatTex.needsUpdate = true;
+      const heatMat = new THREE.ShaderMaterial({
+        uniforms: {
+          uHeat: { value: heatTex }, uOpacity: { value: 0.6 }, uNight: { value: 0 }, uTime: { value: 0 },
+        },
+        vertexShader: `
+          varying vec2 vUv;
+          void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
+        `,
+        fragmentShader: `
+          uniform sampler2D uHeat; uniform float uOpacity, uNight, uTime;
+          varying vec2 vUv;
+          vec3 ramp(float v){
+            vec3 c0 = vec3(0.02,0.10,0.22);
+            vec3 c1 = vec3(0.06,0.55,0.72);
+            vec3 c2 = vec3(0.55,0.16,0.92);
+            vec3 c3 = vec3(1.00,0.24,0.80);
+            vec3 c4 = vec3(1.00,0.78,0.28);
+            if (v < 0.25) return mix(c0, c1, v / 0.25);
+            if (v < 0.5)  return mix(c1, c2, (v - 0.25) / 0.25);
+            if (v < 0.75) return mix(c2, c3, (v - 0.5) / 0.25);
+            return mix(c3, c4, (v - 0.75) / 0.25);
+          }
+          void main(){
+            float v = texture2D(uHeat, vUv).r;
+            // 等值线感：把连续值量化成几档
+            float band = floor(v * 7.0) / 7.0;
+            float a = smoothstep(0.06, 0.42, v) * (0.42 + 0.58 * band);
+            a *= mix(0.75, 1.0, uNight) * uOpacity;
+            gl_FragColor = vec4(ramp(band) * (0.7 + 0.5 * band), a);
+          }
+        `,
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      });
+      const heatPlane = new THREE.Mesh(new THREE.PlaneGeometry(GROUND * 2, GROUND * 2), heatMat);
+      heatPlane.rotation.x = -Math.PI / 2;
+      heatPlane.position.y = 1.4;
+      groups.heat.add(heatPlane);
+
+      const hSplat = (wx, wz, w) => {
+        const u = ((wx + GROUND) / (GROUND * 2)) * HRES;
+        const v = ((wz + GROUND) / (GROUND * 2)) * HRES;
+        const R = CONFIG.heat.radius;
+        for (let dy = -R; dy <= R; dy++) {
+          const py = Math.floor(v) + dy;
+          if (py < 0 || py >= HRES) continue;
+          for (let dx = -R; dx <= R; dx++) {
+            const px = Math.floor(u) + dx;
+            if (px < 0 || px >= HRES) continue;
+            const f = Math.exp(-(dx * dx + dy * dy) / 2.0) * w;
+            const idx = py * HRES + px;
+            heatData[idx] = Math.min(255, heatData[idx] + f * 255);
+          }
+        }
+      };
+      let heatAcc = 0;
+      function heatTick(dt) {
+        heatAcc += dt;
+        if (heatAcc < 0.12) return;
+        heatAcc = 0;
+        const k = CONFIG.heat.decay;
+        for (let i = 0; i < heatData.length; i++) heatData[i] = heatData[i] * k;
+        for (const c of CARS) hSplat(c.x, c.z, c.isBus ? 0.18 : 0.10);
+        for (let i = 0; i < PEOPLE.length; i += 6) { const p = PEOPLE[i]; hSplat(p.x, p.z, 0.05); }
+        for (const b of BUILDINGS) if (Math.random() < 0.22) hSplat(b.x, b.z, (b.load / 6000) * 0.14);
+        for (const a of state.accidents) hSplat(a.x, a.z, 0.34);
+        heatTex.needsUpdate = true;
+      }
+
+      /* ======================================================================
+         11. 后期处理：Bloom + 扫描线 / 暗角合成
+         ====================================================================== */
+      const composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene, camera));
+      // threshold 抬高到只让霓虹核心过曝，避免整城糊成一片光雾
+      const bloom = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight), 0.66, 0.62, 0.42
+      );
+      composer.addPass(bloom);
+      composer.addPass(new OutputPass());
+
+      const GradePass = {
+        uniforms: {
+          tDiffuse: { value: null },
+          uTime: { value: 0 },
+          uNight: { value: 0 },
+          uRes: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+        },
+        vertexShader: `
+          varying vec2 vUv;
+          void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
+        `,
+        fragmentShader: `
+          uniform sampler2D tDiffuse; uniform float uTime, uNight; uniform vec2 uRes;
+          varying vec2 vUv;
+          void main(){
+            vec2 uv = vUv;
+            // 轻微枕形/色散：越靠边越明显，模拟镜头与景深边缘
+            vec2 d = uv - 0.5;
+            float r2 = dot(d, d);
+            vec2 ca = d * r2 * 0.010;
+            vec4 c;
+            c.r = texture2D(tDiffuse, uv - ca).r;
+            c.g = texture2D(tDiffuse, uv).g;
+            c.b = texture2D(tDiffuse, uv + ca).b;
+            c.a = texture2D(tDiffuse, uv).a;
+            // 雷达式横向扫描亮带
+            float sweep = fract(uv.y + uTime * 0.06);
+            c.rgb += vec3(0.05, 0.14, 0.18) * pow(1.0 - abs(sweep - 0.5) * 2.0, 14.0) * (0.5 + uNight);
+            // 扫描线 + 暗角 + 噪点
+            float lines = 0.965 + 0.035 * sin(uv.y * uRes.y * 1.85);
+            c.rgb *= lines;
+            c.rgb *= 1.0 - r2 * (0.42 + uNight * 0.28);
+            float n = fract(sin(dot(uv * uRes + uTime, vec2(12.9898, 78.233))) * 43758.5453);
+            c.rgb += (n - 0.5) * 0.018;
+            gl_FragColor = c;
+          }
+        `,
+      };
+      const grade = new ShaderPass(GradePass);
+      composer.addPass(grade);
+
+      /* ======================================================================
+         12. 交通仿真：信号 / 车辆 / 行人
+         ====================================================================== */
+      const T = CONFIG.traffic;
+      const CYCLE = T.nsGreen + T.nsYellow + T.allRed + T.ewGreen + T.ewYellow + T.allRed;
+      const LMAP = new Map();
+      for (const L of LIGHTS) LMAP.set(`${L.nx}|${L.nz}`, L);
+      const LANE = ROADW * 0.24;               // 车道右偏
+      const wrapPi = (a) => {
+        while (a > Math.PI) a -= Math.PI * 2;
+        while (a < -Math.PI) a += Math.PI * 2;
+        return a;
+      };
+      const hash = (n) => {
+        const s = Math.sin(n * 127.1) * 43758.5453;
+        return s - Math.floor(s);
+      };
+      const LSTATE = { green: COL.lightGo, yellow: COL.lightWait, red: COL.lightStop, off: C('#22303c') };
+
+      function simLights(dt) {
+        for (const L of LIGHTS) {
+          L.timer += dt;
+          const ph = (L.timer + L.t) % CYCLE;   // L.t 让各路口错开相位
+          let ns, ew;
+          if (ph < T.nsGreen) { ns = 'green'; ew = 'red'; }
+          else if (ph < T.nsGreen + T.nsYellow) { ns = 'yellow'; ew = 'red'; }
+          else if (ph < T.nsGreen + T.nsYellow + T.allRed) { ns = 'red'; ew = 'red'; }
+          else if (ph < T.nsGreen + T.nsYellow + T.allRed + T.ewGreen) { ns = 'red'; ew = 'green'; }
+          else if (ph < T.nsGreen + T.nsYellow + T.allRed + T.ewGreen + T.ewYellow) { ns = 'red'; ew = 'yellow'; }
+          else { ns = 'red'; ew = 'red'; }
+          let note = '';
+          if (L.forced) {
+            L.forced.t += dt;
+            const hold = CONFIG.accident.redHold + CONFIG.accident.amberHold;
+            const left = hold - L.forced.t;
+            if (left <= 0) { L.forced = null; note = '已恢复'; }
+            else if (L.forced.t < CONFIG.accident.redHold) { ns = 'red'; ew = 'red'; note = '事故接管 · 全红'; }
+            else { ns = 'yellow'; ew = 'yellow'; note = '事故降级 · 黄闪'; }
+          }
+          L.ns = ns; L.ew = ew; L.note = note;
+          L.left = (((ph < T.nsGreen + T.nsYellow + T.allRed + T.ewGreen + T.ewYellow)
+            ? CYCLE - ph : T.nsGreen + T.nsYellow + T.allRed - ph) % CYCLE);
+          // 灯头着色
+          const base = L.dynBase;
+          const dc = dynamicPool.color, df = dynamicPool.fade;
+          const blink = (st, k) => {
+            const c = LSTATE[st] || LSTATE.off;
+            const on = st === 'yellow' && L.forced ? (Math.sin(state.time * 9) > -0.2 ? 1 : 0.18) : 1;
+            for (let j = 0; j < 4; j++) {
+              const i = base + k + j, i3 = i * 3;
+              const boost = st === 'red' ? 1.35 : 1.12;
+              dc[i3] = c.r * boost; dc[i3 + 1] = c.g * boost; dc[i3 + 2] = c.b * boost;
+              df[i] = (st === 'off' ? 0.25 : 1.15) * on;
+            }
+          };
+          blink(L.ew, 20);
+          blink(L.ns, 24);
+          L.ent.data.state = `EW ${L.ew.toUpperCase()} / NS ${L.ns.toUpperCase()}${L.note ? ' · ' + L.note : ''}`;
+        }
+      }
+
+      function carAxisState(c, L) {
+        return L ? (c.axis === 'x' ? L.ew : L.ns) : 'green';
+      }
+
+      function simCars(dt) {
+        for (const c of CARS) {
+          // --- 车道目标点（右侧偏移） ---
+          let dx = c.next.x - c.node.x, dz = c.next.z - c.node.z;
+          const dl = Math.hypot(dx, dz) || 1;
+          dx /= dl; dz /= dl;
+          const wx = c.next.x - dz * LANE;
+          const wz = c.next.z + dx * LANE;
+          const tdx = wx - c.x, tdz = wz - c.z;
+          const desired = Math.atan2(tdz, tdx);
+          const dh = wrapPi(desired - c.heading);
+          c.heading += clamp(dh, -A.turnRate * dt, A.turnRate * dt);
+
+          // --- 速度决策：限速 / 信号灯 / 跟驰 / 事故 ---
+          let target = c.cruise;
+          const distToNode = Math.hypot(c.next.x - c.x, c.next.z - c.z);
+          const L = LMAP.get(`${c.next.x}|${c.next.z}`);
+          const st = carAxisState(c, L);
+          c.blocked = 0;
+          if (L && (st === 'red' || (st === 'yellow' && distToNode > 16))) {
+            const stopAt = ROADW * 0.52 + 3;
+            if (distToNode < T.stopDist) {
+              target = Math.max(0, (distToNode - stopAt) * 1.25);
+              if (distToNode < stopAt + 1.5) { target = 0; c.blocked = 1; }
+            }
+          }
+          // 跟驰（同向前车）
+          for (const o of CARS) {
+            if (o === c) continue;
+            const ox = o.x - c.x, oz = o.z - c.z;
+            const od = ox * ox + oz * oz;
+            if (od > 900) continue;
+            const d = Math.sqrt(od) || 0.01;
+            const ahead = (ox / d) * Math.cos(c.heading) + (oz / d) * Math.sin(c.heading);
+            if (ahead > 0.86 && d < A.followGap + o.speed * 0.35) {
+              target = Math.min(target, Math.max(0, (d - A.followGap * 0.72) * 1.6));
+              c.blocked = 2;
+            }
+          }
+          // 事故避让：减速 + 侧向排斥（绕行）
+          for (const a of state.accidents) {
+            const ax = c.x - a.x, az = c.z - a.z;
+            const d = Math.hypot(ax, az);
+            if (d < 62) {
+              target = Math.min(target, c.isBus ? 5 : 3.4);
+              const f = (1 - d / 62) * 22 * dt;
+              c.x += (ax / (d || 1)) * f;
+              c.z += (az / (d || 1)) * f;
+              c.detour = (c.detour || 0) + dt;
+            }
+          }
+          // 公交进站
+          if (c.isBus) {
+            if (c.stopTimer > 0) { c.stopTimer -= dt; target = 0; }
+            else {
+              for (const s of STOPS) {
+                const d = Math.hypot(s.x - c.x, s.z - c.z);
+                if (d < 16 && hash(c.i * 7 + Math.floor(state.time / 12)) > 0.55) { c.stopTimer = 3.2; break; }
+              }
+            }
+          }
+          const accel = target > c.speed ? 6.5 : 11;
+          c.speed += clamp(target - c.speed, -accel * dt * 3, accel * dt);
+          c.speed = Math.max(0, c.speed);
+          c.x += Math.cos(c.heading) * c.speed * dt;
+          c.z += Math.sin(c.heading) * c.speed * dt;
+          c.trip += c.speed * dt;
+          c.clock = (c.clock || 0) + dt;
+
+          // --- 通过路口 → 前推 waypoint ---
+          if (Math.hypot(c.next.x - c.x, c.next.z - c.z) < 13) {
+            const passed = c.next;
+            if (c.lastNode && c.lastNode.t) {
+              const d = Math.hypot(passed.x - c.lastNode.x, passed.z - c.lastNode.z);
+              if (d > 20) state.transit.push((c.clock - c.lastNode.t) / (d / 1000));
+              if (state.transit.length > 240) state.transit.shift();
+            }
+            c.lastNode = { x: passed.x, z: passed.z, t: c.clock };
+            c.node = passed;
+            let n = nextNode(c.node, c.axis, c.sign);
+            // 绕行：避开事故封锁的路口
+            for (let guard = 0; guard < 10; guard++) {
+              const bad = state.accidents.some((a) => Math.hypot(a.x - n.x, a.z - n.z) < 70);
+              if (!bad) break;
+              n = nextNode(c.node, c.axis === 'x' ? 'z' : 'x', rng() < 0.5 ? 1 : -1);
+              c.reroute++;
+            }
+            c.next = n; c.axis = n.axis; c.sign = n.sign;
+          }
+          c.ent.pos.set(c.x, 1.6, c.z);
+          c.ent.data.speed = c.speed * 3.6;
+          c.ent.data.state = c.blocked === 1 ? '等待信号' : c.blocked === 2 ? '跟驰减速'
+            : c.detour && state.accidents.length ? '绕行中' : c.isBus && c.stopTimer > 0 ? '进站上下客' : '巡航';
+          c.ent.data.dest = `${c.next.x >= 0 ? 'E' : 'W'}${Math.abs(c.next.x / CELL) | 0}-${c.next.z >= 0 ? 'S' : 'N'}${Math.abs(c.next.z / CELL) | 0}`;
+          if (c.detour && state.accidents.length === 0) c.detour = 0;
+        }
+      }
+
+      function simPeople(dt) {
+        for (const p of PEOPLE) {
+          if (p.pause > 0) { p.pause -= dt; p.speed = 0; }
+          else {
+            p.speed = p.cruise * (state.night > 0.7 ? 0.92 : 1);
+            p.t += (p.dir * p.speed * dt) / p.seg.len;
+          }
+          let done = false;
+          if (p.t > 1) { p.t = 1; done = true; }
+          if (p.t < 0) { p.t = 0; done = true; }
+          if (done) {
+            const corner = p.t > 0.5 ? p.seg.c1 : p.seg.c0;
+            if (rng() < 0.52) {
+              p.dir *= -1;
+              p.pause = rand(0, 4);
+            } else {
+              p.seg = segFromCorner(corner.x, corner.z, p.seg.axis === 'x' ? 'z' : 'x');
+              p.t = 0; p.dir = 1;
+              p.dest = `${pick(['TWR', 'PLZ', 'DEP', 'STN', 'HUB'])}-${randInt(1, 96)}`;
+              p.ent.data.dest = p.dest;
+            }
+          }
+          const s = p.seg;
+          const nx = lerp(s.x0, s.x1, p.t), nz = lerp(s.z0, s.z1, p.t);
+          const hd = Math.atan2(nz - p.z, nx - p.x);
+          if (Math.abs(nx - p.x) + Math.abs(nz - p.z) > 0.001) p.heading = hd;
+          p.x = nx; p.z = nz;
+          p.phase += dt * (2.6 + p.speed * 1.4);
+          p.ent.pos.set(p.x, 1.1, p.z);
+          p.ent.data.speed = p.speed * 3.6;
+          p.ent.data.state = p.pause > 0 ? '站台等候' : '步行中';
+          p.ent.data.dest = p.dest;
+        }
+      }
+
+      /* ---- 12.1 动态点云写入（车辆 / 拖尾 / 行人） ---- */
+      function bakeDynamic() {
+        const dp = dynamicPool.position, dc = dynamicPool.color;
+        const ds = dynamicPool.size, df = dynamicPool.fade;
+        for (const c of CARS) {
+          const base = LAYOUT.veh.start + c.i * LAYOUT.veh.stride;
+          const ch = Math.cos(c.heading), sh = Math.sin(c.heading);
+          const n = c.nPts;
+          for (let k = 0; k < n; k++) {
+            const i = base + k, i3 = i * 3;
+            const lx = c.off[k * 3], ly = c.off[k * 3 + 1], lz = c.off[k * 3 + 2];
+            dp[i3] = c.x + lx * ch - lz * sh;
+            dp[i3 + 1] = ly + Math.sin(state.time * 7 + k) * 0.045;
+            dp[i3 + 2] = c.z + lx * sh + lz * ch;
+            const front = lx > 0;
+            const brake = c.blocked || c.speed < 1.2 ? 1 : 0;
+            dc[i3] = c.color.r * (front ? 1.15 : 1) + (brake && !front ? 0.85 : 0);
+            dc[i3 + 1] = c.color.g * (front ? 1.15 : 0.92) * (brake && !front ? 0.16 : 1);
+            dc[i3 + 2] = c.color.b * (front ? 1.15 : 0.92) * (brake && !front ? 0.16 : 1);
+            ds[i] = 1.9;
+            df[i] = 1.05 + state.night * 0.35;
+          }
+          for (let k = n; k < A.carSlots; k++) df[base + k] = 0;
+
+          // 拖尾：环回缓冲，越旧越暗
+          const tb = LAYOUT.trail.start + c.i * LAYOUT.trail.stride;
+          for (let k = 0; k < A.trailPts; k++) {
+            const i = tb + k, i3 = i * 3;
+            if (k >= c.trailFill) { df[i] = 0; continue; }
+            const idx = (c.trailHead - k + A.trailPts) % A.trailPts;
+            const age = k / A.trailPts;
+            dp[i3] = c.trail[idx * 2] + (hash(i * 3.7) - 0.5) * 1.6;
+            dp[i3 + 1] = 0.5 + hash(i * 1.3) * 1.4;
+            dp[i3 + 2] = c.trail[idx * 2 + 1] + (hash(i * 5.1) - 0.5) * 1.6;
+            dc[i3] = c.color.r; dc[i3 + 1] = c.color.g; dc[i3 + 2] = c.color.b;
+            ds[i] = 1.5;
+            df[i] = (1 - age) * (1 - age) * (0.55 + state.night * 0.5);
+          }
+        }
+        for (const p of PEOPLE) {
+          const base = LAYOUT.people.start + p.i * A.personPts;
+          const ch = Math.cos(p.heading), sh = Math.sin(p.heading);
+          const stride = Math.sin(p.phase), stride2 = Math.sin(p.phase + Math.PI);
+          const bob = p.speed > 0.1 ? Math.abs(Math.sin(p.phase)) * 0.09 : 0;
+          for (let k = 0; k < A.personPts; k++) {
+            const i = base + k, i3 = i * 3;
+            let lx = 0, ly = 1, lz = 0, size = 1.5, br = 1;
+            if (k < 4) {                                  // 头部
+              const a = (k / 4) * Math.PI * 2;
+              lx = Math.cos(a) * 0.14; lz = Math.sin(a) * 0.14; ly = 1.62 + (k % 2) * 0.1 + bob;
+              size = 1.7; br = 1.35;
+            } else if (k < 13) {                           // 躯干
+              const t = (k - 4) / 9;
+              const a = t * 7.2;
+              lx = Math.cos(a) * 0.21; lz = Math.sin(a) * 0.14; ly = 1.06 + t * 0.44 + bob;
+              size = 1.6;
+            } else if (k < 19) {                           // 手臂
+              const arm = (k - 13) % 3, side = k - 13 < 3 ? 1 : -1;
+              const t = arm / 3;
+              lx = (side > 0 ? stride : stride2) * 0.30 * (1 - t * 0.4);
+              lz = side * 0.24; ly = 1.44 - t * 0.36 + bob;
+              size = 1.3; br = 0.85;
+            } else if (k < 27) {                           // 双腿
+              const leg = ((k - 19) / 4) | 0, t = ((k - 19) % 4) / 4;
+              const sw = leg === 0 ? stride : stride2;
+              lx = sw * 0.34 * (1 - t);
+              lz = (leg === 0 ? 0.1 : -0.1);
+              ly = 0.98 * (1 - t) + bob * 0.4;
+              size = 1.4; br = 0.9;
+            } else {                                       // 散落回波
+              const h = hash(i * 2.3);
+              lx = (h - 0.5) * 0.5; lz = (hash(i * 7.7) - 0.5) * 0.5;
+              ly = hash(i * 11.1) * 1.7 + bob;
+              size = 1.0; br = 0.42;
+            }
+            dp[i3] = p.x + lx * ch - lz * sh;
+            dp[i3 + 1] = ly;
+            dp[i3 + 2] = p.z + lx * sh + lz * ch;
+            const c = COL.person;
+            dc[i3] = c.r * br * (1 + state.night * 0.2);
+            dc[i3 + 1] = c.g * br;
+            dc[i3 + 2] = c.b * br;
+            ds[i] = size;
+            df[i] = p.pause > 0 ? 0.8 : 1;
+          }
+        }
+        dynAttrs.position.needsUpdate = true;
+        dynAttrs.aColor.needsUpdate = true;
+        dynAttrs.aSize.needsUpdate = true;
+        dynAttrs.aFade.needsUpdate = true;
+      }
+
+      function trailTick(dt) {
+        for (const c of CARS) {
+          c.trailT += dt;
+          if (c.trailT >= A.trailEvery && c.speed > 1.5) {
+            c.trailT = 0;
+            c.trailHead = (c.trailHead + 1) % A.trailPts;
+            c.trailFill = Math.min(A.trailPts, c.trailFill + 1);
+            c.trail[c.trailHead * 2] = c.x;
+            c.trail[c.trailHead * 2 + 1] = c.z;
+          }
+        }
+      }
+
+      /* ======================================================================
+         13. 数据交互层：事件驱动的连线生成
+         ====================================================================== */
+      const emitters = { v2i: 0, transit: 0, energy: 0, charge: 0, bcast: 0 };
+      const CHARGE_B = () => BUILDINGS.filter((b) => b.type === 'charge');
+      function nearestGrid(x, z) {
+        let best = GRID[0], bd = Infinity;
+        for (const g of GRID) {
+          const d = (g.x - x) ** 2 + (g.z - z) ** 2;
+          if (d < bd) { bd = d; best = g; }
+        }
+        return best;
+      }
+      function simData(dt) {
+        // 生命周期推进必须早于任何提前返回，否则池满时连线永不老化 → 整池冻结
+        for (const l of LINKS) l.life += dt;
+        if (LINKS.length >= LMAX - 6) return;
+        // 车 → 信号灯：通行请求；绿灯 → 回传放行脉冲
+        emitters.v2i -= dt;
+        if (emitters.v2i <= 0) {
+          emitters.v2i = 0.09;
+          for (const c of CARS) {
+            const L = LMAP.get(`${c.next.x}|${c.next.z}`);
+            if (!L) continue;
+            const d = Math.hypot(c.next.x - c.x, c.next.z - c.z);
+            if (d > T.stopDist + 26) continue;
+            const st = carAxisState(c, L);
+            if (st === 'red' && rng() < 0.5) {
+              addLink(c.ent, L.x, 9.4, L.z, 'v2i', { bEnt: L.ent, max: 1.05 });
+            } else if (st === 'green' && d < T.stopDist && rng() < 0.35) {
+              addLink(L.ent, c.x, 1.4, c.z, 'go', { bEnt: c.ent, max: 0.8 });
+            }
+          }
+        }
+        // 行人 ↔ 站台 ↔ 公交：到站时刻
+        emitters.transit -= dt;
+        if (emitters.transit <= 0) {
+          emitters.transit = 0.16;
+          for (const s of STOPS) {
+            let nearBus = null, bd = 1e9;
+            for (const b of CARS) {
+              if (!b.isBus) continue;
+              const d = Math.hypot(b.x - s.x, b.z - s.z);
+              if (d < bd) { bd = d; nearBus = b; }
+            }
+            if (!nearBus || bd > 165) continue;
+            const eta = Math.max(1, bd / Math.max(nearBus.speed, 3.2));
+            s.ent.data.eta = eta;
+            addLink(s.ent, nearBus.x, 1.6, nearBus.z, 'transit', { bEnt: nearBus.ent, max: 1.3 });
+            for (const p of PEOPLE) {
+              if (Math.hypot(p.x - s.x, p.z - s.z) < 24 && rng() < 0.5) {
+                addLink(p.ent, s.x, 3.4, s.z, 'transit', { bEnt: s.ent, max: 1.1 });
+                break;
+              }
+            }
+          }
+        }
+        // 建筑 → 电网：能耗；电网 → 充电站：能量包
+        emitters.energy -= dt;
+        if (emitters.energy <= 0) {
+          emitters.energy = 0.28;
+          for (let k = 0; k < 3; k++) {
+            const b = BUILDINGS[randInt(0, BUILDINGS.length - 1)];
+            const g = nearestGrid(b.x, b.z);
+            const bb = b.beacon || { x: b.x, y: b.h, z: b.z };
+            addLink(b.ent, g.x, rand(g.h * 0.5, g.h), g.z, 'energy', { bEnt: g.ent, max: 1.5 });
+            g.out += b.load / 900;
+          }
+        }
+        emitters.charge -= dt;
+        if (emitters.charge <= 0) {
+          emitters.charge = 0.4;
+          const cs = CHARGE_B();
+          if (cs.length) {
+            const b = cs[randInt(0, cs.length - 1)];
+            const g = nearestGrid(b.x, b.z);
+            addLink(g.ent, b.x, b.h + 2, b.z, 'charge', { bEnt: b.ent, max: 1.4 });
+          }
+        }
+        // 事故广播：事故点 → 周边车辆
+        emitters.bcast -= dt;
+        if (emitters.bcast <= 0 && state.accidents.length) {
+          emitters.bcast = 0.22;
+          for (const a of state.accidents) {
+            let sent = 0;
+            for (const c of CARS) {
+              if (sent > 3) break;
+              const d = Math.hypot(c.x - a.x, c.z - a.z);
+              if (d < CONFIG.accident.radius * 1.35 && rng() < 0.6) {
+                addLink(a.ent, c.x, 1.6, c.z, 'v2x', { bEnt: c.ent, max: 0.85, mul: 1.5 });
+                sent++;
+              }
+            }
+          }
+        }
+      }
+
+      /* ---- 13.1 事故特效点云（每帧重建，数量很小） ---- */
+      function bakeFx() {
+        const pos = fxPool.position, col = fxPool.color, size = fxPool.size;
+        const fade = fxPool.fade, seed = fxPool.seed;
+        let n = 0;
+        for (const a of state.accidents) {
+          const k = Math.min(1, a.t / 0.35);
+          const flash = 0.55 + 0.45 * Math.sin(state.time * 11);
+          // 地面 X 标记
+          for (let i = 0; i < 64; i++) {
+            const t = (i / 64) * 2;
+            const d = t < 1 ? t : 2 - t;
+            const arm = t < 1 ? 1 : 1;
+            const ang = t < 1 ? Math.PI * 0.25 : Math.PI * 0.75;
+            const rr = d * 13;
+            pos[n * 3] = a.x + Math.cos(ang) * rr + (hash(i * 3.1) - 0.5) * 1.4;
+            pos[n * 3 + 1] = 0.7 + hash(i * 5.3) * 0.7;
+            pos[n * 3 + 2] = a.z + Math.sin(ang) * rr * arm + (hash(i * 7.9) - 0.5) * 1.4;
+            col[n * 3] = 1.0 * flash; col[n * 3 + 1] = 0.24 * flash * 0.7; col[n * 3 + 2] = 0.24 * flash * 0.7;
+            size[n] = 2.6; fade[n] = 1.5 * k; seed[n] = hash(i * 1.7); n++;
+          }
+          // 封锁环 + 上升告警柱
+          const ring = 46;
+          const spin = state.time * 0.9;
+          for (let i = 0; i < ring; i++) {
+            const ang = (i / ring) * Math.PI * 2 + spin;
+            const rr = 20 + Math.sin(i * 0.7 + state.time * 3) * 1.6;
+            pos[n * 3] = a.x + Math.cos(ang) * rr;
+            pos[n * 3 + 1] = 1.2 + Math.sin(i * 1.3 + state.time * 4) * 0.5;
+            pos[n * 3 + 2] = a.z + Math.sin(ang) * rr;
+            const w = i % 6 < 3 ? 1 : 0.15;
+            col[n * 3] = 1 * w; col[n * 3 + 1] = 0.55 * w; col[n * 3 + 2] = 0.1 * w;
+            size[n] = 2.2; fade[n] = 1.1 * k * (0.5 + 0.5 * w); seed[n] = hash(i * 2.3); n++;
+          }
+          for (let i = 0; i < 90; i++) {
+            const life = ((state.time * 0.7 + hash(i * 9.7)) % 1);
+            const ang = hash(i * 4.4) * Math.PI * 2;
+            const rr = hash(i * 6.6) * 9 * (1 - life);
+            pos[n * 3] = a.x + Math.cos(ang) * rr;
+            pos[n * 3 + 1] = 1 + life * 34;
+            pos[n * 3 + 2] = a.z + Math.sin(ang) * rr;
+            col[n * 3] = 1; col[n * 3 + 1] = 0.4 - life * 0.25; col[n * 3 + 2] = 0.2;
+            size[n] = 2.0; fade[n] = (1 - life) * k * 1.3; seed[n] = hash(i * 8.8); n++;
+          }
+          a.fxCount = n;
+        }
+        fxPool.count = n;
+        fxGeo.setDrawRange(0, n);
+        if (n) {
+          fxGeo.attributes.position.needsUpdate = true;
+          fxGeo.attributes.aColor.needsUpdate = true;
+          fxGeo.attributes.aSize.needsUpdate = true;
+          fxGeo.attributes.aFade.needsUpdate = true;
+        }
+      }
+
+      /* ======================================================================
+         14. 关系聚焦：点云高亮缓冲 + 相机缓动飞行
+         ====================================================================== */
+      const POOLS = { static: staticPool, dynamic: dynamicPool };
+      let hiStatic = 0;
+      let hiSet = { static: [], dynamic: [] };
+
+      function copyInto(src, start, count, boost) {
+        const n = Math.min(count, hiPool.cap - hiPool.count);
+        for (let k = 0; k < n; k++) {
+          const s = start + k, d = hiPool.count + k, s3 = s * 3, d3 = d * 3;
+          hiPool.position[d3] = src.position[s3];
+          hiPool.position[d3 + 1] = src.position[s3 + 1];
+          hiPool.position[d3 + 2] = src.position[s3 + 2];
+          hiPool.color[d3] = src.color[s3] * 1.12;
+          hiPool.color[d3 + 1] = src.color[s3 + 1] * 1.12;
+          hiPool.color[d3 + 2] = src.color[s3 + 2] * 1.12;
+          hiPool.size[d] = src.size[s] * 1.18;
+          hiPool.seed[d] = src.seed[s];
+          hiPool.fade[d] = src.fade[s] * boost;
+          hiPool.lod[d] = 0;
+        }
+        hiPool.count += n;
+      }
+
+      function collectNeighbors(e) {
+        const r = CONFIG.focus.radius, r2 = r * r;
+        const list = [];
+        for (const o of ENT) {
+          if (o === e) continue;
+          if (o.kind === 'accident') continue;
+          const dx = o.pos.x - e.pos.x, dz = o.pos.z - e.pos.z;
+          const d2 = dx * dx + dz * dz;
+          if (d2 < r2) list.push({ o, d2 });
+        }
+        list.sort((a, b) => a.d2 - b.d2);
+        hiSet = { static: [e], dynamic: [e] };
+        for (let k = 0; k < Math.min(list.length, 22); k++) {
+          (list[k].o.kind === 'car' || list[k].o.kind === 'bus' || list[k].o.kind === 'person'
+            ? hiSet.dynamic : hiSet.static).push(list[k].o);
+        }
+      }
+
+      function buildHighlight() {
+        hiPool.count = 0;
+        for (const o of hiSet.static) {
+          for (const [pool, start, count] of o.ranges) {
+            if (pool !== 'static') continue;
+            copyInto(POOLS.static, start, count, 1.15);
+          }
+        }
+        hiStatic = hiPool.count;
+        updateHighlight();
+      }
+      function updateHighlight() {
+        hiPool.count = hiStatic;
+        for (const o of hiSet.dynamic) {
+          for (const [pool, start, count] of o.ranges) {
+            if (pool !== 'dynamic') continue;
+            copyInto(POOLS.dynamic, start, count, 1.2);
+          }
+        }
+        highlightGeo.setDrawRange(0, hiPool.count);
+        highlightGeo.attributes.position.needsUpdate = true;
+        highlightGeo.attributes.aColor.needsUpdate = true;
+        highlightGeo.attributes.aSize.needsUpdate = true;
+        highlightGeo.attributes.aFade.needsUpdate = true;
+      }
+
+      const camTmp = new THREE.Vector3();
+      function flyTo(e) {
+        const h = e.data.h || 4;
+        const dist = e.kind === 'building' || e.kind === 'grid'
+          ? clamp(h * 1.5 + 60, 90, 320) : e.kind === 'person' ? 46 : 78;
+        const ty = e.kind === 'building' || e.kind === 'grid' ? h * 0.55 : 2;
+        const az = Math.atan2(camera.position.z - controls.target.z, camera.position.x - controls.target.x);
+        camTmp.set(
+          e.pos.x + Math.cos(az) * dist,
+          ty + dist * 0.42,
+          e.pos.z + Math.sin(az) * dist
+        );
+        gsap.to(controls.target, {
+          x: e.pos.x, y: ty, z: e.pos.z, duration: 1.15, ease: 'power3.inOut',
+        });
+        gsap.to(camera.position, {
+          x: camTmp.x, y: camTmp.y, z: camTmp.z, duration: 1.15, ease: 'power3.inOut',
+        });
+      }
+
+      function focusEntity(e, fly = true) {
+        state.focus = e;
+        collectNeighbors(e);
+        buildHighlight();
+        cloudHi.visible = true;
+        gsap.to(state, { dim: CONFIG.focus.dim, duration: 0.55, ease: 'power2.out' });
+        if (fly) flyTo(e);
+        showCard(e);
+        log(`FOCUS <b>${e.data.code}</b> · 50m 内关联 ${hiSet.static.length + hiSet.dynamic.length - 2} 个实体`, 'e-ok');
+      }
+      function clearFocus() {
+        if (!state.focus) return;
+        state.focus = null;
+        cloudHi.visible = false;
+        gsap.to(state, { dim: 1, duration: 0.45, ease: 'power2.out' });
+        $('wx-card').classList.remove('show');
+      }
+
+      /* ======================================================================
+         15. 拾取 / 点击事件 / 交通事故自愈
+         ====================================================================== */
+      const raycaster = new THREE.Raycaster();
+      // 点云拾取阈值：这里按屏幕像素折算到世界单位（等价于 params.Points.threshold，
+      // 但对每个实体用自身体积半径加权，避免 20 万点做全量射线求交）
+      raycaster.params.Points.threshold = 6;
+      const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const ndc = new THREE.Vector2();
+      const hitPt = new THREE.Vector3();
+
+      function pickEntity(clientX, clientY) {
+        ndc.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+        raycaster.setFromCamera(ndc, camera);
+        const o = raycaster.ray.origin, d = raycaster.ray.direction;
+        let best = null, bestScore = Infinity;
+        for (const e of ENT) {
+          const ox = e.pos.x - o.x, oy = e.pos.y - o.y, oz = e.pos.z - o.z;
+          const t = ox * d.x + oy * d.y + oz * d.z;
+          if (t <= 1) continue;
+          const cx = ox - d.x * t, cy = oy - d.y * t, cz = oz - d.z * t;
+          const dist = Math.sqrt(cx * cx + cy * cy + cz * cz);
+          const worldPerPx = (2 * Math.tan((camera.fov * Math.PI) / 360) * t) / window.innerHeight;
+          const bonus = e.kind === 'car' || e.kind === 'bus' ? 12 : e.kind === 'person' ? 5
+            : e.kind === 'light' || e.kind === 'stop' ? 3 : 0;
+          const allow = Math.max(e.radius * 0.8, worldPerPx * CONFIG.points.pickPx) + bonus;
+          if (dist > allow) continue;
+          const score = dist - allow + t * 0.002;
+          if (score < bestScore) { bestScore = score; best = e; }
+        }
+        return best;
+      }
+      function groundHit(clientX, clientY) {
+        ndc.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+        raycaster.setFromCamera(ndc, camera);
+        return raycaster.ray.intersectPlane(groundPlane, hitPt) ? hitPt : null;
+      }
+
+      let accSeq = 0;
+      function makeAccident(x, z) {
+        if (state.accidents.length >= 3) { toast('区域自愈中 · 最多同时 3 起事故'); return; }
+        const ent = makeEntity('accident', x, 3, z, 14, {
+          label: '交通事故', code: `ACC-${String(++accSeq).padStart(2, '0')}`,
+          h: 3, load: 0, people: randInt(1, 4), flow: 0,
+        });
+        const a = { x, z, t: 0, ent };
+        state.accidents.push(a);
+        let nl = 0, nc = 0;
+        for (const L of LIGHTS) {
+          if (Math.hypot(L.x - x, L.z - z) < CONFIG.accident.radius) { L.forced = { t: 0 }; nl++; }
+        }
+        for (const c of CARS) {
+          if (Math.hypot(c.x - x, c.z - z) < CONFIG.accident.radius * 1.35) {
+            nc++;
+            addLink(a.ent, c.x, 1.6, c.z, 'v2x', { bEnt: c.ent, max: 1.1, mul: 1.7 });
+          }
+        }
+        toast(`事故 <b>${ent.data.code}</b> 已上报 · 广播至 ${nc} 辆车 · ${nl} 个路口转入全红`);
+        log(`ALERT <b>${ent.data.code}</b> 碰撞上报 → V2X 广播 ${nc} 车 / 接管 ${nl} 路口`, 'e-warn');
+        heatTex.needsUpdate = true;
+      }
+      function simAccidents(dt) {
+        const hold = CONFIG.accident.redHold + CONFIG.accident.amberHold;
+        for (let k = state.accidents.length - 1; k >= 0; k--) {
+          const a = state.accidents[k];
+          a.t += dt;
+          if (a.t > hold + 10) {
+            const idx = ENT.indexOf(a.ent);
+            if (idx >= 0) ENT.splice(idx, 1);
+            state.accidents.splice(k, 1);
+            log(`RECOVER <b>${a.ent.data.code}</b> 区域通行能力已恢复`, 'e-ok');
+          }
+        }
+        if (!state.accidents.length) { state.heal = 1; return; }
+        let worst = 0;
+        for (const a of state.accidents) worst = Math.max(worst, Math.min(1, a.t / hold));
+        state.heal = worst;
+      }
+
+      /* ---- 指针：区分拖拽与点击 ---- */
+      let down = null;
+      canvas.addEventListener('pointerdown', (ev) => {
+        down = { x: ev.clientX, y: ev.clientY, t: performance.now() };
+      });
+      canvas.addEventListener('pointerup', (ev) => {
+        if (!down) return;
+        const moved = Math.hypot(ev.clientX - down.x, ev.clientY - down.y);
+        const quick = performance.now() - down.t < 600;
+        down = null;
+        if (moved > 6 || !quick) return;
+        const e = pickEntity(ev.clientX, ev.clientY);
+        if (e) { focusEntity(e); return; }
+        const g = groundHit(ev.clientX, ev.clientY);
+        if (g && Math.abs(g.x) < GROUND && Math.abs(g.z) < GROUND && isRoad(g.x, g.z)) {
+          makeAccident(g.x, g.z);
+        } else if (g && Math.abs(g.x) < GROUND && Math.abs(g.z) < GROUND) {
+          toast('点击道路才可制造事故 · 点击实体可聚焦');
+        } else {
+          clearFocus();
+        }
+      });
+      canvas.addEventListener('dblclick', () => clearFocus());
+
+      /* ======================================================================
+         16. 图层 / 时间轴旋钮 / 键位
+         ====================================================================== */
+      const layerEls = [...document.querySelectorAll('.wx-toggle')];
+      const layers = { entities: true, links: true, heat: true, labels: true };
+      function setLayer(name, on) {
+        layers[name] = on;
+        const el = layerEls.find((x) => x.dataset.layer === name);
+        if (el) el.classList.toggle('on', on), el.classList.toggle('off', !on);
+        if (name === 'entities') groups.entities.visible = on;
+        if (name === 'links') groups.links.visible = on;
+        if (name === 'heat') groups.heat.visible = on;
+        if (name === 'labels') $('wx-labels').style.display = on ? '' : 'none';
+      }
+      layerEls.forEach((el) => {
+        el.addEventListener('click', () => setLayer(el.dataset.layer, !layers[el.dataset.layer]));
+      });
+
+      const nightFromHour = (h) => {
+        const up = smoothstep(4.6, 7.6, h);
+        const down = 1 - smoothstep(17.6, 20.8, h);
+        return clamp(1 - Math.min(up, down), 0, 1);
+      };
+      const phaseOf = (h) =>
+        h < 4.8 ? '深夜 / DEEP NIGHT' : h < 7.6 ? '黎明 / DAWN' : h < 17.6 ? '白昼 / DAY'
+          : h < 20.8 ? '黄昏 / DUSK' : '夜晚 / NIGHT';
+
+      const rail = $('wx-rail');
+      const knob = $('wx-knob');
+      const fill = $('wx-rail-fill');
+      const ticksBox = $('wx-rail-ticks');
+      for (let h = 0; h <= 24; h += 1) {
+        const s = document.createElement('s');
+        s.style.left = `${(h / 24) * 100}%`;
+        if (h % 6 === 0) s.className = 'big';
+        ticksBox.appendChild(s);
+        if (h % 6 === 0 && h < 24) {
+          const b = document.createElement('b');
+          b.style.left = `${(h / 24) * 100}%`;
+          b.textContent = `${String(h).padStart(2, '0')}:00`;
+          ticksBox.appendChild(b);
+        }
+      }
+      // gsap.quickTo 平滑旋钮位置与读数，避免拖动时的硬跳变
+      // 注意：不能直接 quickTo(knob,'left')——GSAP 以 px 读取计算值、再按目标串的单位(%)写回，
+      // 会把旋钮推到 341% 这种错位位置；因此只对 0-100 的数值代理做补间，再统一写样式。
+      const knobPos = { pct: (state.hour / 24) * 100 };
+      const syncKnob = () => {
+        knob.style.left = `${knobPos.pct}%`;
+        fill.style.width = `${knobPos.pct}%`;
+      };
+      const knobTo = gsap.quickTo(knobPos, 'pct', { duration: 0.28, ease: 'power3.out', onUpdate: syncKnob });
+
+      function applyHour(h, moveKnob = false) {
+        state.hour = ((h % 24) + 24) % 24;
+        const pct = (state.hour / 24) * 100;
+        if (moveKnob) knobTo(pct);
+        else { knobPos.pct = pct; syncKnob(); }
+        $('wx-clock').textContent =
+          `${String(Math.floor(state.hour)).padStart(2, '0')}:${String(Math.floor((state.hour % 1) * 60)).padStart(2, '0')}`;
+        $('wx-phase').textContent = phaseOf(state.hour);
+      }
+      let dragging = false;
+      const railSet = (clientX) => {
+        const r = rail.getBoundingClientRect();
+        applyHour(clamp((clientX - r.left) / r.width, 0, 0.9999) * 24, true);
+      };
+      rail.addEventListener('pointerdown', (ev) => {
+        dragging = true;
+        rail.setPointerCapture(ev.pointerId);
+        railSet(ev.clientX);
+      });
+      rail.addEventListener('pointermove', (ev) => { if (dragging) railSet(ev.clientX); });
+      rail.addEventListener('pointerup', () => { dragging = false; });
+      rail.addEventListener('pointercancel', () => { dragging = false; });
+
+      const speedEls = [...document.querySelectorAll('.wx-speed')];
+      const speedTo = gsap.quickTo(state, 'speed', { duration: 0.45, ease: 'power2.out' });
+      function setSpeed(v) {
+        speedTo(v); // 数值本身用 quickTo 平滑逼近，避免速度突跳
+        speedEls.forEach((el) => el.classList.toggle('on', parseFloat(el.dataset.speed) === v));
+      }
+      speedEls.forEach((el) => el.addEventListener('click', () => setSpeed(parseFloat(el.dataset.speed))));
+      $('wx-play').addEventListener('click', () => {
+        state.paused = !state.paused;
+        $('wx-play').textContent = state.paused ? '▶ 继续' : '▮▮ 暂停';
+      });
+
+      function resetView() {
+        clearFocus();
+        gsap.to(controls.target, { x: 0, y: 40, z: 0, duration: 1.1, ease: 'power3.inOut' });
+        gsap.to(camera.position, { x: 430, y: 340, z: 520, duration: 1.1, ease: 'power3.inOut' });
+      }
+      function randomAccident() {
+        const rx = pick(ROADS), rz = pick(ROADS);
+        makeAccident(rx + rand(-40, 40), rz + rand(-3, 3));
+      }
+      window.addEventListener('keydown', (ev) => {
+        const k = ev.key.toLowerCase();
+        if (k === ' ') { ev.preventDefault(); $('wx-play').click(); }
+        else if (k === '1') setLayer('entities', !layers.entities);
+        else if (k === '2') setLayer('links', !layers.links);
+        else if (k === '3') setLayer('heat', !layers.heat);
+        else if (k === '4') setLayer('labels', !layers.labels);
+        else if (k === 'escape') clearFocus();
+        else if (k === 'r') resetView();
+        else if (k === 'a') randomAccident();
+        else if (k === 'arrowleft') applyHour(state.hour - 0.5, true);
+        else if (k === 'arrowright') applyHour(state.hour + 0.5, true);
+      });
+
+      /* ======================================================================
+         17. HUD：数据卡片 / 悬浮标签 / 遥测 / 能耗曲线 / 日志
+         ====================================================================== */
+      function showCard(e) {
+        const card = $('wx-card');
+        $('wx-card-kind').textContent = `${e.kind.toUpperCase()} · ${e.data.label || ''}`;
+        $('wx-card-name').innerHTML = `${e.data.code} <small>${e.data.type ? e.data.type.toUpperCase() : ''}</small>`;
+        $('wx-card-pos').textContent = `${e.pos.x >= 0 ? 'E' : 'W'}${Math.abs(e.pos.x).toFixed(0)} ${e.pos.z >= 0 ? 'S' : 'N'}${Math.abs(e.pos.z).toFixed(0)}`;
+        $('wx-card-load').textContent = e.data.load ? fmt(e.data.load, 0) : '0';
+        card.classList.add('show');
+        gsap.fromTo(card, { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' });
+        const nb = hiSet.static.concat(hiSet.dynamic).filter((o) => o !== e);
+        $('wx-neighbors').innerHTML =
+          `<div style="color:var(--wx-cyan)">50M 关联实体 ${nb.length}</div>` +
+          nb.slice(0, 6).map((o) => `· ${o.data.code} ${(o.data.label || '').padEnd(4)} <span style="color:rgba(140,175,220,.8)">${
+            o.kind === 'person' ? '行人' : o.kind === 'stop' ? '站台 ETA ' + (o.data.eta ? o.data.eta.toFixed(0) + 's' : '—')
+              : o.kind === 'light' ? '信号' : o.kind === 'grid' ? '电网' : o.kind === 'building' ? '建筑' : '车辆'
+          }</span>`).join('<br>');
+        refreshCard();
+      }
+      $('wx-card-close').addEventListener('click', clearFocus);
+
+      function refreshCard() {
+        const e = state.focus;
+        if (!e) return;
+        $('wx-card-status').textContent = e.data.state || '—';
+        $('wx-card-speed').textContent = e.data.speed != null ? e.data.speed.toFixed(1) : '—';
+        $('wx-card-links').textContent = `${e.links} · ${(e.data.flow || 0)} pkt/s`;
+        $('wx-card-load').textContent = e.data.load ? fmt(e.data.load * (0.7 + state.night * 0.5), 0) : '0';
+        $('wx-card-pos').textContent =
+          `X ${e.pos.x.toFixed(0)} · Z ${e.pos.z.toFixed(0)} · Y ${(e.data.h || 0).toFixed(1)}`;
+      }
+
+      /* ---- 悬浮数据标签（DOM 投影，池化复用） ---- */
+      const labelBox = $('wx-labels');
+      const LABELS = [];
+      for (let k = 0; k < 15; k++) {
+        const d = document.createElement('div');
+        d.className = 'wx-lab';
+        d.style.display = 'none';
+        labelBox.appendChild(d);
+        LABELS.push(d);
+      }
+      const projV = new THREE.Vector3();
+      // HUD 面板占位矩形（标签避让），定期重测
+      const LAB_RECTS = [];
+      let labRectAcc = 0;
+      function projectTo(e, y) {
+        projV.set(e.pos.x, y, e.pos.z).project(camera);
+        if (projV.z > 1 || projV.z < -1) return null;
+        return {
+          x: (projV.x * 0.5 + 0.5) * window.innerWidth,
+          y: (-projV.y * 0.5 + 0.5) * window.innerHeight,
+          d: camera.position.distanceTo(e.pos),
+        };
+      }
+      function updateLabels() {
+        if (!layers.labels) return;
+        if (labRectAcc++ % 24 === 0) {
+          LAB_RECTS.length = 0;
+          for (const id of ['wx-brand', 'wx-sitenav', 'wx-panel', 'wx-layers', 'wx-time', 'wx-card']) {
+            const el = $(id);
+            if (!el || getComputedStyle(el).display === 'none') continue;
+            const r = el.getBoundingClientRect();
+            if (r.width < 4) continue;
+            LAB_RECTS.push({ x0: r.left - 8, y0: r.top - 8, x1: r.right + 8, y1: r.bottom + 8 });
+          }
+        }
+        const cands = [];
+        const add = (e, text, cls, y) => {
+          const p = projectTo(e, y);
+          if (!p || p.x < 40 || p.y < 8 || p.x > window.innerWidth - 40 || p.y > window.innerHeight - 8) return;
+          // 不压在 HUD 面板上
+          for (const r of LAB_RECTS) if (p.x > r.x0 && p.x < r.x1 && p.y > r.y0 && p.y < r.y1) return;
+          cands.push({ e, text, cls, p });
+        };
+        for (const c of CARS) {
+          if (camera.position.distanceTo(c.ent.pos) < 420)
+            add(c.ent, `${c.ent.data.code}\n<s>${(c.ent.data.speed || 0).toFixed(0)}km/h → ${c.ent.data.dest || '—'}</s>`, c.isBus ? 'bus' : 'car', 4.6);
+        }
+        for (const s of STOPS) {
+          if (s.ent.data.eta && camera.position.distanceTo(s.ent.pos) < 460)
+            add(s.ent, `${s.line} 路 · <s>到站 ${s.ent.data.eta.toFixed(0)}s</s>`, 'bus', 6.4);
+        }
+        for (const p of PEOPLE) {
+          if (camera.position.distanceTo(p.ent.pos) < 210)
+            add(p.ent, `${p.ent.data.code}\n<s>→ ${p.dest}</s>`, 'person', 2.6);
+        }
+        for (const a of state.accidents)
+          add(a.ent, `⚠ ${a.ent.data.code}\n<s>V2X 广播中</s>`, 'acc', 12);
+        if (state.focus) {
+          const f = state.focus;
+          add(f, `${f.data.code} · ${f.data.label}\n<s>${f.data.state || 'LINKED'}</s>`, 'focus', (f.data.h || 3) + 6);
+        }
+        cands.sort((a, b) => a.p.d - b.p.d);
+        const used = cands.slice(0, LABELS.length);
+        LABELS.forEach((el, k) => {
+          const c = used[k];
+          if (!c) { el.style.display = 'none'; return; }
+          el.style.display = '';
+          el.className = `wx-lab ${c.cls}`;
+          el.style.transform = `translate(-50%,-100%) translate(${c.p.x.toFixed(0)}px,${c.p.y.toFixed(0)}px)`;
+          if (el._t !== c.text) { el.innerHTML = c.text; el._t = c.text; }
+        });
+      }
+
+      /* ---- 遥测数值 + 能耗曲线 ---- */
+      const spark = $('wx-spark');
+      const sctx = spark.getContext('2d');
+      const powerHist = new Array(78).fill(0);
+      function drawSpark() {
+        const w = spark.width, h = spark.height;
+        sctx.clearRect(0, 0, w, h);
+        sctx.strokeStyle = 'rgba(96,170,210,0.16)';
+        sctx.lineWidth = 1;
+        for (let k = 1; k < 4; k++) {
+          sctx.beginPath(); sctx.moveTo(0, (h / 4) * k); sctx.lineTo(w, (h / 4) * k); sctx.stroke();
+        }
+        // 以均值居中、极差归一：能耗平稳时曲线在中带波动，而不是顶满画布
+        let mx = -Infinity, mn = Infinity;
+        for (const v of powerHist) { if (v > mx) mx = v; if (v < mn) mn = v; }
+        const mid = (mx + mn) / 2;
+        const span = Math.max(mx - mn, mid * 0.12, 1);
+        const px = (i) => (i / (powerHist.length - 1)) * w;
+        const py = (v) => h * 0.5 - ((v - mid) / span) * (h * 0.36);
+        sctx.beginPath();
+        sctx.moveTo(0, h);
+        powerHist.forEach((v, i) => sctx.lineTo(px(i), py(v)));
+        sctx.lineTo(w, h);
+        sctx.closePath();
+        const g = sctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, 'rgba(255,194,74,0.34)');
+        g.addColorStop(1, 'rgba(255,194,74,0.02)');
+        sctx.fillStyle = g;
+        sctx.fill();
+        sctx.beginPath();
+        powerHist.forEach((v, i) => (i ? sctx.lineTo(px(i), py(v)) : sctx.moveTo(px(i), py(v))));
+        sctx.strokeStyle = '#ffc24a';
+        sctx.shadowColor = 'rgba(255,194,74,0.9)';
+        sctx.shadowBlur = 6;
+        sctx.lineWidth = 1.6;
+        sctx.stroke();
+        sctx.shadowBlur = 0;
+      }
+      const logBox = $('wx-log');
+      function log(msg, cls = '') {
+        const t = `${String(Math.floor(state.hour)).padStart(2, '0')}:${String(Math.floor((state.hour % 1) * 60)).padStart(2, '0')}`;
+        const d = document.createElement('div');
+        d.className = cls;
+        d.innerHTML = `<b>${t}</b> ${msg}`;
+        logBox.insertBefore(d, logBox.firstChild);
+        while (logBox.children.length > 6) logBox.removeChild(logBox.lastChild);
+      }
+      let toastTl = null;
+      function toast(html) {
+        const el = $('wx-toast');
+        el.innerHTML = html;
+        if (toastTl) toastTl.kill();
+        toastTl = gsap.timeline()
+          .to(el, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' })
+          .to(el, { opacity: 0, y: -12, duration: 0.4, delay: 2.6 });
+      }
+
+      let hudAcc = 0, sparkAcc = 0, throughSmooth = 0, bytesLast = 0;
+      function updateHud(dt) {
+        hudAcc += dt;
+        const inst = dt > 0 ? Math.max(0, state.bytes - bytesLast) / dt : 0;
+        bytesLast = state.bytes;
+        throughSmooth = throughSmooth * 0.9 + inst * 0.1;
+        if (hudAcc < 0.14) return;
+        hudAcc = 0;
+        // 全网能耗：建筑 + 充电站 + 照明，夜间抬升
+        let load = 0;
+        for (const b of BUILDINGS) load += b.load;
+        state.power = (load / 1000) * (0.62 + state.night * 0.5) / 1.6;
+        let sp = 0;
+        for (const c of CARS) sp += c.speed;
+        const transits = state.transit.length ? state.transit.slice(-60) : [60];
+        const avgT = transits.reduce((a, b) => a + b, 0) / transits.length;
+        let jam = 0;
+        for (const c of CARS) if (c.blocked) jam++;
+        $('wx-m-points').textContent = fmt(TOTAL_POINTS + LINKS.length * DOTS, 0);
+        $('wx-m-links').textContent = `${LINKS.length}`;
+        $('wx-m-through').textContent = (throughSmooth / 1000).toFixed(2);
+        $('wx-m-transit').textContent = avgT.toFixed(1);
+        $('wx-m-power').textContent = state.power.toFixed(1);
+        const loadPct = clamp((jam / CARS.length) * 100 + state.accidents.length * 12, 0, 100);
+        $('wx-m-load').textContent = `${loadPct.toFixed(0)}%`;
+        $('wx-load-bar').style.width = `${loadPct}%`;
+        $('wx-m-heal').textContent = state.accidents.length ? `${(state.heal * 100).toFixed(0)}%` : '待机';
+        $('wx-heal-bar').style.width = `${(state.accidents.length ? state.heal : 0) * 100}%`;
+        $('wx-fps').textContent = `${state.fps.toFixed(0)} FPS`;
+        const az = ((Math.atan2(camera.position.z - controls.target.z, camera.position.x - controls.target.x) * 180) / Math.PI + 360) % 360;
+        const el = 90 - (camera.position.clone().sub(controls.target).angleTo(new THREE.Vector3(0, 1, 0)) * 180) / Math.PI;
+        $('wx-cam-az').textContent = `${az.toFixed(0).padStart(3, '0')}°`;
+        $('wx-cam-el').textContent = `${clamp(el, 0, 89).toFixed(0).padStart(2, '0')}°`;
+        $('wx-cam-d').textContent = camera.position.distanceTo(controls.target).toFixed(0);
+        refreshCard();
+      }
+
+      /* ======================================================================
+         18. 昼夜应用 / 尺寸 / 主循环
+         ====================================================================== */
+      const TOTAL_POINTS =
+        STATIC_TOTAL + DYN_TOTAL + BEACONS.length * RING_PTS * RING_PULSES + sn;
+      const bgNight = document.querySelector('#wx-bg .night');
+      function applyNight() {
+        const n = state.night;
+        for (const m of ALL_POINT_MATS) m.uniforms.uNight.value = n;
+        for (const m of [beaconMat, radarMat, linkMat, heatMat, skyMat, grade.uniforms]) {
+          (m.uniforms || m).uNight.value = n;
+        }
+        linkMat.uniforms.uDim.value = lerp(1, 1.35, n);
+        heatMat.uniforms.uOpacity.value = lerp(0.5, 0.72, n);
+        bloom.strength = 0.6 + n * 0.5;
+        bloom.radius = 0.58 + n * 0.18;
+        scene.fog.color.copy(FOG_DAY).lerp(FOG_NIGHT, n);
+        scene.fog.density = 0.00072 + n * 0.00028;
+        bgNight.style.opacity = n.toFixed(3);
+        mats.static.uniforms.uOpacity.value = lerp(0.86, 0.58, n);
+        mats.dynamic.uniforms.uOpacity.value = lerp(0.95, 1.25, n);
+      }
+
+      function onResize() {
+        const w = window.innerWidth, h = window.innerHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+        composer.setSize(w, h);
+        // Bloom 内部按 0.62 倍分辨率模糊（辉光本身低频，降采样几乎不可见但省一半填充）
+        bloom.setSize(w * 0.62, h * 0.62);
+        grade.uniforms.uRes.value.set(w, h);
+        const pr = renderer.getPixelRatio();
+        for (const m of ALL_POINT_MATS) m.uniforms.uPr.value = pr;
+        beaconMat.uniforms.uPr.value = pr;
+        radarMat.uniforms.uPr.value = pr;
+        linkMat.uniforms.uPr.value = pr;
+      }
+      window.addEventListener('resize', onResize);
+
+      applyHour(state.hour);
+      setSpeed(CONFIG.sim.speed0);
+      applyNight();
+      log(`SYSTEM <b>点云重建完成</b> · ${fmt(TOTAL_POINTS)} pts / ${BUILDINGS.length} 静态节点 / ${VEH} 网联车辆`, 'e-ok');
+      log(`TIP 点击实体聚焦关系网 · 点击道路制造事故 · A 键随机事故`);
+
+      let last = performance.now();
+      let fpsAcc = 0, fpsN = 0, labelAcc = 0, linkAcc = 0;
+      let booted = false;
+
+      function frame() {
+        const now = performance.now();
+        let dt = (now - last) / 1000;
+        last = now;
+        fpsAcc += dt; fpsN++;
+        if (fpsAcc > 0.5) { state.fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
+        dt = Math.min(dt, 0.05);
+        const sdt = state.paused ? 0 : dt * state.speed;
+        state.time += sdt;
+
+        // 时间轴自动推进（1× 下 1 小时 ≈ 84 秒）
+        if (!dragging && !state.paused) applyHour(state.hour + sdt * 0.012, true);
+        state.night += (nightFromHour(state.hour) - state.night) * Math.min(1, dt * 2.2);
+
+        if (sdt > 0) {
+          simLights(sdt);
+          simCars(sdt);
+          simPeople(sdt);
+          trailTick(sdt);
+          simData(sdt);
+          simAccidents(sdt);
+          heatTick(sdt);
+        }
+        bakeDynamic();
+        bakeFx();
+        bakeLinks();
+        if (state.focus && hiSet.dynamic.length) updateHighlight();
+
+        // 材质统一时钟 + 聚焦衰减
+        for (const m of ALL_POINT_MATS) m.uniforms.uTime.value = state.time;
+        for (const m of [beaconMat, radarMat, linkMat]) m.uniforms.uTime.value = state.time;
+        for (const m of ALL_POINT_MATS) m.uniforms.uDim.value = state.dim;
+        mats.highlight.uniforms.uDim.value = 1;
+        grade.uniforms.uTime.value = state.time;
+        applyNight();
+
+        // 能耗曲线采样
+        sparkAcc += dt;
+        if (sparkAcc > 0.35) {
+          sparkAcc = 0;
+          if (!powerHist[0]) powerHist.fill(state.power);   // 首次用当前能耗铺满，避免曲线从 0 起跳
+          powerHist.push(state.power * rand(0.95, 1.05));
+          while (powerHist.length > 78) powerHist.shift();
+          drawSpark();
+        }
+        labelAcc += dt;
+        if (labelAcc > 0.033) { labelAcc = 0; updateLabels(); }
+        linkAcc += sdt;
+
+        controls.update();
+        composer.render();
+        updateHud(dt);
+
+        if (!booted) {
+          booted = true;
+          gsap.to('#wx-boot', {
+            opacity: 0, duration: 0.7, delay: 0.25, ease: 'power2.inOut',
+            onComplete: () => { $('wx-boot').style.display = 'none'; },
+          });
+          gsap.from('#wx-brand', { y: -14, opacity: 0, duration: 0.8, delay: 0.5, ease: 'power2.out' });
+          // 导航用 translateX(-50%) 定位，只淡入不动位，避免与居中偏移打架
+          gsap.from('#wx-sitenav', { opacity: 0, duration: 0.7, delay: 0.56, ease: 'power2.out' });
+          gsap.from('#wx-panel', { y: -14, opacity: 0, duration: 0.8, delay: 0.62, ease: 'power2.out' });
+          gsap.from('#wx-layers', { x: -14, opacity: 0, duration: 0.8, delay: 0.72, ease: 'power2.out' });
+          gsap.from('#wx-time', { y: 22, opacity: 0, duration: 0.9, delay: 0.8, ease: 'power3.out' });
+        }
+      }
+      renderer.setAnimationLoop(frame);
+
+      /* 首帧统计写入 boot 文案 */
+      $('wx-boot-sub').innerHTML =
+        `<b>${fmt(TOTAL_POINTS)}</b> 点 · <b>${BUILDINGS.length}</b> 建筑 · <b>${VEH}</b> 车辆 · <b>${A.people}</b> 行人 · <b>${LIGHTS.length}</b> 路口`;
+    </script>
+  </body>
+</html>

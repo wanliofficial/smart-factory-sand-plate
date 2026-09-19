@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createWorld } from '../world/world.js'
 import InfoPanel from './InfoPanel.jsx'
 import HUD from './HUD.jsx'
+import SiteNav from './SiteNav.jsx'
 
 export default function EverythingConnected() {
   const canvasRef = useRef(null)
@@ -42,6 +43,7 @@ export default function EverythingConnected() {
       <canvas ref={canvasRef} className="ec-canvas" />
       <a className="back-home" href="#/">← 返回首页</a>
       <HUD stats={stats} />
+      <SiteNav />
       <InfoPanel node={selectedNode} onClose={() => setSelectedNode(null)} />
       {!webgpuSupported && (
         <div className="ec-error">

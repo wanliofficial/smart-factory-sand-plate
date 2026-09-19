@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#120c08" />
+    <title>逆时空齿轮轴 · REVERSE-TIME GEAR AXIS</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="ga-canvas"></canvas>
+
+      <div class="ga-fx ga-vignette"></div>
+      <div class="ga-fx ga-grain"></div>
+      <div class="ga-fx ga-scan"></div>
+      <div id="ga-flash" class="ga-fx ga-flash"></div>
+
+      <nav class="ga-sitenav">
+        <ul class="ga-sitenav-list">
+          <li>
+            <a class="ga-sitenav-item" href="../index.html">
+              <span class="ga-sitenav-icon">◈</span>
+              <span class="ga-sitenav-text"><span class="ga-sitenav-zh">万物联动</span><span class="ga-sitenav-en">DIGITAL TWIN</span></span>
+            </a>
+          </li>
+          <li>
+            <a class="ga-sitenav-item" href="../park/index.html">
+              <span class="ga-sitenav-icon">▣</span>
+              <span class="ga-sitenav-text"><span class="ga-sitenav-zh">万里科技园</span><span class="ga-sitenav-en">PLANT SANDBOX</span></span>
+            </a>
+          </li>
+          <li>
+            <a class="ga-sitenav-item" href="../energy/index.html">
+              <span class="ga-sitenav-icon">⚡</span>
+              <span class="ga-sitenav-text"><span class="ga-sitenav-zh">数智能源</span><span class="ga-sitenav-en">ENERGY MGMT</span></span>
+            </a>
+          </li>
+          <li>
+            <a class="ga-sitenav-item" href="../crystal/index.html">
+              <span class="ga-sitenav-icon">❖</span>
+              <span class="ga-sitenav-text"><span class="ga-sitenav-zh">晶体共振矩阵</span><span class="ga-sitenav-en">CRYSTAL RESONANCE</span></span>
+            </a>
+          </li>
+          <li>
+            <a class="ga-sitenav-item is-active" href="./index.html" aria-current="page">
+              <span class="ga-sitenav-icon">⧗</span>
+              <span class="ga-sitenav-text"><span class="ga-sitenav-zh">逆时空齿轮轴</span><span class="ga-sitenav-en">GEAR AXIS</span></span>
+            </a>
+          </li>
+          <li>
+            <a class="ga-sitenav-item" href="../quantum/index.html">
+              <span class="ga-sitenav-icon">❋</span>
+              <span class="ga-sitenav-text"><span class="ga-sitenav-zh">纠缠之隙</span><span class="ga-sitenav-en">QUANTUM OBS</span></span>
+            </a>
+          </li>
+          <li>
+            <a class="ga-sitenav-item" href="../city/index.html">
+              <span class="ga-sitenav-icon">⬡</span>
+              <span class="ga-sitenav-text"><span class="ga-sitenav-zh">万象织网</span><span class="ga-sitenav-en">POINT CLOUD</span></span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+
+      <header class="ga-brand">
+        <div class="ga-brand-mark">⧗</div>
+        <div class="ga-brand-text">
+          <div class="ga-kicker">Scene 05 / Wasteland Gear Core</div>
+          <h1 class="ga-title">逆时空齿轮轴</h1>
+          <p class="ga-subtitle">REVERSE-TIME GEAR AXIS · 废土机械时序沙漏 MK-VII</p>
+        </div>
+        <div id="ga-status" class="ga-status">待机</div>
+      </header>
+
+      <section class="ga-panel">
+        <div class="ga-panel-title">机核遥测 / CORE TELEMETRY</div>
+        <div class="ga-row"><span class="ga-row-label">主轴转速</span><span id="ga-rpm" class="ga-row-value">000.0</span><span class="ga-row-unit">RPM</span></div>
+        <div class="ga-row"><span class="ga-row-label">拖动阻尼</span><span id="ga-damp" class="ga-row-value">0.000</span><span class="ga-row-unit">EASING</span></div>
+        <div class="ga-meter"><div id="ga-damp-bar" class="ga-meter-fill"></div></div>
+        <div class="ga-row"><span class="ga-row-label">转向</span><span id="ga-dir" class="ga-row-value">停滞 · 时序锁死</span></div>
+        <div class="ga-row"><span class="ga-row-label">上舱沙量</span><span id="ga-charge" class="ga-row-value">100%</span><span class="ga-row-unit">CHARGE</span></div>
+        <div class="ga-meter"><div id="ga-charge-bar" class="ga-meter-fill is-sand"></div></div>
+        <div class="ga-row"><span class="ga-row-label">咬合机构</span><span id="ga-mesh" class="ga-row-value">—</span></div>
+        <div class="ga-row"><span class="ga-row-label">帧率</span><span id="ga-fps" class="ga-row-value">60</span><span class="ga-row-unit">FPS</span></div>
+      </section>
+
+      <div id="ga-hint" class="ga-hint">
+        <p><b>拖动</b>底部拨轮 → 齿轮组按比例咬合转动，火花自齿隙飞散</p>
+        <p><b>点击</b>拨轮中心「倒转」或按 <b>空格</b> → 时序倒流，流沙逆行回舱</p>
+        <p><b>拖拽画面</b>环绕 · <b>滚轮</b>缩放 · <b>←/→</b> 点动驱动</p>
+      </div>
+
+      <div class="ga-dial-wrap">
+        <div id="ga-dial" class="ga-dial"></div>
+        <div class="ga-dial-label">倒 转 拨 轮 · REVERSE DIAL</div>
+      </div>
+
+      <div id="ga-boot" class="ga-boot">
+        <div class="ga-boot-ring"></div>
+        <p>机核预热中 · CALIBRATING GEAR CORE</p>
+      </div>
+    </div>
+
+    <script type="module" src="/src/gears/main.js"></script>
+  </body>
+</html>

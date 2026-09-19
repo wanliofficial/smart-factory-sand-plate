@@ -7,9 +7,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:crystal": "node scripts/check-crystal.mjs",
+    "check:gears": "node scripts/check-gears.mjs",
+    "check:dial": "node scripts/check-dial.mjs",
+    "check:quantum": "node scripts/check-quantum.mjs",
+    "preview:gears": "node scripts/preview-gears.mjs preview/gears-preview.png"
   },
   "dependencies": {
+    "gsap": "^3.15.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "three": "^0.186.0",

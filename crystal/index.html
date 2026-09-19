@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>晶体共振矩阵 · Crystal Resonance Matrix</title>
+    <style>
+      :root {
+        --klein: #002fa7;
+        --klein-lit: #2b5cff;
+        --neon: #35f0ff;
+        --ink: #dbeaff;
+        --muted: rgba(158, 198, 240, 0.58);
+        --line: rgba(120, 190, 255, 0.16);
+        --panel: rgba(6, 20, 48, 0.42);
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #01030a;
+        color: var(--ink);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC',
+          'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      #cr-stage { position: fixed; inset: 0; background: #01030a; }
+      canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+      /* ---------- 鼠标光晕：随指针位移向量实时移动 ---------- */
+      #cr-cursor {
+        position: fixed;
+        left: 0; top: 0;
+        width: 520px; height: 520px;
+        margin: -260px 0 0 -260px;
+        pointer-events: none;
+        z-index: 2;
+        opacity: 0;
+        background: radial-gradient(circle,
+          rgba(53, 240, 255, 0.13) 0%,
+          rgba(43, 92, 255, 0.09) 34%,
+          rgba(0, 47, 167, 0.04) 58%,
+          rgba(0, 47, 167, 0) 74%);
+        mix-blend-mode: screen;
+        transition: opacity 0.4s ease;
+        will-change: transform;
+      }
+
+      .cr-ui { position: fixed; z-index: 10; pointer-events: none; }
+
+      /* ---------- 场景导航 ---------- */
+      .cr-nav {
+        position: fixed;
+        top: 22px; left: 50%;
+        transform: translateX(-50%);
+        z-index: 30;
+      }
+      .cr-nav-list {
+        display: flex; align-items: center; gap: 6px;
+        margin: 0; padding: 6px; list-style: none;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(4, 14, 36, 0.55);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+      .cr-nav-item {
+        display: flex; align-items: center; gap: 9px;
+        padding: 8px 18px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        color: var(--muted);
+        text-decoration: none;
+        transition: all 0.22s ease;
+      }
+      .cr-nav-item:hover {
+        color: var(--ink);
+        background: rgba(0, 140, 255, 0.12);
+        border-color: rgba(0, 200, 255, 0.28);
+        box-shadow: inset 0 0 18px rgba(0, 180, 255, 0.18);
+      }
+      .cr-nav-item.is-active {
+        color: #fff;
+        background: linear-gradient(180deg, rgba(0, 150, 255, 0.28) 0%, rgba(0, 90, 190, 0.18) 100%);
+        border-color: rgba(120, 210, 255, 0.5);
+        box-shadow: 0 0 18px rgba(0, 190, 255, 0.25);
+      }
+      .cr-nav-icon { font-size: 15px; line-height: 1; color: var(--neon); text-shadow: 0 0 12px rgba(53, 240, 255, 0.55); }
+      .cr-nav-item.is-active .cr-nav-icon { color: #b6f0ff; }
+      .cr-nav-text { display: flex; flex-direction: column; line-height: 1.25; }
+      .cr-nav-zh { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; }
+      .cr-nav-en { font-size: 8px; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; }
+      .cr-nav-item.is-active .cr-nav-en { color: rgba(182, 240, 255, 0.78); }
+
+      /* ---------- 左上：标题 ---------- */
+      .cr-brand { top: 30px; left: 34px; }
+      .cr-kicker {
+        display: flex; align-items: center; gap: 10px;
+        font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase;
+        color: rgba(120, 200, 255, 0.72);
+      }
+      .cr-kicker span {
+        display: inline-block; width: 26px; height: 1px;
+        background: linear-gradient(90deg, var(--neon), rgba(53, 240, 255, 0));
+      }
+      .cr-brand h1 {
+        margin-top: 10px;
+        font-size: 2.05rem; font-weight: 700; letter-spacing: 0.14em; line-height: 1.1;
+        background: linear-gradient(180deg, #ffffff 0%, #b9e6ff 48%, #4a9bff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 2px 10px rgba(0, 24, 60, 0.7));
+      }
+      .cr-brand .cr-sub {
+        margin-top: 8px;
+        font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase;
+        color: rgba(140, 200, 250, 0.6);
+      }
+      .cr-brand .cr-desc {
+        margin-top: 16px; max-width: 268px;
+        font-size: 12px; line-height: 1.85; color: rgba(178, 214, 250, 0.66);
+        border-left: 1px solid var(--line); padding-left: 12px;
+      }
+
+      /* ---------- 左下：操作指引 ---------- */
+      .cr-guide { bottom: 34px; left: 34px; }
+      .cr-guide-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+      .cr-key {
+        min-width: 30px; padding: 4px 9px;
+        border: 1px solid rgba(120, 200, 255, 0.32);
+        border-radius: 6px;
+        font-size: 10px; letter-spacing: 0.14em; text-align: center;
+        color: #cdeaff; background: rgba(0, 90, 200, 0.16);
+      }
+      .cr-guide-text { font-size: 12px; letter-spacing: 0.06em; color: rgba(178, 214, 250, 0.7); }
+
+      /* ---------- 右下：仪表 ---------- */
+      .cr-meter { bottom: 34px; right: 34px; width: 208px; }
+      .cr-meter-row { margin-top: 14px; }
+      .cr-meter-head {
+        display: flex; justify-content: space-between; align-items: baseline;
+        font-size: 9px; letter-spacing: 0.24em; text-transform: uppercase;
+        color: rgba(140, 196, 246, 0.6);
+      }
+      .cr-meter-value { font-size: 13px; letter-spacing: 0.06em; color: #dff2ff; font-variant-numeric: tabular-nums; }
+      .cr-bar {
+        position: relative; height: 2px; margin-top: 7px;
+        background: rgba(120, 190, 255, 0.14); overflow: hidden;
+      }
+      .cr-bar-fill {
+        position: absolute; inset: 0 auto 0 0; width: 0%;
+        background: linear-gradient(90deg, var(--klein-lit), var(--neon));
+        box-shadow: 0 0 10px rgba(53, 240, 255, 0.6);
+        transition: width 0.18s linear;
+      }
+      .cr-spec {
+        margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line);
+        font-size: 9px; line-height: 1.9; letter-spacing: 0.16em; color: rgba(140, 190, 240, 0.46);
+        text-transform: uppercase;
+      }
+
+      /* ---------- 底部中央：提示 ---------- */
+      .cr-hint {
+        bottom: 40px; left: 50%; transform: translateX(-50%);
+        font-size: 11px; letter-spacing: 0.28em; color: rgba(150, 200, 248, 0.5);
+        animation: cr-breathe 3.4s ease-in-out infinite;
+      }
+      @keyframes cr-breathe {
+        0%, 100% { opacity: 0.42; }
+        50% { opacity: 0.92; }
+      }
+
+      /* ---------- 四角装饰 ---------- */
+      .cr-corner { position: fixed; width: 16px; height: 16px; z-index: 10; pointer-events: none; opacity: 0.5; }
+      .cr-corner::before, .cr-corner::after { content: ''; position: absolute; background: rgba(120, 200, 255, 0.5); }
+      .cr-corner::before { width: 100%; height: 1px; }
+      .cr-corner::after { width: 1px; height: 100%; }
+      .cr-corner.tl { top: 18px; left: 18px; }
+      .cr-corner.tr { top: 18px; right: 18px; }
+      .cr-corner.bl { bottom: 18px; left: 18px; }
+      .cr-corner.br { bottom: 18px; right: 18px; }
+      .cr-corner.tr::before, .cr-corner.br::before { right: 0; }
+      .cr-corner.tr::after, .cr-corner.br::after { right: 0; }
+      .cr-corner.bl::before, .cr-corner.br::before { bottom: 0; }
+      .cr-corner.bl::after, .cr-corner.br::after { bottom: 0; }
+
+      /* ---------- 加载遮罩 ---------- */
+      #cr-loader {
+        position: fixed; inset: 0; z-index: 60;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+        background: radial-gradient(circle at 50% 50%, #082049 0%, #020718 62%, #01030a 100%);
+        transition: opacity 0.9s ease;
+      }
+      #cr-loader.is-hidden { opacity: 0; pointer-events: none; }
+      .cr-loader-ring {
+        width: 54px; height: 54px; border-radius: 50%;
+        border: 1px solid rgba(120, 200, 255, 0.2);
+        border-top-color: var(--neon);
+        animation: cr-spin 1.1s linear infinite;
+      }
+      @keyframes cr-spin { to { transform: rotate(360deg); } }
+      .cr-loader-text {
+        font-size: 10px; letter-spacing: 0.36em; text-transform: uppercase;
+        color: rgba(150, 205, 250, 0.7);
+      }
+
+      @media (max-width: 900px) {
+        .cr-brand h1 { font-size: 1.55rem; }
+        .cr-brand .cr-desc, .cr-meter { display: none; }
+        .cr-hint { font-size: 10px; letter-spacing: 0.18em; }
+        .cr-nav-item { padding: 7px 12px; }
+        .cr-nav-en { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cr-stage">
+      <canvas id="cr-canvas"></canvas>
+      <div id="cr-cursor"></div>
+    </div>
+
+    <nav class="cr-nav">
+      <ul class="cr-nav-list">
+        <li>
+          <a class="cr-nav-item" href="../index.html">
+            <span class="cr-nav-icon">◈</span>
+            <span class="cr-nav-text">
+              <span class="cr-nav-zh">万物联动</span>
+              <span class="cr-nav-en">Digital Twin World</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="cr-nav-item" href="../park/index.html">
+            <span class="cr-nav-icon">▣</span>
+            <span class="cr-nav-text">
+              <span class="cr-nav-zh">万里科技园</span>
+              <span class="cr-nav-en">Smart Plant Sandbox</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="cr-nav-item" href="../energy/index.html">
+            <span class="cr-nav-icon">⚡</span>
+            <span class="cr-nav-text">
+              <span class="cr-nav-zh">数智能源管理平台</span>
+              <span class="cr-nav-en">Energy Management</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="cr-nav-item is-active" href="./index.html" aria-current="page">
+            <span class="cr-nav-icon">❖</span>
+            <span class="cr-nav-text">
+              <span class="cr-nav-zh">晶体共振矩阵</span>
+              <span class="cr-nav-en">Crystal Resonance</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="cr-nav-item" href="../gears/index.html">
+            <span class="cr-nav-icon">⧗</span>
+            <span class="cr-nav-text">
+              <span class="cr-nav-zh">逆时空齿轮轴</span>
+              <span class="cr-nav-en">Gear Axis</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="cr-nav-item" href="../quantum/index.html">
+            <span class="cr-nav-icon">❋</span>
+            <span class="cr-nav-text">
+              <span class="cr-nav-zh">纠缠之隙</span>
+              <span class="cr-nav-en">Quantum Observatory</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="cr-nav-item" href="../city/index.html">
+            <span class="cr-nav-icon">⬡</span>
+            <span class="cr-nav-text">
+              <span class="cr-nav-zh">万象织网</span>
+              <span class="cr-nav-en">Point Cloud City</span>
+            </span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <header class="cr-ui cr-brand">
+      <div class="cr-kicker"><span></span>Scene 04 / Klein Blue Field</div>
+      <h1>晶体共振矩阵</h1>
+      <div class="cr-sub">Crystal Resonance Matrix</div>
+      <p class="cr-desc">
+        半透明晶体方块簇拥而成的悬浮能量环，折射率 1.72 的物理玻璃材质，
+        实时采样指针的空间位移向量重算光影。
+      </p>
+    </header>
+
+    <section class="cr-ui cr-guide">
+      <div class="cr-guide-row">
+        <span class="cr-key">MOVE</span>
+        <span class="cr-guide-text">晃动鼠标 · 环体随空间坐标倾斜视差</span>
+      </div>
+      <div class="cr-guide-row">
+        <span class="cr-key">CLICK</span>
+        <span class="cr-guide-text">点击空白 · 激发水波纹共振并收拢复原</span>
+      </div>
+    </section>
+
+    <aside class="cr-ui cr-meter">
+      <div class="cr-meter-row">
+        <div class="cr-meter-head"><span>Resonance</span><span class="cr-meter-value" id="cr-res-value">0%</span></div>
+        <div class="cr-bar"><div class="cr-bar-fill" id="cr-res-bar"></div></div>
+      </div>
+      <div class="cr-meter-row">
+        <div class="cr-meter-head"><span>Active Ripples</span><span class="cr-meter-value" id="cr-ripples">0</span></div>
+      </div>
+      <div class="cr-meter-row">
+        <div class="cr-meter-head"><span>Crystals / FPS</span><span class="cr-meter-value" id="cr-perf">0 / 0</span></div>
+      </div>
+      <div class="cr-spec">
+        IOR 1.72 · Transmission 1.0<br />
+        Clearcoat 1.0 · Iridescence 0.45
+      </div>
+    </aside>
+
+    <div class="cr-ui cr-hint">点击任意空白处 · 激发共振涟漪</div>
+
+    <i class="cr-corner tl"></i>
+    <i class="cr-corner tr"></i>
+    <i class="cr-corner bl"></i>
+    <i class="cr-corner br"></i>
+
+    <div id="cr-loader">
+      <div class="cr-loader-ring"></div>
+      <div class="cr-loader-text">Calibrating Crystal Field</div>
+    </div>
+
+    <!-- 构建/开发时由 Vite 解析本地 node_modules；直接双击打开时回退到 CDN 同名版本 -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.186.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.186.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
