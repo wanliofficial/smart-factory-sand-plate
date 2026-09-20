@@ -15,6 +15,7 @@
     "preview:gears": "node scripts/preview-gears.mjs preview/gears-preview.png"
   },
   "dependencies": {
+    "@vgpu/wgsl": "^0.5.0",
     "gsap": "^3.15.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
