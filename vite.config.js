@@ -25,6 +25,7 @@ export default defineConfig({
         gears: resolve(root, 'gears/index.html'),
         quantum: resolve(root, 'quantum/index.html'),
         city: resolve(root, 'city/index.html'),
+        aiot: resolve(root, 'aiot/index.html'),
       },
     },
   },

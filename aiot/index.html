@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>AIoT 联动世界 · Connected World</title>
+    <style>
+      :root {
+        --ink: #dbeaff;
+        --muted: rgba(158, 198, 240, 0.58);
+        --line: rgba(120, 190, 255, 0.16);
+        --panel: rgba(6, 20, 48, 0.42);
+        --neon: #35f0ff;
+        --klein-lit: #2b5cff;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #020306;
+        color: var(--ink);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC',
+          'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      #app { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+      /* ---------- 场景导航 ---------- */
+      .ai-nav {
+        position: fixed;
+        top: 22px; left: 50%;
+        transform: translateX(-50%);
+        z-index: 30;
+      }
+      .ai-nav-list {
+        display: flex; align-items: center; gap: 6px;
+        margin: 0; padding: 6px; list-style: none;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(4, 14, 36, 0.55);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+      .ai-nav-item {
+        display: flex; align-items: center; gap: 9px;
+        padding: 8px 18px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        color: var(--muted);
+        text-decoration: none;
+        transition: all 0.22s ease;
+      }
+      .ai-nav-item:hover {
+        color: var(--ink);
+        background: rgba(0, 140, 255, 0.12);
+        border-color: rgba(0, 200, 255, 0.28);
+        box-shadow: inset 0 0 18px rgba(0, 180, 255, 0.18);
+      }
+      .ai-nav-item.is-active {
+        color: #fff;
+        background: linear-gradient(180deg, rgba(0, 150, 255, 0.28) 0%, rgba(0, 90, 190, 0.18) 100%);
+        border-color: rgba(120, 210, 255, 0.5);
+        box-shadow: 0 0 18px rgba(0, 190, 255, 0.25);
+      }
+      .ai-nav-icon { font-size: 15px; line-height: 1; color: var(--neon); text-shadow: 0 0 12px rgba(53, 240, 255, 0.55); }
+      .ai-nav-item.is-active .ai-nav-icon { color: #b6f0ff; }
+      .ai-nav-text { display: flex; flex-direction: column; line-height: 1.25; }
+      .ai-nav-zh { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; }
+      .ai-nav-en { font-size: 8px; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; }
+      .ai-nav-item.is-active .ai-nav-en { color: rgba(182, 240, 255, 0.78); }
+
+      /* ---------- 左上：标题 ---------- */
+      .ai-brand { position: fixed; top: 30px; left: 34px; z-index: 20; pointer-events: none; }
+      .ai-kicker {
+        display: flex; align-items: center; gap: 10px;
+        font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase;
+        color: rgba(120, 200, 255, 0.72);
+      }
+      .ai-kicker span {
+        display: inline-block; width: 26px; height: 1px;
+        background: linear-gradient(90deg, var(--neon), rgba(53, 240, 255, 0));
+      }
+      .ai-brand h1 {
+        margin-top: 10px;
+        font-size: 2.05rem; font-weight: 700; letter-spacing: 0.14em; line-height: 1.1;
+        background: linear-gradient(180deg, #ffffff 0%, #b9e6ff 48%, #4a9bff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 2px 10px rgba(0, 24, 60, 0.7));
+      }
+      .ai-brand .ai-sub {
+        margin-top: 8px;
+        font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase;
+        color: rgba(140, 200, 250, 0.6);
+      }
+      .ai-brand .ai-desc {
+        margin-top: 16px; max-width: 286px;
+        font-size: 12px; line-height: 1.85; color: rgba(178, 214, 250, 0.66);
+        border-left: 1px solid var(--line); padding-left: 12px;
+      }
+
+      /* ---------- 右下：指标 ---------- */
+      .ai-meter { position: fixed; bottom: 34px; right: 34px; width: 208px; z-index: 20; pointer-events: none; }
+      .ai-meter-row { margin-top: 14px; }
+      .ai-meter-head {
+        display: flex; justify-content: space-between; align-items: baseline;
+        font-size: 9px; letter-spacing: 0.24em; text-transform: uppercase;
+        color: rgba(140, 196, 246, 0.6);
+      }
+      .ai-meter-value { font-size: 13px; letter-spacing: 0.06em; color: #dff2ff; font-variant-numeric: tabular-nums; }
+      .ai-bar {
+        position: relative; height: 2px; margin-top: 7px;
+        background: rgba(120, 190, 255, 0.14); overflow: hidden;
+      }
+      .ai-bar-fill {
+        position: absolute; inset: 0 auto 0 0; width: 0%;
+        background: linear-gradient(90deg, var(--klein-lit), var(--neon));
+        box-shadow: 0 0 10px rgba(53, 240, 255, 0.6);
+        transition: width 0.18s linear;
+      }
+      .ai-spec {
+        margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line);
+        font-size: 9px; line-height: 1.9; letter-spacing: 0.16em; color: rgba(140, 190, 240, 0.46);
+        text-transform: uppercase;
+      }
+
+      /* ---------- 底部中央：提示 ---------- */
+      .ai-hint {
+        position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+        z-index: 20; pointer-events: none;
+        font-size: 11px; letter-spacing: 0.28em; color: rgba(150, 200, 248, 0.5);
+        animation: ai-breathe 3.4s ease-in-out infinite;
+      }
+      @keyframes ai-breathe { 0%, 100% { opacity: 0.42; } 50% { opacity: 0.92; } }
+
+      /* ---------- 四角装饰 ---------- */
+      .ai-corner { position: fixed; width: 16px; height: 16px; z-index: 10; pointer-events: none; opacity: 0.5; }
+      .ai-corner::before, .ai-corner::after { content: ''; position: absolute; background: rgba(120, 200, 255, 0.5); }
+      .ai-corner::before { width: 100%; height: 1px; }
+      .ai-corner::after { width: 1px; height: 100%; }
+      .ai-corner.tl { top: 18px; left: 18px; }
+      .ai-corner.tr { top: 18px; right: 18px; }
+      .ai-corner.bl { bottom: 18px; left: 18px; }
+      .ai-corner.br { bottom: 18px; right: 18px; }
+      .ai-corner.tr::before, .ai-corner.br::before { right: 0; }
+      .ai-corner.tr::after, .ai-corner.br::after { right: 0; }
+      .ai-corner.bl::before, .ai-corner.br::before { bottom: 0; }
+      .ai-corner.bl::after, .ai-corner.br::after { bottom: 0; }
+
+      /* ---------- WebGPU 不可用兜底 ---------- */
+      #error {
+        position: fixed; inset: 0; display: none; place-items: center;
+        color: #d8e6ff; background: #020306; padding: 32px; text-align: center; z-index: 100;
+      }
+      #error div { max-width: 720px; line-height: 1.6; font-size: 14px; }
+
+      @media (max-width: 900px) {
+        .ai-brand h1 { font-size: 1.55rem; }
+        .ai-brand .ai-desc, .ai-meter { display: none; }
+        .ai-hint { font-size: 10px; letter-spacing: 0.18em; }
+        .ai-nav-item { padding: 7px 12px; }
+        .ai-nav-en { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="app"></canvas>
+
+    <nav class="ai-nav">
+      <ul class="ai-nav-list">
+        <li>
+          <a class="ai-nav-item" href="../index.html">
+            <span class="ai-nav-icon">◈</span>
+            <span class="ai-nav-text">
+              <span class="ai-nav-zh">万物联动</span>
+              <span class="ai-nav-en">Digital Twin World</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="ai-nav-item" href="../park/index.html">
+            <span class="ai-nav-icon">▣</span>
+            <span class="ai-nav-text">
+              <span class="ai-nav-zh">万里科技园</span>
+              <span class="ai-nav-en">Smart Plant Sandbox</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="ai-nav-item" href="../energy/index.html">
+            <span class="ai-nav-icon">⚡</span>
+            <span class="ai-nav-text">
+              <span class="ai-nav-zh">数智能源管理平台</span>
+              <span class="ai-nav-en">Energy Management</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="ai-nav-item" href="../crystal/index.html">
+            <span class="ai-nav-icon">❖</span>
+            <span class="ai-nav-text">
+              <span class="ai-nav-zh">晶体共振矩阵</span>
+              <span class="ai-nav-en">Crystal Resonance</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="ai-nav-item" href="../gears/index.html">
+            <span class="ai-nav-icon">⧗</span>
+            <span class="ai-nav-text">
+              <span class="ai-nav-zh">逆时空齿轮轴</span>
+              <span class="ai-nav-en">Gear Axis</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="ai-nav-item" href="../quantum/index.html">
+            <span class="ai-nav-icon">❋</span>
+            <span class="ai-nav-text">
+              <span class="ai-nav-zh">纠缠之隙</span>
+              <span class="ai-nav-en">Quantum Observatory</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="ai-nav-item" href="../city/index.html">
+            <span class="ai-nav-icon">⬡</span>
+            <span class="ai-nav-text">
+              <span class="ai-nav-zh">万象织网</span>
+              <span class="ai-nav-en">Point Cloud City</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="ai-nav-item is-active" href="./index.html" aria-current="page">
+            <span class="ai-nav-icon">▦</span>
+            <span class="ai-nav-text">
+              <span class="ai-nav-zh">AIoT 联动世界</span>
+              <span class="ai-nav-en">AIoT Connected World</span>
+            </span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <header class="ai-brand">
+      <div class="ai-kicker"><span></span>Scene 08 / AIoT Digital Twin</div>
+      <h1>AIoT 联动世界</h1>
+      <div class="ai-sub">AIoT Connected World</div>
+      <p class="ai-desc">
+        深空数字孪生线框场：机器狗、四旋翼无人机、自动驾驶乘用车与双足机器人依次登场，
+        Bloom 辉光、电影级景深与镜头运镜，呈现设备级 CAD 线框密度。
+      </p>
+    </header>
+
+    <aside class="ai-meter">
+      <div class="ai-meter-row">
+        <div class="ai-meter-head"><span>Stage</span><span class="ai-meter-value" id="ai-stage">—</span></div>
+        <div class="ai-bar"><div class="ai-bar-fill" id="ai-stage-bar"></div></div>
+      </div>
+      <div class="ai-meter-row">
+        <div class="ai-meter-head"><span>Devices</span><span class="ai-meter-value">4</span></div>
+      </div>
+      <div class="ai-spec">
+        WGSL · VGPU Line Wireframe<br />
+        Bloom · Vignette · Cinematic
+      </div>
+    </aside>
+
+    <div class="ai-hint">WebGPU 数字孪生线框 · 设备依次巡场</div>
+
+    <i class="ai-corner tl"></i>
+    <i class="ai-corner tr"></i>
+    <i class="ai-corner bl"></i>
+    <i class="ai-corner br"></i>
+
+    <div id="error"><div id="error-text"></div></div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

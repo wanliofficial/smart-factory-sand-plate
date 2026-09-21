@@ -41,9 +41,15 @@ const NAV_ITEMS = [
     en: 'POINT CLOUD CITY',
     icon: '⬡',
   },
+  {
+    id: 'aiot',
+    zh: 'AIoT 联动世界',
+    en: 'AIOT CONNECTED WORLD',
+    icon: '▦',
+  },
 ]
 
-const SUB_ROUTES = ['park', 'energy', 'crystal', 'gears', 'quantum', 'city']
+const SUB_ROUTES = ['park', 'energy', 'crystal', 'gears', 'quantum', 'city', 'aiot']
 
 export default function SiteNav() {
   const path = window.location.pathname.replace(/index\.html$/, '')
