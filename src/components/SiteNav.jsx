@@ -53,9 +53,15 @@ const NAV_ITEMS = [
     en: 'ELECTRIC LAB',
     icon: '🔌',
   },
+  {
+    id: 'topo',
+    zh: '供热管网',
+    en: 'HEATING NETWORK',
+    icon: '🔥',
+  },
 ]
 
-const SUB_ROUTES = ['park', 'energy', 'crystal', 'gears', 'quantum', 'city', 'aiot', 'electric']
+const SUB_ROUTES = ['park', 'energy', 'crystal', 'gears', 'quantum', 'city', 'aiot', 'electric', 'topo']
 
 export default function SiteNav() {
   const path = window.location.pathname.replace(/index\.html$/, '')

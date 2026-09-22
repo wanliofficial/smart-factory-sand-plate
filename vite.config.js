@@ -27,6 +27,7 @@ export default defineConfig({
         city: resolve(root, 'city/index.html'),
         aiot: resolve(root, 'aiot/index.html'),
         electric: resolve(root, 'electric/index.html'),
+        topo: resolve(root, 'topo/index.html'),
       },
     },
   },

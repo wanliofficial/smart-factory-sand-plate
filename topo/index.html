@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>邯郸市供热管网智能监控中心</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+
+  <style>
+    /* ===== 站点胶囊导航（来自「万物联动」平台，尺寸统一对齐万象织网） ===== */
+    .tp-nav {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+    }
+    .tp-nav-list {
+      display: flex; align-items: center; gap: 4px;
+      margin: 0; padding: 5px 6px; list-style: none;
+      border: 1px solid rgba(0, 217, 255, 0.28);
+      border-radius: 999px;
+      background: rgba(4, 12, 26, 0.6);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+    }
+    .tp-nav-item {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 9px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      color: var(--color-text-dim);
+      text-decoration: none;
+      transition: all 0.22s ease;
+      white-space: nowrap;
+    }
+    .tp-nav-item:hover {
+      color: var(--color-text);
+      background: rgba(0, 217, 255, 0.12);
+      border-color: rgba(0, 217, 255, 0.3);
+    }
+    .tp-nav-item.is-active {
+      color: #fff;
+      background: linear-gradient(180deg, rgba(0, 217, 255, 0.28), rgba(0, 140, 220, 0.16));
+      border-color: rgba(0, 217, 255, 0.55);
+      box-shadow: 0 0 16px rgba(0, 217, 255, 0.25);
+    }
+    .tp-nav-icon { font-size: 11px; line-height: 1; color: #00d9ff; text-shadow: 0 0 12px rgba(0, 217, 255, 0.55); }
+    .tp-nav-item.is-active .tp-nav-icon { color: #b6f6ff; }
+    .tp-nav-text { display: flex; flex-direction: column; line-height: 1.25; }
+    .tp-nav-zh { font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; }
+    .tp-nav-en { display: none; }
+    @media (max-width: 1100px) {
+      .tp-nav-item { padding: 4px 7px; }
+      .tp-nav-zh { font-size: 9.5px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- ===== 站点胶囊导航（第 10 个场景：供热管网） ===== -->
+  <nav class="tp-nav">
+    <ul class="tp-nav-list">
+      <li><a class="tp-nav-item" href="../index.html"><span class="tp-nav-icon">◈</span><span class="tp-nav-text"><span class="tp-nav-zh">万物联动</span><span class="tp-nav-en">Digital Twin World</span></span></a></li>
+      <li><a class="tp-nav-item" href="../park/index.html"><span class="tp-nav-icon">▣</span><span class="tp-nav-text"><span class="tp-nav-zh">万里科技园</span><span class="tp-nav-en">Smart Plant</span></span></a></li>
+      <li><a class="tp-nav-item" href="../energy/index.html"><span class="tp-nav-icon">⚡</span><span class="tp-nav-text"><span class="tp-nav-zh">数智能源</span><span class="tp-nav-en">Energy</span></span></a></li>
+      <li><a class="tp-nav-item" href="../crystal/index.html"><span class="tp-nav-icon">❖</span><span class="tp-nav-text"><span class="tp-nav-zh">晶体共振矩阵</span><span class="tp-nav-en">Crystal</span></span></a></li>
+      <li><a class="tp-nav-item" href="../gears/index.html"><span class="tp-nav-icon">⧗</span><span class="tp-nav-text"><span class="tp-nav-zh">逆时空齿轮轴</span><span class="tp-nav-en">Gear Axis</span></span></a></li>
+      <li><a class="tp-nav-item" href="../quantum/index.html"><span class="tp-nav-icon">❋</span><span class="tp-nav-text"><span class="tp-nav-zh">纠缠之隙</span><span class="tp-nav-en">Quantum</span></span></a></li>
+      <li><a class="tp-nav-item" href="../city/index.html"><span class="tp-nav-icon">⬡</span><span class="tp-nav-text"><span class="tp-nav-zh">万象织网</span><span class="tp-nav-en">Point Cloud City</span></span></a></li>
+      <li><a class="tp-nav-item" href="../aiot/index.html"><span class="tp-nav-icon">▦</span><span class="tp-nav-text"><span class="tp-nav-zh">AIoT 联动世界</span><span class="tp-nav-en">AIoT World</span></span></a></li>
+      <li><a class="tp-nav-item" href="../electric/index.html"><span class="tp-nav-icon">🔌</span><span class="tp-nav-text"><span class="tp-nav-zh">电学实验仿真</span><span class="tp-nav-en">Electric Lab</span></span></a></li>
+      <li><a class="tp-nav-item is-active" href="./index.html" aria-current="page"><span class="tp-nav-icon">🔥</span><span class="tp-nav-text"><span class="tp-nav-zh">供热管网</span><span class="tp-nav-en">Heating Network</span></span></a></li>
+    </ul>
+  </nav>
+
+  <!-- 3D Canvas Container -->
+  <div id="canvas-container"></div>
+  <!-- Label Layer (CSS2DRenderer) -->
+  <div id="label-container"></div>
+
+  <!-- HUD 边框 / 扫描线（背景增强 E，纯装饰叠加，不挡拾取） -->
+  <div id="hud-overlay" aria-hidden="true">
+    <span class="hud-scan"></span>
+  </div>
+
+  <!-- ===== Overlay UI ===== -->
+
+  <!-- Top Title Bar -->
+  <header class="top-bar">
+    <div class="top-bar__left">
+      <span class="status-dot status-dot--online"></span>
+      <span class="top-bar__label">系统在线</span>
+    </div>
+    <h1 class="top-bar__title">邯郸市供热管网智能监控中心</h1>
+    <div class="top-bar__right">
+      <span id="current-time" class="top-bar__time">--:--:--</span>
+      <span class="top-bar__date" id="current-date">----/--/--</span>
+    </div>
+  </header>
+
+  <!-- Left Panel: Overview Metrics -->
+  <aside class="panel panel--left-top">
+    <div class="panel__header">
+      <span class="panel__icon"></span>
+      <span class="panel__title">管网总览</span>
+    </div>
+    <div class="metrics-grid" id="overview-metrics">
+      <!-- Filled by JS -->
+    </div>
+  </aside>
+
+  <!-- Right Panel: Alarms -->
+  <aside class="panel panel--right-top">
+    <div class="panel__header">
+      <span class="panel__icon panel__icon--alarm"></span>
+      <span class="panel__title">实时告警</span>
+      <span class="alarm-badge" id="alarm-count">0</span>
+    </div>
+    <div class="alarm-list" id="alarm-list">
+      <!-- Filled by JS -->
+    </div>
+  </aside>
+
+  <!-- Bottom Left: Temperature Chart -->
+  <aside class="panel panel--left-bottom">
+    <div class="panel__header">
+      <span class="panel__icon"></span>
+      <span class="panel__title">供回水温度趋势</span>
+    </div>
+    <div id="temp-chart" class="chart-container"></div>
+  </aside>
+
+  <!-- Bottom Right: Node Status -->
+  <aside class="panel panel--right-bottom">
+    <div class="panel__header">
+      <span class="panel__icon"></span>
+      <span class="panel__title">节点状态统计</span>
+    </div>
+    <div id="status-chart" class="chart-container"></div>
+  </aside>
+
+  <!-- Node Detail Popup -->
+  <div class="detail-popup" id="detail-popup">
+    <div class="detail-popup__header">
+      <span class="detail-popup__title" id="detail-title">节点详情</span>
+      <button class="detail-popup__close" id="detail-close">&times;</button>
+    </div>
+    <div class="detail-popup__body" id="detail-body"></div>
+  </div>
+
+  <!-- Bottom Legend -->
+  <footer class="legend-bar">
+    <div class="legend-item">
+      <span class="legend-dot legend-dot--supply"></span>
+      <span>供水管道</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot legend-dot--return"></span>
+      <span>回水管道</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot legend-dot--normal"></span>
+      <span>正常</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot legend-dot--warning"></span>
+      <span>预警</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot legend-dot--error"></span>
+      <span>故障</span>
+    </div>
+    <div class="legend-hint">拖拽平移 · 滚轮缩放 · 点击节点查看详情</div>
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
