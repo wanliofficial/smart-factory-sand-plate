@@ -89,8 +89,8 @@ export default function Sandbox() {
         </div>
       )}
 
-      {/* ------- 顶部标题 HUD ------- */}
-      <header className="hud hud--top">
+      {/* ------- 左侧面板：品牌标题 + 返回首页 + 实时状态 + 操作说明 ------- */}
+      <aside className="hud hud--hints">
         <div className="brand">
           <span className="brand__mark" />
           <div>
@@ -98,7 +98,9 @@ export default function Sandbox() {
             <p>SMART AUTOMOTIVE PLANT DIGITAL TWIN</p>
           </div>
         </div>
-        <a className="back-home back-home--light" href="#/">← 返回首页</a>
+        <a className="back-home back-home--light" href="../index.html">
+          ← 返回首页
+        </a>
         <div className="stat">
           <span className="stat__dot" />
           <span>实时在线</span>
@@ -111,10 +113,7 @@ export default function Sandbox() {
           <b>3</b>
           <span>车在途</span>
         </div>
-      </header>
 
-      {/* ------- 左侧操作说明 ------- */}
-      <aside className="hud hud--hints">
         <h2>空间交互</h2>
         <ul>
           <li>
