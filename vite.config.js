@@ -26,6 +26,7 @@ export default defineConfig({
         quantum: resolve(root, 'quantum/index.html'),
         city: resolve(root, 'city/index.html'),
         aiot: resolve(root, 'aiot/index.html'),
+        electric: resolve(root, 'electric/index.html'),
       },
     },
   },

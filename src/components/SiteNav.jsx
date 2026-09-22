@@ -47,9 +47,15 @@ const NAV_ITEMS = [
     en: 'AIOT CONNECTED WORLD',
     icon: '▦',
   },
+  {
+    id: 'electric',
+    zh: '电学实验仿真',
+    en: 'ELECTRIC LAB',
+    icon: '🔌',
+  },
 ]
 
-const SUB_ROUTES = ['park', 'energy', 'crystal', 'gears', 'quantum', 'city', 'aiot']
+const SUB_ROUTES = ['park', 'energy', 'crystal', 'gears', 'quantum', 'city', 'aiot', 'electric']
 
 export default function SiteNav() {
   const path = window.location.pathname.replace(/index\.html$/, '')

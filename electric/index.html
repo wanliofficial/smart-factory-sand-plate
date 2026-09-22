@@ -1,0 +1,2045 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>初中物理电学实验仿真器 · 电流和电路 / 电压和电阻 / 欧姆定律</title>
+<style>
+* { box-sizing: border-box; margin:0; padding:0; }
+:root{
+  --bg:#1a1d24; --panel:#22262f; --panel2:#2a2f3a; --line:#3a4150;
+  --text:#e8ecf3; --muted:#9aa4b5; --accent:#ffb400;
+  --warm:#ff5b5b; --cool:#4fd1c5; --blue:#4d6bd6; --yellow:#ffd166;
+  --green:#4ade80; --red:#f87171;
+}
+html,body{height:100%;font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;overflow:hidden;}
+#app{display:flex;height:100%;}
+#left{width:48px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:6px;}
+.toolbtn{width:36px;height:36px;border:none;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;}
+.toolbtn:hover{background:var(--panel2);color:var(--text);}
+.toolbtn.active{background:var(--accent);color:#1a1d24;}
+#center{flex:1;display:flex;flex-direction:column;min-width:0;}
+#topbar{height:52px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px;gap:16px;}
+#title{font-size:17px;font-weight:700;color:var(--text);white-space:nowrap;}
+#subtitle{font-size:12px;color:var(--muted);}
+#top-actions{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer;transition:.2s;}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn.danger{color:#fda4af;}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;user-select:none;-webkit-user-select:none;background:
+  radial-gradient(ellipse at 30% 20%, #232733 0%, #1a1d24 60%),
+  linear-gradient(180deg,#1e222c,#191c23);}
+#canvas{position:absolute;inset:0;width:100%;height:100%;cursor:default;}
+#statusbar{height:30px;background:var(--panel);border-top:1px solid var(--line);display:flex;align-items:center;padding:0 14px;gap:12px;font-size:12.5px;}
+#statusMsg{color:var(--green);}
+#statusMsg.warn{color:var(--yellow);}
+#statusMsg.err{color:var(--red);}
+#statTable{color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums;}
+#hint{color:#6b7485;}
+#right{width:150px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;}
+#right-head{padding:10px 12px 6px;font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--line);}
+#device-list{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:8px;}
+.devcate{font-size:11px;color:#8b93a3;margin:4px 0 0;padding:2px 4px;}
+.devcard{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 4px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;cursor:grab;user-select:none;transition:.15s;}
+.devcard:hover{border-color:var(--accent);transform:translateY(-1px);}
+.devcard:active{cursor:grabbing;}
+.devcard .dname{font-size:12px;color:var(--text);}
+.devcard svg{width:90px;height:50px;}
+.pop{position:absolute;background:#2b303c;border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:0 8px 28px rgba(0,0,0,.45);z-index:50;min-width:180px;}
+.pop h4{font-size:13px;color:var(--accent);margin-bottom:8px;}
+.pop .row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:5px 0;font-size:12.5px;color:var(--text);}
+.pop label{color:var(--muted);}
+.pop input[type="range"]{width:110px;}
+.pop .val{color:var(--yellow);font-variant-numeric:tabular-nums;}
+.pop button{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;}
+.pop button:hover{border-color:var(--accent);color:var(--accent);}
+.pop .seg{display:flex;gap:4px;margin-top:4px;}
+.pop .seg button{flex:1;padding:4px 0;font-size:12px;}
+.pop .seg button.on{background:var(--accent);color:#1a1d24;border-color:var(--accent);}
+#expmenu{position:absolute;top:56px;left:16px;background:#2b303c;border:1px solid var(--line);border-radius:10px;padding:12px;width:350px;max-height:80%;overflow-y:auto;box-shadow:0 8px 28px rgba(0,0,0,.45);z-index:60;display:none;}
+#expmenu.open{display:block;}
+#expmenu h4{margin-bottom:8px;color:var(--accent);font-size:13px;}
+.expgroup{margin-bottom:10px;}
+.expgroup .gt{font-size:11.5px;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:4px;margin-bottom:5px;}
+.expi{display:flex;gap:10px;align-items:flex-start;padding:7px 8px;border-radius:7px;cursor:pointer;transition:.12s;}
+.expi:hover{background:var(--panel2);}
+.expi .ic{font-size:18px;line-height:1.4;}
+.expi .t{font-size:12.5px;color:var(--text);}
+.expi .d{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4;}
+#toast{position:absolute;top:60px;left:50%;transform:translateX(-50%);background:rgba(30,33,42,.96);border:1px solid var(--line);padding:9px 18px;border-radius:9px;font-size:13px;color:var(--text);box-shadow:0 6px 20px rgba(0,0,0,.4);z-index:70;opacity:0;transition:opacity .3s;pointer-events:none;max-width:80%;}
+#toast.show{opacity:1;}
+#bottom-bar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px;z-index:40;}
+#bottom-bar .bbtn{background:transparent;border:none;color:var(--muted);font-size:17px;padding:4px 8px;border-radius:6px;cursor:pointer;font-family:"PingFang SC","Microsoft YaHei",sans-serif;}
+#bottom-bar .bbtn:hover{color:var(--text);background:var(--panel2);}
+#bottom-bar .bbtn.on{color:var(--accent); background:rgba(255,180,0,.12);}
+
+      /* ---------- 场景导航（电学实验仿真器） ---------- */
+      .el-nav{position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:300;}
+      .el-nav-list{display:flex;align-items:center;gap:4px;margin:0;padding:5px;list-style:none;
+        border:1px solid #3a4150;border-radius:999px;background:rgba(34,38,47,.72);
+        backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 8px 24px rgba(0,0,0,.45);}
+      .el-nav-item{display:flex;align-items:center;gap:8px;padding:7px 14px;border:1px solid transparent;
+        border-radius:999px;color:#9aa4b5;text-decoration:none;font-size:13px;transition:all .2s;}
+      .el-nav-item:hover{color:#e8ecf3;background:rgba(255,180,0,.12);border-color:rgba(255,180,0,.32);}
+      .el-nav-item.is-active{color:#1a1d24;background:#ffb400;border-color:#ffb400;font-weight:600;}
+      .el-nav-icon{font-size:15px;line-height:1;color:#ffb400;}
+      .el-nav-item.is-active .el-nav-icon{color:#1a1d24;}
+      .el-nav-text{display:flex;flex-direction:column;line-height:1.2;}
+      .el-nav-zh{font-size:13px;font-weight:600;letter-spacing:.04em;}
+      .el-nav-en{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#6b7485;}
+      .el-nav-item.is-active .el-nav-en{color:rgba(26,29,36,.78);}
+    </style>
+</head>
+<body>
+<div id="app">
+  <div id="left">
+    <button class="toolbtn" title="清空" onclick="clearAll()">清空</button>
+    <button class="toolbtn" title="连线" id="tb-wire" onclick="setTool('wire')">➖</button>
+    <button class="toolbtn" title="删除" id="tb-del" onclick="setTool('delete')">✖️</button>
+    <button class="toolbtn active" title="移动/操作" id="tb-move" onclick="setTool('move')">🖐️</button>
+    <button class="toolbtn" title="典型实验" onclick="toggleExp()">🧪</button>
+    <button class="toolbtn" title="帮助" onclick="showHelp()">❓</button>
+  </div>
+  <div id="center">
+    <div id="topbar">
+      <div id="title">物理电学实验仿真器</div>
+      <div id="subtitle">电流和电路 · 电压和电阻 · 欧姆定律（人教版九年级）</div>
+      <div id="top-actions">
+        <button class="btn" onclick="toggleExp()" id="exp-btn">🧪 典型实验</button>
+        <button class="btn" onclick="showHelp()">❓ 使用说明</button>
+        <button class="btn danger" onclick="clearAll()">🗑️ 清空</button>
+      </div>
+    </div>
+    <div id="canvas-wrap">
+      <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="expmenu"></div>
+      <div id="toast"></div>
+      <div id="bottom-bar">
+        <button class="bbtn" id="btn-play" title="电流流动动画开关" onclick="togglePlay()">⏸</button>
+        <button class="bbtn" title="缩小" onclick="setZoom(-0.1)">−</button>
+        <button class="bbtn" title="放大" onclick="setZoom(0.1)">＋</button>
+        <button class="bbtn" title="复位视图" onclick="resetView()">⬛</button>
+      </div>
+    </div>
+    <div id="statusbar">
+      <span id="statusMsg">就绪</span>
+      <span id="statTable"></span>
+      <span id="hint">拖设备入画布 · 拖端子接线 · 点开关通断 · 右键设置</span>
+    </div>
+  </div>
+  <div id="right">
+    <div id="right-head">设备栏 · 拖入画布</div>
+    <div id="device-list"></div>
+  </div>
+</div>
+<script>
+/* ================================================================
+   初中物理电学实验仿真器 —— 电路求解内核（已验证）
+   兼容浏览器（挂 window.CircuitCore）与非浏览器（CommonJS）
+   ================================================================ */
+(function(global){
+'use strict';
+
+/* ---------- MNA 求解器 ---------- */
+function gauss(A, z){
+  const n = A.length;
+  const M = A.map((row,i)=>row.concat([z[i]]));
+  for(let col=0; col<n; col++){
+    let piv=-1;
+    for(let r=col; r<n; r++) if(Math.abs(M[r][col])>1e-12){piv=r;break;}
+    if(piv===-1) return null;
+    if(piv!==col){const t=M[piv];M[piv]=M[col];M[col]=t;}
+    const pv=M[col][col];
+    for(let c=col;c<=n;c++) M[col][c]/=pv;
+    for(let r=0;r<n;r++){
+      if(r!==col && Math.abs(M[r][col])>1e-12){
+        const f=M[r][col];
+        for(let c=col;c<=n;c++) M[r][c]-=f*M[col][c];
+      }
+    }
+  }
+  return M.map(row=>row[n]);
+}
+
+const MNA = {
+  solve(elements){
+    const nodes=new Set();
+    for(const e of elements){nodes.add(e.n1);nodes.add(e.n2);}
+    if(nodes.size===0) return {ok:false,err:'电路中没有任何元件',cause:'empty'};
+    const cnt={}; nodes.forEach(n=>cnt[n]=0);
+    for(const e of elements){if(cnt[e.n1]!==undefined)cnt[e.n1]++;if(cnt[e.n2]!==undefined)cnt[e.n2]++;}
+    let ref=[...nodes][0], max=-1;
+    nodes.forEach(n=>{if(cnt[n]>max){max=cnt[n];ref=n;}});
+    const rest=[...nodes].filter(n=>n!==ref);
+    const idxOf={}; rest.forEach((n,i)=>idxOf[n]=i);
+    const nv=elements.filter(e=>e.kind==='V').length;
+    const size=rest.length+nv;
+    const A=Array.from({length:size},()=>Array(size).fill(0));
+    const z=Array(size).fill(0);
+    const row=n=>(n===ref?-1:idxOf[n]);
+    const vsIndex={}; let vi=0;
+    for(const e of elements) if(e.kind==='V'){vsIndex[e.id]=rest.length+vi;vi++;}
+    for(const e of elements){
+      const r1=row(e.n1), r2=row(e.n2);
+      if(e.kind==='R'){
+        const g=1/e.value;
+        if(r1>=0)A[r1][r1]+=g;
+        if(r2>=0)A[r2][r2]+=g;
+        if(r1>=0&&r2>=0){A[r1][r2]-=g;A[r2][r1]-=g;}
+      } else if(e.kind==='V'){
+        const viB=vsIndex[e.id];
+        if(r1>=0)A[r1][viB]+=1;
+        if(r2>=0)A[r2][viB]-=1;
+        const vr=viB;
+        z[vr]+=e.value;
+        if(r1>=0)A[vr][r1]+=1;
+        if(r2>=0)A[vr][r2]-=1;
+      }
+    }
+    const x=gauss(A,z);
+    if(x===null) return {ok:false,err:'电路结构导致方程无唯一解',cause:'singular'};
+    const V={}; V[ref]=0;
+    rest.forEach((n,i)=>V[n]=x[i]);
+    const branches=[];
+    for(const e of elements){
+      if(e.kind==='R') branches.push({id:e.id,kind:'R',n1:e.n1,n2:e.n2,i:(V[e.n1]-V[e.n2])/e.value});
+      else branches.push({id:e.id,kind:'V',n1:e.n1,n2:e.n2,i:x[vsIndex[e.id]]});
+    }
+    return {ok:true,V,branches,ref};
+  },
+  topology(elements){
+    const parent={};
+    const find=a=>{while(parent[a]!==a)a=parent[a]=parent[parent[a]];return a;};
+    const union=(a,b)=>{const ra=find(a),rb=find(b);if(ra!==rb)parent[ra]=rb;};
+    const allNodes=new Set();
+    elements.forEach(e=>{allNodes.add(e.n1);allNodes.add(e.n2);});
+    allNodes.forEach(n=>parent[n]=n);
+    const THRESH=1e-4;
+    elements.forEach(e=>{if(e.kind==='R'&&e.value<=THRESH)union(e.n1,e.n2);});
+    let short=false;
+    elements.forEach(e=>{if(e.kind==='V'&&e.value>0){if(find(e.n1)===find(e.n2))short=true;}});
+    const group={}; allNodes.forEach(n=>group[n]=find(n));
+    return {short,group};
+  }
+};
+
+/* ---------- 设备模型 ---------- */
+const DEFAULTS={battery:1.5,batteryPack:3.0,bulb:10,resistor:10,rheostatMax:20};
+const WIRE_R=0.01, OPEN_R=1e12, VM_R=1e8, BLEED=1e9, SHORT_I=2.0;
+
+function deviceElements(dev){
+  const els=[], N=t=>dev.id+':'+t;
+  switch(dev.kind){
+    case 'battery'      : els.push({id:dev.id+'_src',kind:'V',n1:N('ri'),n2:N('p1'),value:dev.v??DEFAULTS.battery});
+                          els.push({id:dev.id+'_Ri',kind:'R',n1:N('p2'),n2:N('ri'),value:Math.max(dev.ri??0.03,0.005)}); break;
+    case 'batteryPack'  : els.push({id:dev.id+'_src',kind:'V',n1:N('ri'),n2:N('p1'),value:dev.v??DEFAULTS.batteryPack});
+                          els.push({id:dev.id+'_Ri',kind:'R',n1:N('p2'),n2:N('ri'),value:Math.max(dev.ri??0.03,0.005)}); break;
+    case 'switch'       : els.push({id:dev.id+'_sw',kind:'R',n1:N('t1'),n2:N('t2'),value:dev.closed?WIRE_R:OPEN_R}); break;
+    case 'spdt'         : if(dev.sel==='A'){els.push({id:dev.id+'_sA',kind:'R',n1:N('c'),n2:N('a'),value:WIRE_R});
+                          els.push({id:dev.id+'_sB',kind:'R',n1:N('c'),n2:N('b'),value:OPEN_R});}
+                          else{els.push({id:dev.id+'_sA',kind:'R',n1:N('c'),n2:N('a'),value:OPEN_R});
+                          els.push({id:dev.id+'_sB',kind:'R',n1:N('c'),n2:N('b'),value:WIRE_R});} break;
+    case 'rheostat'     : {const p=Math.min(1,Math.max(0,dev.pos??0.5));
+                          const blown=!!dev.fuseBlown;
+                          els.push({id:dev.id+'_rAC',kind:'R',n1:N('A'),n2:N('C'),value:blown?OPEN_R:p*(dev.rmax??DEFAULTS.rheostatMax)+WIRE_R});
+                          els.push({id:dev.id+'_rCB',kind:'R',n1:N('C'),n2:N('B'),value:blown?OPEN_R:(1-p)*(dev.rmax??DEFAULTS.rheostatMax)+WIRE_R});} break;
+    case 'bulb'         : {let v=dev.r??DEFAULTS.bulb;
+                          if(dev.fault==='open')v=OPEN_R;             // 断路设置
+                          else if(dev.fault==='short')v=WIRE_R;       // 短路设置
+                          els.push({id:dev.id+'_r',kind:'R',n1:N('t1'),n2:N('t2'),value:v});} break;
+    case 'motor'        : els.push({id:dev.id+'_r',kind:'R',n1:N('p1'),n2:N('p2'),value:Math.max(dev.mr??20,0.1)}); break;
+    case 'resistor'     : els.push({id:dev.id+'_r',kind:'R',n1:N('p1'),n2:N('p2'),value:dev.r??DEFAULTS.resistor}); break;
+    /* 电表三接线柱：p1=负极(−)，p2=小量程，p3=大量程。小量程内阻可设，未接线柱浮动（无电流） */
+    case 'ammeter'      : {const r1=dev.burned?OPEN_R:Math.max(dev.amR??0,WIRE_R);
+                          els.push({id:dev.id+'_r',kind:'R',n1:N('p1'),n2:N('p2'),value:r1});
+                          els.push({id:dev.id+'_r2',kind:'R',n1:N('p1'),n2:N('p3'),value:dev.burned?OPEN_R:WIRE_R});} break;
+    case 'voltmeter'    : {const r1=(dev.vmR??-1)<0?VM_R:dev.vmR;   // -1=理想
+                          els.push({id:dev.id+'_r',kind:'R',n1:N('p1'),n2:N('p2'),value:r1});
+                          els.push({id:dev.id+'_r2',kind:'R',n1:N('p1'),n2:N('p3'),value:VM_R});} break;
+  }
+  return els;
+}
+
+function solvePass(devices, wires){
+  const elements=[];
+  for(const d of devices) elements.push(...deviceElements(d));
+  for(const w of wires) elements.push({id:w.id,kind:'R',n1:w.from,n2:w.to,value:w.open?OPEN_R:(w.res>0?w.res:WIRE_R)});
+  const nodes=new Set();
+  for(const e of elements){nodes.add(e.n1);nodes.add(e.n2);}
+  const gnd='GND';
+  for(const n of nodes) elements.push({id:'bleed_'+n+'_'+Math.random().toString(36).slice(2,6),kind:'R',n1:n,n2:gnd,value:BLEED});
+  const topo=MNA.topology(elements);
+  const res=MNA.solve(elements);
+  const readings={}, branchById={}, meterRange={};
+  /* 电表量程判定：p3（大量程柱）有导线连接即用大量程 */
+  const hasWire=key=>wires.some(w=>w.from===key||w.to===key);
+  let srcCurrent=0;
+  const srcs=new Set();
+  for(const d of devices) if(d.kind==='battery'||d.kind==='batteryPack') srcs.add(d.id+'_src');
+  if(res.ok){ for(const b of res.branches) branchById[b.id]=b.i;
+    for(const b of res.branches) if(b.kind==='V'&&srcs.has(b.id)) srcCurrent-=b.i; }
+  for(const d of devices){
+    const N=t=>d.id+':'+t;
+    if(d.kind==='ammeter'){
+      /* 带符号读数：内部支路定义为 p1(黑)→p2/p3(红)，i>0 表示电流从黑柱流入=反接。
+         取负号后：正=红进黑出（正常偏转），负=黑进红出（指针反偏） */
+      const i1=branchById[d.id+'_r'], i2=branchById[d.id+'_r2'];
+      let i=0;
+      if(i1&&isFinite(i1))i+=i1;
+      if(i2&&isFinite(i2))i+=i2;
+      readings[d.id]=-i;
+      meterRange[d.id]=hasWire(d.id+':p3')?'hi':'lo';
+    }
+    else if(d.kind==='voltmeter'){
+      /* 带符号电压：正=红柱端电位高（正常偏转），负=反接（指针反偏） */
+      const useHi=hasWire(d.id+':p3');
+      const dv=(res.V?.[d.id+(useHi?':p3':':p2')]??0)-(res.V?.[d.id+':p1']??0);
+      readings[d.id]=res.ok?dv:0;
+      meterRange[d.id]=useHi?'hi':'lo';
+    }
+    else if(d.kind==='bulb'){let p=0,cur=0,v=0;const i=branchById[d.id+'_r'];const R=d.r??DEFAULTS.bulb;
+      if(res.ok&&isFinite(i)&&Math.abs(i)>1e-9){cur=Math.abs(i);v=Math.abs((res.V?.[N('t1')]??0)-(res.V?.[N('t2')]??0));p=cur*cur*R;}
+      readings[d.id]={p,cur,v};}
+    else if(d.kind==='motor'){const i=branchById[d.id+'_r'];
+      readings[d.id]={cur:(i&&isFinite(i)&&res.ok)?Math.abs(i):0};}
+  }
+  return {res,topo,readings,branchById,meterRange,srcCurrent,elements};
+}
+
+function buildCircuit(devices, wires){
+  /* 故障开关条件被关闭后自动复位 */
+  for(const d of devices){
+    if(d.kind==='rheostat'&&!d.fuseOn)d.fuseBlown=false;
+    if(d.kind==='ammeter'&&!d.burnOn)d.burned=false;
+  }
+  let out=null;
+  /* 求解 → 检测熔断/过载烧毁 → 若有新触发则以故障态重解（最多 3 轮） */
+  for(let pass=0;pass<3;pass++){
+    out=solvePass(devices,wires);
+    let tripped=false;
+    if(out.res.ok){
+      for(const d of devices){
+        if(d.kind==='rheostat'&&d.fuseOn&&!d.fuseBlown){
+          const i=Math.max(Math.abs(out.branchById[d.id+'_rAC']||0),Math.abs(out.branchById[d.id+'_rCB']||0));
+          if(i>(d.fuseI??2)+1e-9){d.fuseBlown=true;tripped=true;}
+        } else if(d.kind==='ammeter'&&d.burnOn&&!d.burned){
+          const sc=(out.meterRange[d.id]==='hi')?3:0.6;
+          if(Math.abs(out.readings[d.id]||0)>sc+1e-6){d.burned=true;tripped=true;}   // 反接过载同样烧毁
+        }
+      }
+    }
+    if(!tripped)break;
+  }
+  const {res,topo,readings,meterRange,srcCurrent,elements}=out;
+  const fuseHit=devices.some(d=>d.kind==='rheostat'&&d.fuseBlown);
+  const burnHit=devices.some(d=>d.kind==='ammeter'&&d.burned);
+  let status;
+  if(!res.ok) status={type:'error',msg:'电路结构异常，无法求解'};
+  else if(topo.short) status={type:'short',msg:'短路！电源被导线直接短接，电流过大，请断开电源'};
+  else if(fuseHit&&burnHit) status={type:'warn',msg:'滑动变阻器已熔断、电流表已烧毁！请排查后复位故障'};
+  else if(fuseHit) status={type:'warn',msg:'通过滑动变阻器的电流超过熔断电流，已熔断！'};
+  else if(burnHit) status={type:'warn',msg:'电流过载，电流表已烧毁！'};
+  else{const totalI=Math.abs(srcCurrent);
+    if(totalI<1e-6) status={type:'open',msg:'断路：电路未接通，电流为0，请检查连接'};
+    else if(totalI>SHORT_I) status={type:'short',msg:'电流过大（约 '+totalI.toFixed(1)+'A），疑似短路，请检查'};
+    else status={type:'ok',msg:'电路正常工作；干路电流 I≈'+totalI.toFixed(2)+'A'};}
+  const energized=new Set();
+  if(res.ok) for(const b of res.branches) if(Math.abs(b.i)>0.01) energized.add(b.id);
+  const wirePowered={};
+  for(const w of wires) wirePowered[w.id]=energized.has(w.id)&&!w.open;
+  return {ok:res.ok,V:res.V,elements,readings,branches:res.branches,status,srcCurrent,wirePowered,topo,meterRange};
+}
+
+const core={ MNA, buildCircuit, DEFAULTS, WIRE_R, OPEN_R, VM_R, SHORT_I };
+
+global.CircuitCore=core;
+})(typeof window!=='undefined'?window:globalThis);
+
+</script>
+<script>
+/* ================================================================
+   典型实验库 —— 人教版九年级 15/16/17 章
+   API 约定：
+     api.reset()                      清空
+     api.dev(kind,x,y)                放置设备，返回 {dev, term:{端子名:端点对象}}
+     api.batt(kind,x,y,v)             放置电源（设置电压）
+     api.wire(endpointA, endpointB)   连线（端点对象）
+     api.node(x,y)                    开放连接点（分支），返回端点对象
+     api.clue(msg)                    显示提示
+   ================================================================ */
+(function(){
+'use strict';
+const EXP=window.EXP=[];
+function def(opts){EXP.push(opts);}
+/* ================= 第15章 电流和电路 ================= */
+def({
+  id:'sw1', title:'连接简单的串联电路',
+  desc:'电池+开关+两灯串联', ic:'🔗',
+  build(api){
+    api.reset();
+    const b=api.batt('battery',120,320,3);
+    const sw=api.dev('switch',380,220);
+    sw.dev.closed=true;
+    const l1=api.dev('bulb',620,220);
+    const l2=api.dev('bulb',620,420);
+    api.wire(b.term.p2, sw.term.t1);
+    api.wire(sw.term.t2, l1.term.t1);
+    api.wire(l1.term.t2, l2.term.t1);
+    api.wire(l2.term.t2, b.term.p1);
+    api.clue('串联电路中电流处处相等；开关控制整个电路通断。');
+  }
+});
+def({
+  id:'sw2', title:'连接简单的并联电路',
+  desc:'电池(3V)+开关+两灯并联', ic:'🔀',
+  build(api){
+    api.reset();
+    const b=api.batt('battery',100,300,3);
+    const sw=api.dev('switch',320,300);
+    sw.dev.closed=true;
+    const l1=api.dev('bulb',620,180);
+    const l2=api.dev('bulb',620,420);
+    // 全部用接线柱直连（l1.t1 / l2.t2 即分支点），导线随设备移动
+    api.wire(b.term.p2, sw.term.t1);
+    api.wire(sw.term.t2, l1.term.t1);
+    api.wire(l1.term.t1, l2.term.t1);
+    api.wire(l1.term.t2, l2.term.t2);
+    api.wire(l2.term.t2, b.term.p1);
+    api.clue('并联电路各支路互不影响；干路电流等于各支路电流之和。');
+  }
+});
+def({
+  id:'sw3', title:'用电流表测串联电路电流',
+  desc:'电池+电流表+灯 串联，量程0.6A', ic:'🧾',
+  build(api){
+    api.reset();
+    const b=api.batt('battery',110,300,3);
+    const am=api.dev('ammeter',390,240);
+    const l=api.dev('bulb',650,240);
+    /* 电流表「红进黑出」：电流从电池正极 → 红柱(p2) 流入，黑柱(p1) 流出 */
+    api.wire(b.term.p2, am.term.p2);
+    api.wire(am.term.p1, l.term.t1);
+    api.wire(l.term.t2, b.term.p1);
+    api.clue('电流表应串联接入；电流必须从红柱流入、黑柱流出（红进黑出），读数就是流过灯泡的电流。');
+  }
+});
+def({
+  id:'sw4', title:'探究并联电路各支路电流规律',
+  desc:'电池+两灯并联，各支路、干路各串电流表', ic:'Σ',
+  build(api){
+    api.reset();
+    const b=api.batt('battery',90,310,3);
+    const am1=api.dev('ammeter',470,180);
+    const l1=api.dev('bulb',650,180);
+    const am2=api.dev('ammeter',470,380);
+    const l2=api.dev('bulb',650,380);
+    // 全部用接线柱直连（am1.p2 / l1.t2 即分支点），导线随设备移动
+    // 「红进黑出」：干路分支点在两表红柱(p2)，各表黑柱(p1)出线到对应灯泡
+    api.wire(b.term.p2, am1.term.p2);
+    api.wire(am1.term.p2, am2.term.p2);
+    api.wire(am1.term.p1, l1.term.t1);
+    api.wire(am2.term.p1, l2.term.t1);
+    api.wire(l1.term.t2, l2.term.t2);
+    api.wire(l2.term.t2, b.term.p1);
+    api.clue('并联电路：干路电流等于各支路电流之和（I总=I₁+I₂）。');
+  }
+});
+/* ================= 第16章 电压和电阻 ================= */
+def({
+  id:'sw5', title:'用电压表测灯泡电压',
+  desc:'电池+灯，电压表并联在灯两端', ic:'V',
+  build(api){
+    api.reset();
+    const b=api.batt('battery',130,300,3);
+    const l=api.dev('bulb',430,300);
+    const vm=api.dev('voltmeter',300,120);
+    api.wire(b.term.p2, l.term.t1);
+    api.wire(l.term.t2, b.term.p1);
+    /* 电压表「红进黑出」：红柱(p2)接高电位端(靠近电源正极)，黑柱(p1)接低电位端 */
+    api.wire(vm.term.p2, l.term.t1);
+    api.wire(vm.term.p1, l.term.t2);
+    api.clue('电压表应并联在被测用电器两端；红柱（正）接靠近电源正极的一端，黑柱接另一端。');
+  }
+});
+def({
+  id:'sw6', title:'探究串联电路电压规律',
+  desc:'电池+两灯串联，电压表测灯电压', ic:'ΣV',
+  build(api){
+    api.reset();
+    const b=api.batt('battery',90,330,3);
+    const l1=api.dev('bulb',360,240);
+    const l2=api.dev('bulb',630,240);
+    const vm=api.dev('voltmeter',330,100);
+    api.wire(b.term.p2, l1.term.t1);
+    api.wire(l1.term.t2, l2.term.t1);
+    api.wire(l2.term.t2, b.term.p1);
+    /* 电压表「红进黑出」：红柱(p2)接高电位端 l1.t1，黑柱(p1)接低电位端 l1.t2 */
+    api.wire(vm.term.p2, l1.term.t1);
+    api.wire(vm.term.p1, l1.term.t2);
+    api.clue('串联电路：总电压等于各部分电压之和（U总=U₁+U₂）。');
+  }
+});
+def({
+  id:'sw7', title:'练习使用滑动变阻器',
+  desc:'电池+滑动变阻器+灯泡，调滑片改变亮度', ic:'↕️',
+  build(api){
+    api.reset();
+    const b=api.batt('battery',100,320,3);
+    const rh=api.dev('rheostat',380,250);
+    rh.dev.pos=0.5; rh.dev.rmax=20;
+    const l=api.dev('bulb',680,250);
+    // 一上一下：A(下)-电源, C(上)-灯
+    api.wire(b.term.p2, rh.term.A);
+    api.wire(rh.term.C, l.term.t1);
+    api.wire(l.term.t2, b.term.p1);
+    api.clue('「一上一下」接线：移动滑片改变接入电阻→改变电流→改变灯泡亮度。');
+  }
+});
+def({
+  id:'sw8', title:'探究影响导体电阻大小的因素',
+  desc:'控制变量：不同阻值定值电阻，观察电流变化', ic:'R',
+  build(api){
+    api.reset();
+    const b=api.batt('battery',110,320,3);
+    const r=api.dev('resistor',400,240); r.dev.r=5;
+    const v=api.dev('voltmeter',400,90);
+    const am=api.dev('ammeter',650,240);
+    /* 电流表串联：电流 r.p2 → 红柱(p2) 进、黑柱(p1) 出 → 电源负极
+       电压表并联在 R 两端：红柱(p2)接高电位端 r.p1，黑柱(p1)接低电位端 r.p2 */
+    api.wire(b.term.p2, r.term.p1);
+    api.wire(r.term.p2, am.term.p2);
+    api.wire(am.term.p1, b.term.p1);
+    api.wire(v.term.p2, r.term.p1);
+    api.wire(v.term.p1, r.term.p2);
+    api.clue('电阻大小与材料、长度、横截面积、温度有关；可用电流表间接比较（控制变量法）。');
+  }
+});
+/* ================= 第17章 欧姆定律 ================= */
+def({
+  id:'sw9', title:'探究电流与电压的关系（R一定）',
+  desc:'R=10Ω，调滑片，测多组U、I', ic:'I∝U',
+  build(api){
+    api.reset();
+    const b=api.batt('battery',80,340,3);
+    const rh=api.dev('rheostat',300,270); rh.dev.rmax=50; rh.dev.pos=0.6;
+    const r=api.dev('resistor',540,270); r.dev.r=10;
+    const v=api.dev('voltmeter',540,90);
+    const am=api.dev('ammeter',720,270);
+    /* 电流表串联「红进黑出」：r.p2 → 红柱(p2) 进、黑柱(p1) 出 → 电源负极
+       电压表并联在定值电阻两端：红柱(p2)接高电位端 r.p1，黑柱(p1)接低电位端 r.p2 */
+    api.wire(b.term.p2, rh.term.A);
+    api.wire(rh.term.C, r.term.p1);
+    api.wire(r.term.p2, am.term.p2);
+    api.wire(am.term.p1, b.term.p1);
+    api.wire(v.term.p2, r.term.p1);
+    api.wire(v.term.p1, r.term.p2);
+    api.clue('电阻一定时，电流与电压成正比（I=U/R）。变阻器用于改变电阻两端电压。');
+  }
+});
+def({
+  id:'sw10', title:'探究电流与电阻的关系（U一定）',
+  desc:'换不同电阻，调滑片保持R两端U不变', ic:'I∝1/R',
+  build(api){
+    api.reset();
+    const b=api.batt('batteryPack',90,340,6);
+    const rh=api.dev('rheostat',300,280); rh.dev.rmax=100; rh.dev.pos=0.7;
+    const r=api.dev('resistor',540,280); r.dev.r=5;
+    const v=api.dev('voltmeter',540,90);
+    const am=api.dev('ammeter',720,280);
+    /* 电流表串联「红进黑出」：r.p2 → 红柱(p2) 进、黑柱(p1) 出 → 电源负极
+       电压表并联在定值电阻两端：红柱(p2)接高电位端 r.p1，黑柱(p1)接低电位端 r.p2 */
+    api.wire(b.term.p2, rh.term.A);
+    api.wire(rh.term.C, r.term.p1);
+    api.wire(r.term.p2, am.term.p2);
+    api.wire(am.term.p1, b.term.p1);
+    api.wire(v.term.p2, r.term.p1);
+    api.wire(v.term.p1, r.term.p2);
+    api.clue('电压一定时，电流与电阻成反比。变阻器用来保持电阻两端电压不变。');
+  }
+});
+def({
+  id:'sw11', title:'伏安法测电阻',
+  desc:'电流表+电压表测定值电阻R', ic:'⌒',
+  build(api){
+    api.reset();
+    const b=api.batt('battery',120,340,4.5);
+    const rh=api.dev('rheostat',300,260); rh.dev.rmax=50; rh.dev.pos=0.5;
+    const r=api.dev('resistor',560,260); r.dev.r=10;
+    const v=api.dev('voltmeter',560,90);
+    const am=api.dev('ammeter',740,260);
+    /* 电流表串联「红进黑出」：r.p2 → 红柱(p2) 进、黑柱(p1) 出 → 电源负极
+       电压表并联在定值电阻两端：红柱(p2)接高电位端 r.p1，黑柱(p1)接低电位端 r.p2 */
+    api.wire(b.term.p2, rh.term.A);
+    api.wire(rh.term.C, r.term.p1);
+    api.wire(r.term.p2, am.term.p2);
+    api.wire(am.term.p1, b.term.p1);
+    api.wire(v.term.p2, r.term.p1);
+    api.wire(v.term.p1, r.term.p2);
+    api.clue('R=U/I。调节滑片多次测量取平均值可减小误差。');
+  }
+});
+def({
+  id:'sw12', title:'短路危害演示',
+  desc:'电池两端用导线直接相连（切勿模仿）', ic:'⚠️',
+  build(api){
+    api.reset();
+    const b=api.batt('battery',300,180,3);
+    api.wire(b.term.p2, b.term.p1);
+    api.clue('电源被导线直接短接→短路，电流极大，会烧坏电源。请勿在真实电路中如此操作！');
+  }
+});
+})();
+
+</script>
+<script>
+/* ================================================================
+   初中物理电学实验仿真器 —— 主逻辑（布线+交互+动画+实验加载）
+   依赖 window.CircuitCore（core.js 内联）, window.EXP（experiments 内联）
+   ================================================================ */
+(function(){
+'use strict';
+const CORE = window.CircuitCore;
+if(!CORE){ document.body.innerHTML='<p style="color:#f87171;font-size:16px;padding:20px">电路内核加载失败</p>'; return; }
+const { buildCircuit } = CORE;
+
+/* ===== 常量 ===== */
+const W=1000,H=640;
+const C={ warm:'#ff5b5b', hot:'#e05252', yellow:'#ffd166', wireOff:'#8a5a5a' };
+const GRID=20;
+const SNAP_R=22;          // 连线松手时的接线柱磁吸半径
+const WIRE_HIT_R=12;      // 删除工具的导线命中半径
+
+/* ===== 状态 ===== */
+const state={ devices:[], wires:[], nodes:[], result:null, tool:'move', running:true, animT:0, drag:null, wiring:null, selectedDev:null, hover:null, zoom:1, pan:{x:0,y:0} };
+let seq=0; const nid=()=>'d'+(++seq);
+const movingDots=[];
+
+const canvas=document.getElementById('canvas');
+const statusMsg=document.getElementById('statusMsg');
+const statTable=document.getElementById('statTable');
+canvas.setAttribute('viewBox',`0 0 ${W} ${H}`); canvas.setAttribute('preserveAspectRatio','xMidYMid meet');
+const NS='http://www.w3.org/2000/svg';
+const NS_HTML='http://www.w3.org/1999/xhtml';
+const HTML_TAGS=new Set(['div','span','h4','button','label','input','option','select','p','a','small','b']);
+function el(t,a,p){
+  const e=document.createElementNS(HTML_TAGS.has(t)?NS_HTML:NS,t);
+  for(const k in a)e.setAttribute(k,a[k]);
+  if(p)p.appendChild(e);
+  return e;
+}
+function clearNode(n){while(n.firstChild)n.removeChild(n.firstChild);}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function find(arr,pred){for(let i=0;i<arr.length;i++)if(pred(arr[i]))return arr[i];return null;}
+
+/* ===== 设备类型（外观参考《物理实验.mp4》：金属底板 + 红/黑接线柱） ===== */
+const DEV_TYPES={switch:{name:'开关',cat:'控制器件',size:[96,44]},spdt:{name:'双掷开关',cat:'控制器件',size:[110,52]},battery:{name:'干电池',cat:'电源',size:[92,46]},batteryPack:{name:'电池组',cat:'电源',size:[118,46]},bulb:{name:'灯泡',cat:'用电器',size:[72,66]},motor:{name:'小电机',cat:'用电器',size:[88,60]},resistor:{name:'定值电阻',cat:'用电器',size:[92,40]},rheostat:{name:'滑动变阻器',cat:'用电器',size:[118,56]},ammeter:{name:'电流表',cat:'测量仪表',size:[96,84]},voltmeter:{name:'电压表',cat:'测量仪表',size:[96,84]}};
+const DEV_ORDER=['battery','batteryPack','switch','spdt','bulb','motor','resistor','rheostat','ammeter','voltmeter'];
+const TERM_NAMES={battery:['p1','p2'],batteryPack:['p1','p2'],switch:['t1','t2'],spdt:['c','a','b'],bulb:['t1','t2'],motor:['p1','p2'],resistor:['p1','p2'],rheostat:['A','B','C'],ammeter:['p1','p2','p3'],voltmeter:['p1','p2','p3']};
+
+/* 接线柱位置：底板前沿左右两端（p1/t1/A=左负极，p2/t2/B=右正极；C 为变阻器上柱）
+   swapPosts=true 时全部接线柱左右镜像（红黑对调，电池=正负极对调） */
+function termLocal(d){const w=d.w,h=d.h;const y=h/2-9,ox=10;
+  let t;
+  if(d.kind==='switch')t={t1:[-w/2+ox,y],t2:[w/2-ox,y]};
+  else if(d.kind==='spdt')t={c:[-w/2+ox,y],a:[w/2-ox,y],b:[w/2-ox,-h/2+13]};
+  else if(d.kind==='battery'||d.kind==='batteryPack')t={p1:[-w/2+ox,y],p2:[w/2-ox,y]};
+  else if(d.kind==='bulb')t={t1:[-w/2+ox,y],t2:[w/2-ox,y]};
+  else if(d.kind==='motor')t={p1:[-w/2+ox,y],p2:[w/2-ox,y]};
+  else if(d.kind==='resistor')t={p1:[-w/2+ox,y],p2:[w/2-ox,y]};
+  else if(d.kind==='rheostat')t={A:[-w/2+ox,y],B:[w/2-ox,y],C:[-w/2+ox,-h/2+14]};
+  /* 电表三柱横排：p1=−（黑，左），p2=小量程（中），p3=大量程（右） */
+  else if(d.kind==='ammeter'||d.kind==='voltmeter')t={p1:[-w/2+ox,y],p2:[0,y],p3:[w/2-ox,y]};
+  else t={};
+  if(d.swapPosts){const m={};for(const k in t)m[k]=[-t[k][0],t[k][1]];return m;}
+  return t;}
+/* 局部坐标 → 世界坐标（绕设备中心旋转 rot 度） */
+function localToWorld(d,lx,ly){
+  const a=(d.rot||0)*Math.PI/180, c=Math.cos(a), s=Math.sin(a);
+  return [d.x+lx*c-ly*s, d.y+lx*s+ly*c];
+}
+/* 世界坐标 → 局部坐标（逆旋转）：命中测试、滑片拖动用 */
+function toLocal(d,x,y){
+  const a=-(d.rot||0)*Math.PI/180, c=Math.cos(a), s=Math.sin(a);
+  const dx=x-d.x, dy=y-d.y;
+  return [dx*c-dy*s, dx*s+dy*c];
+}
+function termPos(d,n){const tl=termLocal(d);return localToWorld(d,tl[n][0],tl[n][1]);}
+/* 各设备"存为默认"时保存的属性白名单（名称/位置/旋转不保存） */
+const DEF_KEYS={battery:['v','ri','swapPosts'],batteryPack:['v','ri','swapPosts'],switch:['swapPosts'],spdt:['swapPosts'],bulb:['ratedV','ratedP','swapPosts'],motor:['ratedV','mr','swapPosts'],resistor:['r','swapPosts'],rheostat:['rmax','fuseOn','fuseI','swapPosts'],ammeter:['burnOn','amR','digits','showImage','swapPosts'],voltmeter:['digits','showImage','swapPosts'],wire:['res','color']};
+function loadDefaults(kind){ try{const s=localStorage.getItem('simDef_'+kind);return s?JSON.parse(s):null;}catch(e){return null;} }
+function saveDefaults(kind,props){ try{localStorage.setItem('simDef_'+kind,JSON.stringify(props));}catch(e){} }
+function makeDevice(kind,x,y){
+  const t=DEV_TYPES[kind];
+  const item={id:nid(),kind,x,y,w:t.size[0],h:t.size[1],rot:0,closed:true,sel:'A',pos:0.5,r:10,rmax:20,v:1.5,labelText:'',labelSub:'',swapPosts:false};
+  if(kind==='batteryPack')item.v=3.0;
+  if(kind==='battery'||kind==='batteryPack')item.ri=0.03;
+  if(kind==='bulb'){item.ratedV=3;item.ratedP=0.9;item.fault=null;}          // r=V²/P=10Ω
+  if(kind==='motor'){item.ratedV=3;item.mr=20;item.rotA=0;}
+  if(kind==='ammeter'){item.burnOn=false;item.burned=false;item.amR=0;item.digits=2;item.showImage=true;}
+  if(kind==='voltmeter'){item.vmR=-1;item.digits=1;item.showImage=true;}      // vmR=-1=理想
+  if(kind==='rheostat'){item.fuseOn=false;item.fuseBlown=false;item.fuseI=2;}
+  const saved=loadDefaults(kind);
+  if(saved)Object.assign(item,saved);
+  return item;
+}
+/* 出线轴：接线柱都在底板前沿，导线一律垂直出线 */
+function termAxis(d,n){return 'v';}
+/* 端子极性（决定接线柱红/黑）：返回 true=正极(红) */
+function termPositive(d,n){
+  if(n==='C')return true;                       // 变阻器上柱
+  if(d.kind==='spdt')return n==='c';            // 公共端
+  if(d.kind==='battery'||d.kind==='batteryPack')return n==='p2';
+  if(d.kind==='ammeter'||d.kind==='voltmeter')return n!=='p1';  // p2/p3 均为量程柱(红)
+  return n==='p2'||n==='t2'||n==='B';
+}
+
+/* ================================================================
+   绘制设备（写实风 · 参考视频：金属底板 + 红/黑接线柱）
+   ================================================================ */
+/* 金属底板：所有设备共用，含四角螺丝 */
+function drawBase(g,w,h){
+  el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:6,fill:'url(#metal)',stroke:'#7a828e','stroke-width':1.2},g);
+  el('rect',{x:-w/2+3,y:-h/2+3,width:w-6,height:h-6,rx:4,fill:'none',stroke:'rgba(255,255,255,.35)','stroke-width':0.8},g);
+  const r=2.2;
+  for(const [sx,sy] of [[-w/2+7,-h/2+7],[w/2-7,-h/2+7],[-w/2+7,h/2-7],[w/2-7,h/2-7]]){
+    el('circle',{cx:sx,cy:sy,r,fill:'#8a919c',stroke:'#5f6670','stroke-width':0.6},g);
+    el('line',{x1:sx-1.4,y1:sy,x2:sx+1.4,y2:sy,stroke:'#5f6670','stroke-width':0.6},g);
+  }
+}
+/* 接线柱：金属底座 + 红/黑圆头（位置与 termLocal 严格一致） */
+function drawPost(g,x,y,positive){
+  el('circle',{cx:x,cy:y,r:5.5,fill:'url(#metal)',stroke:'#6b7280','stroke-width':0.8},g);
+  el('circle',{cx:x,cy:y,r:3.4,fill:positive?'#d64545':'#2b2f36',stroke:positive?'#a83232':'#111418','stroke-width':0.8},g);
+  el('circle',{cx:x-1,cy:y-1,r:1.1,fill:'rgba(255,255,255,.55)'},g);
+}
+/* 为设备按 termLocal 画出全部接线柱（局部坐标——sprite 已随设备旋转） */
+function drawPosts(g,d){
+  const tl=termLocal(d);
+  for(const nm of (TERM_NAMES[d.kind]||[])){
+    drawPost(g,tl[nm][0],tl[nm][1],termPositive(d,nm));
+  }
+}
+/* 横放电池圆柱（视频风格：深灰壳体 + 铜橙色环带 + 白色负极端面 + 铜色正极凸头） */
+function drawCell(g,cx,cy,len,rad){
+  // 壳体（深灰石墨色）
+  el('rect',{x:cx-len/2,y:cy-rad,width:len,height:rad*2,rx:rad*0.5,fill:'#454a53',stroke:'#2b2f36','stroke-width':1},g);
+  // 上缘高光
+  el('rect',{x:cx-len/2+4,y:cy-rad+2,width:len-8,height:rad*0.5,rx:2,fill:'rgba(255,255,255,.30)'},g);
+  // 下缘暗部
+  el('rect',{x:cx-len/2+4,y:cy+rad*0.28,width:len-8,height:rad*0.55,rx:2,fill:'rgba(0,0,0,.25)'},g);
+  // 铜橙色环带两截（正极方向，视频标志性特征）
+  el('rect',{x:cx+len*0.16,y:cy-rad+1,width:len*0.15,height:rad*2-2,fill:'#e08a3e'},g);
+  el('rect',{x:cx+len*0.38,y:cy-rad+1,width:len*0.13,height:rad*2-2,fill:'#e08a3e'},g);
+  el('rect',{x:cx+len*0.16,y:cy-rad+2,width:len*0.35,height:rad*0.4,fill:'rgba(255,255,255,.22)'},g);
+  // 负极端（左，白色平端面）
+  el('rect',{x:cx-len/2-2.5,y:cy-rad*0.75,width:4,height:rad*1.5,rx:1.8,fill:'#e8ebef',stroke:'#9aa1ab','stroke-width':0.7},g);
+  // 正极端（右，铜色小凸头）
+  el('rect',{x:cx+len/2-1,y:cy-rad*0.42,width:4.5,height:rad*0.84,rx:1.8,fill:'#d9903f',stroke:'#a8662a','stroke-width':0.7},g);
+}
+/* 电池托槽（浅金属 U 槽，两端挡壁） */
+function drawHolder(g,w,h){
+  el('rect',{x:-w*0.40,y:-h*0.06,width:w*0.80,height:h*0.30,rx:3,fill:'url(#metal)',stroke:'#7a828e','stroke-width':0.9},g);
+  el('rect',{x:-w*0.40,y:-h*0.06,width:w*0.80,height:h*0.10,rx:2,fill:'rgba(255,255,255,.4)'},g);
+  el('rect',{x:-w*0.43,y:-h*0.34,width:5,height:h*0.58,rx:2,fill:'url(#metal)',stroke:'#7a828e','stroke-width':0.8},g);
+  el('rect',{x:w*0.43-5,y:-h*0.34,width:5,height:h*0.58,rx:2,fill:'url(#metal)',stroke:'#7a828e','stroke-width':0.8},g);
+}
+function drawBattery(g,d){
+  const w=d.w,h=d.h,pack=(d.kind==='batteryPack');
+  drawBase(g,w,h);
+  if(!pack){
+    drawHolder(g,w,h);
+    drawCell(g,0,-h*0.10,w*0.72,h*0.27);
+  }else{
+    drawHolder(g,w,h);
+    drawCell(g,-w*0.20,-h*0.10,w*0.34,h*0.27);
+    drawCell(g, w*0.20,-h*0.10,w*0.34,h*0.27);
+  }
+  drawPosts(g,d);
+  const btl=termLocal(d);
+  el('text',{x:btl.p1[0],y:h/2-16,'font-size':9,'text-anchor':'middle',fill:'#444a54','font-weight':'bold'},g).textContent='−';
+  el('text',{x:btl.p2[0],y:h/2-16,'font-size':9,'text-anchor':'middle',fill:'#b03535','font-weight':'bold'},g).textContent='+';
+}
+/* 闸刀开关（视频风格：金属刀闸，闭合平放 / 断开翘起） */
+function drawSwitch(g,d){
+  const w=d.w,h=d.h;
+  drawBase(g,w,h);
+  // 两个触点墩
+  el('rect',{x:-w*0.34,y:-h*0.30,width:9,height:h*0.42,rx:2,fill:'url(#metal)',stroke:'#6b7280'},g);
+  el('rect',{x: w*0.34-9,y:-h*0.30,width:9,height:h*0.42,rx:2,fill:'url(#metal)',stroke:'#6b7280'},g);
+  el('circle',{cx:-w*0.34+4.5,cy:-h*0.30,r:3,fill:'#c9ced6',stroke:'#6b7280'},g);
+  el('circle',{cx:w*0.34-4.5,cy:-h*0.30,r:3,fill:'#c9ced6',stroke:'#6b7280'},g);
+  // 刀闸：铰接左墩顶，闭合搭到右墩，断开翘起 48°
+  const px=-w*0.34+4.5, py=-h*0.30;
+  const ang=d.closed?0:-0.84;
+  const len=w*0.66;
+  const kx=px+Math.cos(ang)*len, ky=py+Math.sin(ang)*len;
+  el('line',{x1:px,y1:py,x2:kx,y2:ky,stroke:'#d8dce2','stroke-width':5,'stroke-linecap':'round'},g);
+  el('line',{x1:px,y1:py,x2:kx,y2:ky,stroke:'#9aa1ab','stroke-width':2.4,'stroke-linecap':'round'},g);
+  el('circle',{cx:px,cy:py,r:4,fill:'url(#metal)',stroke:'#5f6670'},g);
+  // 手柄球
+  if(!d.closed)el('circle',{cx:kx,cy:ky,r:4.5,fill:'#e05252',stroke:'#a23a3a'},g);
+  drawPosts(g,d);
+}
+/* 双掷开关（刀闸绕公共端 c 掷向 a 或 b） */
+function drawSpdt(g,d){
+  const w=d.w,h=d.h;
+  drawBase(g,w,h);
+  // 三触点：c 左下(公共)、a 右下、b 右上（红黑对调时跟随镜像）
+  const tl=termLocal(d);
+  const P={c:tl.c,a:tl.a,b:tl.b};
+  el('circle',{cx:P.c[0],cy:P.c[1],r:3,fill:'#c9ced6',stroke:'#6b7280'},g);
+  el('circle',{cx:P.a[0],cy:P.a[1],r:3,fill:'#c9ced6',stroke:'#6b7280'},g);
+  el('circle',{cx:P.b[0],cy:P.b[1],r:3,fill:'#c9ced6',stroke:'#6b7280'},g);
+  const tgt=d.sel==='A'?P.a:P.b;
+  el('line',{x1:P.c[0],y1:P.c[1],x2:tgt[0],y2:tgt[1],stroke:'#d8dce2','stroke-width':4.6,'stroke-linecap':'round'},g);
+  el('line',{x1:P.c[0],y1:P.c[1],x2:tgt[0],y2:tgt[1],stroke:'#9aa1ab','stroke-width':2,'stroke-linecap':'round'},g);
+  el('text',{x:P.a[0],y:P.a[1]+14,'font-size':9,fill:'#8892a0','text-anchor':'middle'},g).textContent='1';
+  el('text',{x:P.b[0]+10,y:P.b[1]-4,'font-size':9,fill:'#8892a0','text-anchor':'middle'},g).textContent='2';
+  el('text',{x:P.c[0]-8,y:P.c[1]+14,'font-size':9,fill:'#8892a0','text-anchor':'middle'},g).textContent='C';
+  drawPosts(g,d);
+}
+/* 灯泡（视频风格：白色陶瓷圆台灯座 + 银色螺口 + 小圆玻璃泡，亮时黄光） */
+function drawBulb(g,d){
+  const w=d.w,h=d.h;
+  drawBase(g,w,h);
+  const by=-h*0.16;                             // 玻璃泡中心
+  // 白色陶瓷灯座（圆台，上窄下宽）
+  el('path',{d:`M ${-w*0.13} ${h*0.24} L ${-w*0.085} ${h*0.02} L ${w*0.085} ${h*0.02} L ${w*0.13} ${h*0.24} Z`,fill:'#eceff3',stroke:'#9aa1ab','stroke-width':0.9},g);
+  el('rect',{x:-w*0.16,y:h*0.22,width:w*0.32,height:h*0.07,rx:2.5,fill:'#dfe3ea',stroke:'#9aa1ab','stroke-width':0.8},g);
+  // 银色螺口（玻璃泡与灯座之间）
+  el('rect',{x:-w*0.105,y:by+h*0.14,width:w*0.21,height:h*0.09,rx:2.5,fill:'url(#metal)',stroke:'#7a828e','stroke-width':0.7},g);
+  el('line',{x1:-w*0.105,y1:by+h*0.175,x2:w*0.105,y2:by+h*0.175,stroke:'#8a919c','stroke-width':0.7},g);
+  // 玻璃泡（小圆，视频里泡体小巧圆润）；玻璃底色随亮度从冷灰过渡到暖黄
+  const br=clamp(d.bright||0,0,1);
+  const glassCol=br<0.10?'#e9eef5':br<0.32?'#faf3d9':br<0.62?'#ffedb0':'#ffe07d';
+  el('circle',{cx:0,cy:by,r:h*0.185,fill:glassCol,stroke:'#8a919c','stroke-width':1.1},g);
+  /* 亮度=实际功率/额定功率（^0.7 缓曲线），阻值调节时明暗跨度拉满 */
+  if(br>0.02){
+    el('circle',{cx:0,cy:by,r:h*0.185,fill:`rgba(255,205,70,${(0.14+0.72*br).toFixed(3)})`},g);
+    el('circle',{cx:0,cy:by,r:h*(0.17+0.24*br),fill:`rgba(255,190,40,${(0.34*br).toFixed(3)})`},g);
+    el('circle',{cx:0,cy:by,r:h*(0.30+0.34*br),fill:`rgba(255,180,30,${(0.16*br).toFixed(3)})`},g);
+  }
+  // 灯丝：由暗红→橙→黄→白热，越亮越粗
+  const fw=br>0.75?'#fff6c8':br>0.4?'#ffd24d':br>0.12?'#ff9d2e':'#ff7b45';
+  el('path',{d:`M ${-4} ${by+h*0.10} L ${-4} ${by-h*0.01} L ${-1.5} ${by+h*0.05} L ${1.5} ${by-h*0.03} L ${4} ${by+h*0.05} L ${4} ${by+h*0.10}`,fill:'none',stroke:d.lit?fw:'#9aa1ab','stroke-width':1.1+1.5*br},g);
+  // 短路故障标记（红色闪电）
+  if(d.fault==='short'){
+    el('circle',{cx:0,cy:by,r:h*0.10,fill:'rgba(220,38,38,.22)',stroke:'#dc2626','stroke-width':1},g);
+    el('text',{x:0,y:by+h*0.05,'font-size':h*0.16,'text-anchor':'middle',fill:'#ef4444','font-weight':'bold'},g).textContent='⚡';
+  }
+  // 高光
+  el('circle',{cx:-h*0.06,cy:by-h*0.07,r:h*0.045,fill:'rgba(255,255,255,.5)'},g);
+  drawPosts(g,d);
+}
+/* 小电机（新增设备：通电后转子转动，转速随电流增大） */
+function drawMotor(g,d){
+  const w=d.w,h=d.h;
+  drawBase(g,w,h);
+  // 电机壳体（横置圆柱）
+  el('rect',{x:-w*0.30,y:-h*0.36,width:w*0.60,height:h*0.56,rx:h*0.20,fill:'url(#metal)',stroke:'#6b7280','stroke-width':1},g);
+  el('rect',{x:-w*0.30,y:-h*0.36,width:w*0.60,height:h*0.16,rx:h*0.10,fill:'rgba(255,255,255,.35)'},g);
+  el('rect',{x:-w*0.30,y:h*0.08,width:w*0.60,height:h*0.12,rx:h*0.06,fill:'rgba(0,0,0,.18)'},g);
+  // 壳体散热纹
+  for(let x=-w*0.26;x<w*0.26;x+=5)el('line',{x1:x,y1:-h*0.18,x2:x,y2:-h*0.12,stroke:'#8a919c','stroke-width':0.8},g);
+  // 转子观察窗 + 三叶扇（rotA 随电流累计转动）
+  const cx=0,cy=h*0.02,Rr=h*0.17;
+  el('circle',{cx,cy,r:Rr+2.5,fill:'#22262c',stroke:'#555c66','stroke-width':1},g);
+  const blades=el('g',{transform:`rotate(${d.rotA||0} ${cx} ${cy})`},g);
+  for(let k=0;k<3;k++){
+    el('path',{d:`M ${cx} ${cy} L ${cx+Rr*0.95} ${cy-Rr*0.32} L ${cx+Rr*0.72} ${cy+Rr*0.30} Z`,
+      fill:k===0?'#4fd1c5':(k===1?'#ffd166':'#f87171'),stroke:'rgba(0,0,0,.3)','stroke-width':0.5,
+      transform:`rotate(${k*120} ${cx} ${cy})`},blades);
+  }
+  el('circle',{cx,cy,r:2.4,fill:'#c9ced6',stroke:'#6b7280'},g);
+  // 额定电压标注
+  el('text',{x:w*0.32,y:h/2-16,'font-size':9,'text-anchor':'middle',fill:'#556'},g).textContent=(d.ratedV||3)+'V';
+  drawPosts(g,d);
+}
+/* 定值电阻（横放圆柱 + 色环） */
+function drawResistor(g,d){
+  const w=d.w,h=d.h;
+  drawBase(g,w,h);
+  const len=w*0.56, rad=h*0.26, cy=-h*0.10;
+  el('rect',{x:-len/2,y:cy-rad,width:len,height:rad*2,rx:rad*0.9,fill:'#d9c49a',stroke:'#a8916a','stroke-width':1},g);
+  const band=['#8a4b08','#2b2620','#c0392b','#d4a017'];
+  for(let i=0;i<4;i++)el('rect',{x:-len/2+7+i*9,y:cy-rad+1,width:4,height:rad*2-2,fill:band[i]},g);
+  drawPosts(g,d);
+  el('text',{x:0,y:h/2-16,'font-size':10,'text-anchor':'middle',fill:'#556', 'font-weight':'bold'},g).textContent=d.r.toFixed(0)+'Ω';
+}
+/* 滑动变阻器（视频风格：横放瓷管绕线 + 上方金属杆 + 支架 + 红滑片） */
+function drawRheostat(g,d){
+  const w=d.w,h=d.h;
+  drawBase(g,w,h);
+  const ty=h*0.02;                              // 瓷管中心线
+  // 两端支架（立柱撑起金属杆）
+  el('rect',{x:-w*0.40,y:-h*0.40,width:4.5,height:h*0.42,rx:1.5,fill:'url(#metal)',stroke:'#7a828e','stroke-width':0.7},g);
+  el('rect',{x:w*0.40-4.5,y:-h*0.40,width:4.5,height:h*0.42,rx:1.5,fill:'url(#metal)',stroke:'#7a828e','stroke-width':0.7},g);
+  // 横放瓷管（绕线电阻管）
+  el('rect',{x:-w*0.36,y:ty-h*0.17,width:w*0.72,height:h*0.34,rx:h*0.17,fill:'#c8b98f',stroke:'#9a8a60','stroke-width':1},g);
+  for(let x=-w*0.34;x<w*0.36;x+=4.5)el('line',{x1:x,y1:ty-h*0.155,x2:x,y2:ty+h*0.155,stroke:'#8f7f56','stroke-width':1},g);
+  /* 高亮"通电的那段电阻丝"：接入段=滑片与所接下柱之间。
+     接 A+C → 左段红亮；接 B+C → 右段红亮；两下 → 全段。拖滑片时长短变化一目了然 */
+  {
+    const hasT=t=>state.wires.some(q=>q.from===d.id+':'+t||q.to===d.id+':'+t);
+    const Aw=hasT('A'),Bw=hasT('B'),Cw=hasT('C');
+    const x0=-w*0.36,x1=w*0.36,pxs=-w*0.36+w*0.72*Math.min(1,Math.max(0,d.pos??0.5));
+    let seg=null;
+    if(Cw&&Aw&&!Bw)seg=[x0,pxs];
+    else if(Cw&&Bw&&!Aw)seg=[pxs,x1];
+    else if(!Cw&&(Aw||Bw))seg=[x0,x1];
+    if(seg&&seg[1]-seg[0]>2)el('rect',{x:seg[0],y:ty-h*0.17,width:seg[1]-seg[0],height:h*0.34,rx:h*0.17,fill:'rgba(224,82,82,.45)'},g);
+  }
+  // 瓷管上下缘高光/暗部
+  el('rect',{x:-w*0.34,y:ty-h*0.15,width:w*0.68,height:h*0.08,rx:3,fill:'rgba(255,255,255,.28)'},g);
+  el('rect',{x:-w*0.34,y:ty+h*0.06,width:w*0.68,height:h*0.08,rx:3,fill:'rgba(0,0,0,.15)'},g);
+  // 金属杆（瓷管上方，细长）
+  el('rect',{x:-w*0.40,y:-h*0.42,width:w*0.80,height:3.2,rx:1.6,fill:'url(#metal)',stroke:'#7a828e','stroke-width':0.6},g);
+  // 滑片（红，骑在金属杆与瓷管之间）
+  const px=-w*0.36+w*0.72*d.pos;
+  el('rect',{x:px-4.5,y:-h*0.40,width:9,height:h*0.42,rx:2,fill:'#e05252',stroke:'#a23a3a','stroke-width':1},g);
+  el('line',{x1:px,y1:-h*0.44,x2:px,y2:-h*0.36,stroke:'#a23a3a','stroke-width':2},g);
+  drawPosts(g,d);
+  const rtl=termLocal(d);
+  el('text',{x:rtl.A[0],y:h/2-16,'font-size':9,'text-anchor':'middle',fill:'#8892a0','font-weight':'bold'},g).textContent='A';
+  el('text',{x:rtl.B[0],y:h/2-16,'font-size':9,'text-anchor':'middle',fill:'#8892a0','font-weight':'bold'},g).textContent='B';
+  el('text',{x:rtl.C[0],y:-h/2+9,'font-size':9,'text-anchor':'middle',fill:'#8892a0','font-weight':'bold'},g).textContent='C';
+  /* 实时显示接入阻值：方向取决于下柱接法（A+C 正比 / B+C 反比），一眼看清 */
+  const er=rheoEffectiveR(d);
+  el('text',{x:w*0.30,y:h/2-16,'font-size':10,'text-anchor':'middle','font-weight':'bold',fill:er==null?'#556':(d.fuseBlown?'#ef4444':'#b03535')},g).textContent=er==null?('0-'+d.rmax.toFixed(0)+'Ω'):('R='+er.toFixed(1)+'Ω');
+  // 熔断标记（允许熔断开启且电流超限后）
+  if(d.fuseBlown){
+    el('rect',{x:-w*0.36,y:ty-h*0.17,width:w*0.72,height:h*0.34,rx:h*0.17,fill:'rgba(60,60,60,.55)'},g);
+    el('text',{x:0,y:ty+4,'font-size':11,'text-anchor':'middle',fill:'#ef4444','font-weight':'bold'},g).textContent='⚡熔断';
+  }
+}
+/* 变阻器接入阻值（按实际接法判定）：
+   接 A+C → 滑片-A 段=pos×rmax；接 B+C → 滑片-B 段=(1-pos)×rmax；
+   两下(A/B)恒为最大；未接入电路返回 null */
+function rheoEffectiveR(d){
+  const has=t=>state.wires.some(w=>w.from===d.id+':'+t||w.to===d.id+':'+t);
+  const A=has('A'),B=has('B'),C=has('C');
+  const rmax=d.rmax??20,pos=Math.min(1,Math.max(0,d.pos??0.5));
+  if(C&&A&&!B)return pos*rmax;
+  if(C&&B&&!A)return (1-pos)*rmax;
+  if(!C&&(A||B))return rmax;
+  return null;
+}
+/* 电表量程：接 p2=小量程(0.6A/3V)，接 p3=大量程(3A/15V)。
+   优先用 core 依接线判定的结果，result 未就绪时直接查导线 */
+function meterScaleOf(d){
+  const hi=state.result&&state.result.meterRange
+    ?state.result.meterRange[d.id]==='hi'
+    :state.wires.some(w=>w.from===d.id+':p3'||w.to===d.id+':p3');
+  return d.kind==='ammeter'?(hi?3:0.6):(hi?15:3);
+}
+/* 电表（双量程表盘：外圈大量程 / 内圈小量程，共用刻度线，当前量程弧红色高亮） */
+function drawMeter(g,d){
+  const w=d.w,h=d.h,sym=(d.kind==='ammeter')?'A':'V';
+  const hi=(d.kind==='ammeter')?3:15, lo=(d.kind==='ammeter')?0.6:3;
+  const scale=meterScaleOf(d);
+  drawBase(g,w,h);
+  const cx=0,cy=-h*0.10,R=h*0.32;
+  // 表壳 + 白表盘
+  el('circle',{cx,cy,r:R+6,fill:'url(#metal)',stroke:'#6b7280','stroke-width':1},g);
+  el('circle',{cx,cy,r:R,fill:'#fdfdfb',stroke:'#b8bec8','stroke-width':1},g);
+  const A0=150,A1=30;                           // 0 在左(150°)，满量程在右(30°)
+  // 反偏区（0 刻度左侧小红弧）：电流/电压接反时指针进入此区
+  el('path',{d:describeArc(cx,cy,R-8,159,150),fill:'none',stroke:'#b03535','stroke-width':1.6},g);
+  // 双刻度弧：外圈=大量程，内圈=小量程
+  el('path',{d:describeArc(cx,cy,R-8,A0,A1),fill:'none',stroke:scale===hi?'#b03535':'#3a3a3a','stroke-width':scale===hi?1.8:1.1},g);
+  el('path',{d:describeArc(cx,cy,R-16,A0,A1),fill:'none',stroke:scale===lo?'#b03535':'#3a3a3a','stroke-width':scale===lo?1.8:1.1},g);
+  // 共用刻度线：每 1/6 小格、每 1/3 主格（内外圈共用角度）
+  for(let i=0;i<=6;i++){
+    const a=(A0-(A0-A1)*i/6)*Math.PI/180, c=Math.cos(a), s=Math.sin(a);
+    el('line',{x1:cx+c*(R-8),y1:cy-s*(R-8),x2:cx+c*(R-16),y2:cy-s*(R-16),stroke:'#333','stroke-width':i%2?0.6:1.1},g);
+  }
+  // 双圈数字：外圈 0..hi（大量程），内圈 lo（小量程，0 与外圈共用）——小字号不抢视觉
+  const fmt=v=>v>=1?String(Math.round(v)):v.toFixed(1);
+  for(let i=0;i<=3;i++){
+    const a=(A0-40*i)*Math.PI/180, c=Math.cos(a), s=Math.sin(a);
+    el('text',{x:cx+c*(R-4.5),y:cy-s*(R-4.5)+1.8,'font-size':5,'text-anchor':'middle',fill:'#222'},g).textContent=fmt(hi*i/3);
+    if(i>0)el('text',{x:cx+c*6.2,y:cy-s*6.2+1.8,'font-size':5,'text-anchor':'middle',fill:'#222'},g).textContent=fmt(lo*i/3);
+  }
+  // 指针（按当前量程偏转；负值=接反，反偏到 0 刻度左侧；正向超量程顶满格）
+  const val=readMeter(d,scale);
+  const frac=clamp(val/scale,-0.12,1);
+  const aDeg=A0-(A0-A1)*frac, a=aDeg*Math.PI/180;
+  el('line',{x1:cx,y1:cy,x2:cx+Math.cos(a)*(R-9.5),y2:cy-Math.sin(a)*(R-9.5),stroke:frac<0?'#7a1f1f':'#d32f2f','stroke-width':1.8,'stroke-linecap':'round'},g);
+  el('circle',{cx,cy,r:2.6,fill:'#333'},g);
+  // 符号 A / V
+  el('text',{x:cx,y:cy+R*0.62,'font-size':13,'text-anchor':'middle','font-weight':'bold',fill:'#222'},g).textContent=sym;
+  // 电表烧毁标记（过载瞬间损坏开启且触发后）
+  if(d.burned){
+    el('text',{x:cx+R*0.55,y:cy-R*0.25,'font-size':13,'text-anchor':'middle',fill:'#ef4444','font-weight':'bold'},g).textContent='⚡';
+    el('text',{x:cx,y:cy-R*0.42,'font-size':7,'text-anchor':'middle',fill:'#ef4444','font-weight':'bold'},g).textContent='已烧毁';
+  }
+  drawPosts(g,d);
+  // 接线柱量程标注（参照实物：− / 0.6A / 3A，− / 3V / 15V）——大字号醒目，位置跟随红黑对调
+  const tl=termLocal(d);
+  const labs=d.kind==='ammeter'?['−','0.6A','3A']:['−','3V','15V'];
+  const xs=[tl.p1[0],tl.p2[0],tl.p3[0]];
+  for(let i=0;i<3;i++)el('text',{x:xs[i],y:h/2-14.5,'font-size':9.5,'text-anchor':'middle','font-weight':'bold',fill:i?'#b03535':'#444a54'},g).textContent=labs[i];
+}
+/* 极坐标弧线（电表刻度用，角度制、y 向上） */
+function describeArc(cx,cy,r,a1,a2){
+  const p=a=>[cx+r*Math.cos(a*Math.PI/180),cy-r*Math.sin(a*Math.PI/180)];
+  const [x1,y1]=p(a1),[x2,y2]=p(a2);
+  return `M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}`;
+}
+function readMeter(d,scale){
+  if(!state.result)return 0;
+  const r=state.result.readings[d.id];
+  if(r===undefined||r===null)return 0;
+  return r;                                    // 带符号：负=接反（指针反偏）
+}
+function drawSprite(d,includePos){
+  const g=document.createElementNS(NS,'g');
+  if(includePos)g.setAttribute('transform',`translate(${d.x},${d.y}) rotate(${d.rot||0})`);
+  switch(d.kind){
+    case 'battery':case 'batteryPack':drawBattery(g,d);break;
+    case 'switch':drawSwitch(g,d);break;
+    case 'spdt':drawSpdt(g,d);break;
+    case 'bulb':drawBulb(g,d);break;
+    case 'motor':drawMotor(g,d);break;
+    case 'resistor':drawResistor(g,d);break;
+    case 'rheostat':drawRheostat(g,d);break;
+    case 'ammeter':case 'voltmeter':drawMeter(g,d);break;
+  }
+  return g;
+}
+function drawLabelPos(d){
+  // 视频风格：名称一律标注在设备下方
+  return {x:d.x,y:d.y+d.h/2+18};
+}
+
+/* ================================================================
+   布线、求解、渲染、交互、动画、实验加载
+   ================================================================ */
+
+/* ---------- 端子定位 / 端点查找 ---------- */
+function findTerm(x,y,radius){
+  radius=radius||16;
+  let best=null;
+  for(const d of state.devices){
+    const names=TERM_NAMES[d.kind]||[];
+    for(const nm of names){
+      const p=termPos(d,nm);
+      const dist=Math.hypot(p[0]-x,p[1]-y);
+      if(dist<radius&&(!best||dist<best.dist)) best={devId:d.id,term:nm,x:p[0],y:p[1],axis:termAxis(d,nm),dist};
+    }
+  }
+  return best;
+}
+function findDevice(x,y){
+  for(let i=state.devices.length-1;i>=0;i--){
+    const d=state.devices[i];
+    const [lx,ly]=toLocal(d,x,y);      // 逆旋转到设备局部坐标再比较
+    if(Math.abs(lx)<=d.w/2+4&&Math.abs(ly)<=d.h/2+4) return d;
+  }
+  return null;
+}
+
+/* ---------- 导线端点动态解析（移动设备后导线实时跟随） ---------- */
+function resolveKey(key){
+  if(!key)return null;
+  const i=key.indexOf(':');
+  if(i<0){ // 分支节点 key 'nx_y'
+    const n=find(state.nodes,n=>n.key===key);
+    return n?{x:n.x,y:n.y,axis:'v'}:null;
+  }
+  const devId=key.slice(0,i),term=key.slice(i+1);
+  const d=getDev(devId); if(!d)return null;
+  const p=termPos(d,term);
+  return {x:p[0],y:p[1],axis:'v'};
+}
+function wireEnds(w){ return [resolveKey(w.from),resolveKey(w.to)]; }
+
+/* 弧线软导线：二次贝塞尔下垂，采样成点列（渲染/流动动画/删除命中共用）
+   控制点 P1=(mx,cy)，端点 P0=a、P2=b：B(t)=u²P0+2ut·P1+t²P2，t=1 精确落在 b */
+const WIRE_SAG=0.16;
+function wirePts(a,b,n){
+  n=n||16;
+  if(!a||!b)return null;
+  const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+  const dist=Math.hypot(b.x-a.x,b.y-a.y);
+  const cy=my+Math.max(10,dist*WIRE_SAG*0.5);   // 控制点向下压出下垂
+  const pts=[];
+  for(let i=0;i<=n;i++){
+    const t=i/n,u=1-t;
+    pts.push([u*u*a.x+2*u*t*mx+t*t*b.x, u*u*a.y+2*u*t*cy+t*t*b.y]);
+  }
+  return pts;
+}
+function pathLen(pts){let s=0;for(let i=1;i<pts.length;i++)s+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);return s;}
+
+/* ---------- 重算 ---------- */
+function recompute(){
+  state.result=buildCircuit(state.devices,state.wires);
+  for(const d of state.devices){
+    if(d.kind==='bulb'){
+      const r=state.result&&state.result.readings[d.id];
+      d.lit=!!(r&&r.cur>0.01);
+      /* 亮度 = 实际功率(P=I²R) ÷ 额定功率，^0.7 缓曲线。
+         3V/0.9W 灯泡：满额定电压时=1.0 全亮，半功率≈0.62，1/10 功率≈0.16 —— 明暗对比一目了然 */
+      const Pn=Math.max(d.ratedP||0.9,1e-6);
+      d.bright=(r&&r.cur>0.01)?clamp(Math.pow(Math.max(r.p,0)/Pn,0.7),0,1):0;
+    }
+  }
+  /* 设置面板打开时同步灯泡"实际电压"实时值 */
+  const live=document.getElementById('ctxLiveU');
+  if(live){
+    const d=getDev(ctxDevId);
+    if(d&&d.kind==='bulb'){
+      const r=state.result&&state.result.readings[d.id];
+      live.textContent=(r?r.v:0).toFixed(2)+'V';
+    }
+  }
+  render();
+}
+
+/* ---------- 渐变定义（主画布与设备栏缩略图共用同名 id） ---------- */
+function addGradientDefs(parent){
+  const defs=el('defs',{},parent);
+  const lg=el('linearGradient',{id:'metal',x1:'0',y1:'0',x2:'0',y2:'1'},defs);
+  el('stop',{offset:'0',stopColor:'#e6e9ef'},lg);
+  el('stop',{offset:'0.5',stopColor:'#c9ced6'},lg);
+  el('stop',{offset:'1',stopColor:'#9aa1ab'},lg);
+  return defs;
+}
+
+/* ---------- 渲染分层：网格/橡皮筋为持久层，场景按需重建（大幅降低重绘开销） ---------- */
+let gridLayer=null, sceneLayer=null, rubberPath=null, snapRing=null, postRing=null, postTip=null;
+function buildStaticLayers(){
+  addGradientDefs(canvas);
+  gridLayer=el('g',{opacity:.13},canvas);
+  for(let x=0;x<=W;x+=GRID)el('line',{x1:x,y1:0,x2:x,y2:H,stroke:'#4a5568','stroke-width':0.5},gridLayer);
+  for(let y=0;y<=H;y+=GRID)el('line',{x1:0,y1:y,x2:W,y2:y,stroke:'#4a5568','stroke-width':0.5},gridLayer);
+  sceneLayer=el('g',{},canvas);
+  /* 注意：显隐一律用 style.display 切换——SVG 表现属性 display="none" 优先级低于内联样式，
+     若用 setAttribute('display','none') 创建，style.display='' 会让表现属性重新生效，元素永远隐藏 */
+  rubberPath=el('path',{fill:'none',stroke:C.yellow,'stroke-width':3,'stroke-dasharray':'7 4',opacity:1},canvas);
+  rubberPath.style.display='none';
+  snapRing=el('circle',{r:11,fill:'rgba(74,222,128,.14)',stroke:'#4ade80','stroke-width':2.5},canvas);
+  snapRing.style.display='none';
+  /* 悬停接线柱高亮环 + 文字提示（"可从此处拉线"） */
+  postRing=el('circle',{r:11,fill:'rgba(255,209,102,.18)',stroke:C.yellow,'stroke-width':2.5},canvas);
+  postRing.style.display='none';
+  postTip=el('text',{'font-size':13,fill:C.yellow,'text-anchor':'middle',style:'font-weight:bold;paint-order:stroke;stroke:#1a1d24;stroke-width:3px'},canvas);
+  postTip.textContent='按住可拉出导线';
+  postTip.style.display='none';
+}
+/* rAF 合帧：高频 mousemove 期间每帧最多重建一次场景；rAF 被节流时用 setTimeout 兜底 */
+let rafPending=false;
+function scheduleRender(){
+  if(rafPending)return;
+  rafPending=true;
+  const doRender=()=>{ if(!rafPending)return; rafPending=false; render(); };
+  requestAnimationFrame(doRender);
+  setTimeout(doRender,34);
+}
+
+let renderCount=0;
+function render(){
+  renderCount++;
+  clearNode(sceneLayer);
+  movingDots.length=0;
+
+  /* 设备先画，导线始终渲染在最上层（不被电表/电源/变阻器等遮挡） */
+  const dg=el('g',{},sceneLayer);
+  for(const d of state.devices) drawDevice(d,dg);
+
+  const wg=el('g',{},sceneLayer);
+  for(const w of state.wires) drawWire(w,wg);
+
+  // 开放连接点（分支节点）
+  const ng=el('g',{},sceneLayer);
+  for(const n of state.nodes){
+    el('circle',{cx:n.x,cy:n.y,r:4.5,fill:'#2f3542',stroke:'#c9ced6','stroke-width':1.2},ng);
+  }
+
+  drawReadouts(sceneLayer);
+  updateStatus();
+}
+
+/* 连线橡皮筋 + 磁吸提示：只更新自身属性，不重建场景（跟手关键） */
+function updateRubber(){
+  const s=state.wiring;
+  if(!s){rubberPath.style.display='none';snapRing.style.display='none';return;}
+  const snap=findTerm(s.cur.x,s.cur.y,SNAP_R);
+  const tgt=(snap&&!(snap.devId===s.devId&&snap.term===s.term))?snap:null;
+  s.snap=tgt;
+  const end=tgt?{x:tgt.x,y:tgt.y}:s.cur;
+  const pts=wirePts({x:s.x,y:s.y},end,12);
+  if(!pts){rubberPath.style.display='none';snapRing.style.display='none';return;}
+  let d='M '+pts[0][0].toFixed(1)+' '+pts[0][1].toFixed(1);
+  for(let i=1;i<pts.length;i++)d+=' L '+pts[i][0].toFixed(1)+' '+pts[i][1].toFixed(1);
+  rubberPath.setAttribute('d',d);
+  rubberPath.setAttribute('stroke',tgt?'#4ade80':C.yellow);
+  rubberPath.setAttribute('stroke-dasharray',tgt?'none':'6 4');
+  rubberPath.style.display='';
+  if(tgt){
+    snapRing.setAttribute('cx',tgt.x);snapRing.setAttribute('cy',tgt.y);
+    snapRing.style.display='';
+  } else snapRing.style.display='none';
+}
+
+function drawWire(w,parent){
+  const [a,b]=wireEnds(w);
+  if(!a||!b)return;
+  const pts=wirePts(a,b);
+  const powered=state.result&&state.result.wirePowered[w.id];
+  const hovered=state.tool==='delete'&&state.hover&&state.hover.type==='wire'&&state.hover.id===w.id;
+  /* 导线颜色可在设置中选择；断路导线灰色虚线 */
+  const col=hovered?'#ffd166':(w.open?'#666e7a':(w.color||(powered?C.hot:C.wireOff)));
+  let d='M '+pts[0][0].toFixed(1)+' '+pts[0][1].toFixed(1);
+  for(let i=1;i<pts.length;i++)d+=' L '+pts[i][0].toFixed(1)+' '+pts[i][1].toFixed(1);
+  const g=el('g',{'data-wire':w.id},parent);
+  el('path',{d,fill:'none',stroke:'rgba(0,0,0,.3)','stroke-width':hovered?8:6.5,'stroke-linecap':'round','stroke-linejoin':'round'},g);
+  el('path',{d,fill:'none',stroke:col,'stroke-width':hovered?4:3,'stroke-linecap':'round','stroke-linejoin':'round','stroke-dasharray':w.open?'7 5':'none'},g);
+  // 端头接线鼻：把导线视觉上压在接线柱中心
+  el('circle',{cx:a.x,cy:a.y,r:2.4,fill:'#22262c'},g);
+  el('circle',{cx:b.x,cy:b.y,r:2.4,fill:'#22262c'},g);
+  if(powered&&state.running){
+    const dot=el('circle',{r:3.5,fill:C.yellow},g);
+    dot.style.opacity=.9;
+    const len=pathLen(pts);
+    movingDots.push({el:dot,pts,len,t:dotPhase[w.id]!=null?dotPhase[w.id]:Math.random(),dir:1,wid:w.id});
+  }
+}
+const dotPhase={};
+function drawDevice(d,parent){
+  const g=el('g',{'data-dev':d.id},parent);
+  g.setAttribute('data-kind',d.kind);
+  g.style.cursor='move';
+  const delHover=state.tool==='delete'&&state.hover&&state.hover.type==='dev'&&state.hover.id===d.id;
+  const sprite=drawSprite(d,true);
+  /* 选中/删除悬停框：画进 sprite 局部坐标系，随设备一起旋转 */
+  if(state.selectedDev===d.id||delHover){
+    el('rect',{x:-d.w/2-5,y:-d.h/2-5,width:d.w+10,height:d.h+10,rx:8,fill:'none',stroke:delHover?'#f87171':C.yellow,'stroke-width':delHover?2.2:1.5,'stroke-dasharray':'5 4',opacity:.95},sprite);
+  }
+  g.appendChild(sprite);
+  const lp=drawLabelPos(d);
+  if(lp){
+    /* 设置过名称则显示自定义名称（两段：文字+下标，如 M₁），否则显示默认名 */
+    if(d.labelText&&d.labelText.length){
+      const t=el('text',{x:lp.x,y:lp.y,'font-size':12,fill:'#c8d0dc','text-anchor':'middle','font-weight':'bold'},g);
+      t.textContent=d.labelText;
+      if(d.labelSub&&d.labelSub.length){const ts=el('tspan',{dy:4,'font-size':9},t);ts.textContent=d.labelSub;}
+    } else {
+      let lbl=DEV_TYPES[d.kind].name;
+      if(d.kind==='battery')lbl+=' '+d.v.toFixed(1)+'V';
+      if(d.kind==='batteryPack')lbl+=' '+d.v.toFixed(1)+'V';
+      if(d.kind==='rheostat')lbl+=' 滑片'+Math.round(d.pos*100)+'%';
+      el('text',{x:lp.x,y:lp.y,'font-size':11,fill:'#aeb6c2','text-anchor':'middle'},g).textContent=lbl;
+    }
+  }
+}
+function drawReadouts(parent){
+  if(!state.result)return;
+  const r=state.result;
+  for(const d of state.devices){
+    if((d.kind==='ammeter'||d.kind==='voltmeter')&&d.showImage===false)continue;  // 设置"图像"关闭时隐藏悬浮读数
+    if(d.kind==='ammeter'){
+      const v=r.readings[d.id]||0;
+      const over=Math.abs(v)>meterScaleOf(d)+1e-9;      // 超量程：标红提醒换量程柱
+      const rev=v<-1e-9;                                 // 反接：读数为负，标橙提示
+      el('text',{x:d.x,y:d.y-d.h*0.6,'font-size':12,fill:over?'#f87171':(rev?'#fb923c':C.yellow),'text-anchor':'middle','font-weight':'bold'},parent).textContent=v.toFixed(d.digits||2)+'A'+(rev?' 反接':'');
+    } else if(d.kind==='voltmeter'){
+      const v=r.readings[d.id]||0;
+      const over=Math.abs(v)>meterScaleOf(d)+1e-9;
+      const rev=v<-1e-9;
+      el('text',{x:d.x,y:d.y-d.h*0.6,'font-size':12,fill:over?'#f87171':(rev?'#fb923c':C.yellow),'text-anchor':'middle','font-weight':'bold'},parent).textContent=v.toFixed(d.digits||2)+'V'+(rev?' 反接':'');
+    } else if(d.kind==='bulb'){
+      /* 亮度百分比：光晕大小可能不够直观，直接标出数值 */
+      const br=clamp(d.bright||0,0,1);
+      if(d.lit&&br>0.02)el('text',{x:d.x,y:d.y-d.h*0.62,'font-size':10,fill:'#ffd166','text-anchor':'middle','font-weight':'bold'},parent).textContent='亮度 '+Math.round(br*100)+'%';
+    }
+  }
+}
+function updateStatus(){
+  const r=state.result;
+  if(!r){statusMsg.textContent='就绪';statusMsg.className='';statTable.textContent='';return;}
+  statusMsg.textContent=r.status.msg;
+  statusMsg.className=r.status.type==='ok'?'':(r.status.type==='short'?'err':'warn');
+  const parts=[];
+  if(state.devices.length)parts.push('元件 '+state.devices.length);
+  if(state.wires.length)parts.push('导线 '+state.wires.length);
+  let totalP=0;
+  for(const d of state.devices){if(d.kind==='bulb'){const rd=r.readings[d.id];if(rd)totalP+=rd.p;}}
+  if(Math.abs(r.srcCurrent)>1e-6)parts.push('干路 I='+Math.abs(r.srcCurrent).toFixed(2)+'A');
+  if(totalP>0)parts.push('灯泡功率 P='+totalP.toFixed(2)+'W');
+  statTable.textContent=parts.join(' · ');
+}
+
+/* ---------- 动画帧 ---------- */
+function pulse(){
+  if(state.running){
+    // 电流流动圆点：速度随干路电流大小变化（电流越大流得越快）
+    const sp=0.003+0.006*Math.min(1,Math.abs(state.result?state.result.srcCurrent:0)/0.5);
+    for(const md of movingDots){
+      md.t+=(sp*md.dir);
+      if(md.t>1)md.t-=1;
+      if(md.t<0)md.t+=1;
+      dotPhase[md.wid]=md.t;
+      placeOnPath(md);
+    }
+    // 小电机：通电后转子转动，转速随电流增大（场景逐帧重建）
+    let motorSpin=false;
+    if(state.result){
+      for(const d of state.devices){
+        if(d.kind!=='motor')continue;
+        const rd=state.result.readings[d.id];
+        const cur=rd&&rd.cur?rd.cur:0;
+        if(cur>0.005){ d.rotA=((d.rotA||0)+Math.min(30,6+cur*30))%360; motorSpin=true; }
+      }
+    }
+    if(motorSpin)scheduleRender();
+  }
+  requestAnimationFrame(pulse);
+}
+function placeOnPath(md){
+  const pts=md.pts,len=md.len;
+  let target=md.t*len,acc=0;
+  let x=pts[0][0],y=pts[0][1];
+  for(let i=1;i<pts.length;i++){
+    const seg=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);
+    if(acc+seg>=target){const f=(target-acc)/seg;x=pts[i-1][0]+(pts[i][0]-pts[i-1][0])*f;y=pts[i-1][1]+(pts[i][1]-pts[i-1][1])*f;break;}
+    acc+=seg;x=pts[i][0];y=pts[i][1];
+  }
+  md.el.setAttribute('cx',x);md.el.setAttribute('cy',y);
+}
+function togglePlay(){
+  state.running=!state.running;
+  const btn=document.getElementById('btn-play');
+  if(btn)btn.textContent=state.running?'⏸':'▶';
+  if(!state.running){movingDots.length=0;}
+  render();
+}
+
+/* 键盘旋转：选中设备后 Q 逆时针 / E 顺时针，每次 15° */
+document.addEventListener('keydown',e=>{
+  if(e.target&&e.target.tagName==='INPUT')return;
+  const d=getDev(state.selectedDev);
+  if(!d)return;
+  if(e.key==='q'||e.key==='Q'){d.rot=(((d.rot||0)-15)%360+360)%360;render();}
+  else if(e.key==='e'||e.key==='E'){d.rot=((d.rot||0)+15)%360;render();}
+});
+
+/* ---------- 坐标换算 ---------- */
+function svgPoint(evt){
+  const pt=canvas.createSVGPoint();pt.x=evt.clientX;pt.y=evt.clientY;
+  const ctm=canvas.getScreenCTM();if(!ctm)return[0,0];
+  const sp=pt.matrixTransform(ctm.inverse());
+  return [sp.x,sp.y];
+}
+
+/* ---------- 画布鼠标事件 ---------- */
+let downDevice=null, moveOffset=null, downPos=null, dragSlider=false, sliderHintShown=false;
+let panning=false, panStart=null, panOrigin=null;
+
+/* 变阻器 C 柱（上柱）是否已有导线连接 */
+function rheostatHasC(d){
+  const key=d.id+':C';
+  return state.wires.some(w=>w.from===key||w.to===key);
+}
+
+canvas.addEventListener('mousedown',onDown);
+document.addEventListener('mousemove',onMove);
+document.addEventListener('mouseup',onUp);
+canvas.addEventListener('wheel',onWheel,{passive:false});
+window.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  const [x,y]=svgPoint(e);
+  // 右键导线：打开导线设置（电阻/颜色/断路），删除仍可用删除工具
+  const hw=hitWireEx(x,y,10);
+  if(hw){
+    const w=find(state.wires,q=>q.id===hw.id);
+    if(w){openWireCtx(w,e.clientX,e.clientY);return;}
+  }
+  const d=findDevice(x,y);
+  if(!d)return;
+  ctxDevId=d.id;
+  openCtx(d,e.clientX,e.clientY);
+});
+
+function onDown(e){
+  if(e.button===2)return; // 右键走属性菜单
+  const [x,y]=svgPoint(e);
+  downPos=[x,y];
+  postRing.style.display='none';
+  postTip.style.display='none';
+
+  /* 删除工具：点在设备体内删设备；否则点到导线（12px 内）删导线 */
+  if(state.tool==='delete'){
+    const hw=hitWireEx(x,y,WIRE_HIT_R);
+    const d=findDevice(x,y);
+    if(d&&(!hw||hw.dist>4)){
+      removeDevice(d.id);
+      toast('已删除 '+DEV_TYPES[d.kind].name+'（及其连线）');
+      recompute(); return;
+    }
+    if(hw){
+      state.wires=state.wires.filter(q=>q.id!==hw.id);
+      toast('已删除导线');
+      recompute(); return;
+    }
+    return;
+  }
+
+  /* 变阻器滑片：精确按住手柄（8px 内）优先于起线——手柄与 C 柱贴近时不误起线 */
+  const hd=findDevice(x,y);
+  if(state.tool==='move'&&hd&&hd.kind==='rheostat'&&nearSlider(hd,x,y,8)){
+    dragSlider=true; sliderHintShown=false; state.selectedDev=hd.id;
+    e.preventDefault(); return;
+  }
+
+  /* 连线：必须从接线柱开始（捕获半径 20px，避免按空变成拖设备） */
+  if(state.tool==='wire'||state.tool==='move'){
+    const term=findTerm(x,y,20);
+    if(term){
+      state.wiring={devId:term.devId,term:term.term,x:term.x,y:term.y,cur:{x,y},ax:'v',snap:null};
+      postRing.style.display='none';
+      updateRubber();
+      e.preventDefault(); return;
+    }
+  }
+
+  /* 变阻器滑片：宽松抓取（12px） */
+  const d=findDevice(x,y);
+  if(d&&state.tool==='move'&&d.kind==='rheostat'&&nearSlider(d,x,y)){
+    dragSlider=true; sliderHintShown=false; state.selectedDev=d.id;
+    e.preventDefault(); return;
+  }
+
+  /* 设备拖拽/选中（点击交互在 onUp 区分） */
+  if(d){
+    state.selectedDev=d.id;
+    downDevice=d;
+    moveOffset=[d.x-x,d.y-y];
+    e.preventDefault();
+  } else {
+    state.selectedDev=null;
+    /* 空白处按下：拖动平移画布 */
+    panning=true;
+    panStart=[e.clientX,e.clientY];
+    panOrigin={x:state.pan.x,y:state.pan.y};
+    canvas.style.cursor='grabbing';
+  }
+  render();
+}
+
+/* 变阻器滑片手柄命中（滑片矩形附近，局部坐标判定），tol 可调精确/宽松抓取 */
+function nearSlider(d,x,y,tol){
+  tol=tol||12;
+  const [lx,ly]=toLocal(d,x,y);
+  const w=d.w,h=d.h;
+  const px=-w*0.36+w*0.72*d.pos;
+  return Math.abs(lx-px)<tol&&ly>-h*0.36&&ly<h*0.1;
+}
+
+/* 点到导线的命中检测：遍历导线采样折线段求最小距离，返回 {id,dist} */
+function hitWireEx(x,y,radius){
+  let best=null,bestDist=radius;
+  for(const w of state.wires){
+    const [a,b]=wireEnds(w); if(!a||!b)continue;
+    const pts=wirePts(a,b,16);
+    for(let i=1;i<pts.length;i++){
+      const dd=distToSeg(x,y,pts[i-1],pts[i]);
+      if(dd<bestDist){bestDist=dd;best=w.id;}
+    }
+  }
+  return best?{id:best,dist:bestDist}:null;
+}
+function hitWire(x,y,radius){const r=hitWireEx(x,y,radius);return r?r.id:null;}
+function distToSeg(px,py,p1,p2){
+  const dx=p2[0]-p1[0],dy=p2[1]-p1[1];
+  const L2=dx*dx+dy*dy;
+  if(L2===0)return Math.hypot(px-p1[0],py-p1[1]);
+  let t=((px-p1[0])*dx+(py-p1[1])*dy)/L2;
+  t=clamp(t,0,1);
+  return Math.hypot(px-(p1[0]+t*dx),py-(p1[1]+t*dy));
+}
+
+/* 删除设备并级联删除其所有连线 */
+function removeDevice(id){
+  state.devices=state.devices.filter(d=>d.id!==id);
+  state.wires=state.wires.filter(w=>{
+    const f=w.from&&w.from.indexOf(':')>=0?w.from.split(':')[0]:'';
+    const t=w.to&&w.to.indexOf(':')>=0?w.to.split(':')[0]:'';
+    return f!==id&&t!==id;
+  });
+  if(state.selectedDev===id)state.selectedDev=null;
+}
+
+function handleDeviceInteract(d,x,y){
+  if(d.kind==='switch'){ d.closed=!d.closed; recompute(); }
+  else if(d.kind==='spdt'){ d.sel=(d.sel==='A')?'B':'A'; recompute(); }
+}
+
+function onMove(e){
+  /* 平移画布：按屏幕位移换算成 SVG 单位，只改 viewBox 不重建场景 */
+  if(panning&&panStart){
+    const ctm=canvas.getScreenCTM();
+    const k=ctm?1/ctm.a:1;                       // 屏幕px → SVG单位
+    state.pan.x=panOrigin.x-(e.clientX-panStart[0])*k;
+    state.pan.y=panOrigin.y-(e.clientY-panStart[1])*k;
+    applyView();
+    return;
+  }
+  const [x,y]=svgPoint(e);
+  /* 连线中：只更新橡皮筋与磁吸圈，不重建场景（跟手关键） */
+  if(state.wiring){
+    state.wiring.cur={x,y};
+    updateRubber();
+    return;
+  }
+  if(dragSlider&&state.selectedDev){
+    const d=getDev(state.selectedDev);
+    if(d&&d.kind==='rheostat'){
+      const [lx]=toLocal(d,x,y);          // 鼠标点换算到设备局部坐标（旋转后仍正确）
+      d.pos=clamp((lx+d.w*0.36)/(d.w*0.72),0,1);
+      /* 「两下」接法（C 柱未接线）时滑片不起调节作用——主动提示，每次拖动只提示一次 */
+      if(!sliderHintShown&&!rheostatHasC(d)){
+        sliderHintShown=true;
+        toast('当前是「两下」接法（A、B），电阻恒为最大值，滑片不能改变电流。请把一根导线改接到上方 C 接线柱（一上一下）');
+      }
+      recompute();
+    }
+    return;
+  }
+  if(downDevice){
+    const d=getDev(downDevice.id);
+    if(d){
+      d.x=x+moveOffset[0];
+      d.y=y+moveOffset[1];
+      state.selectedDev=d.id;
+      scheduleRender();  // 导线由 resolveKey 动态解析，实时跟随设备
+    }
+    return;
+  }
+  /* 悬停提示：删除模式高亮待删对象；移动模式提示可接线柱 */
+  if(state.tool==='delete'){
+    const hw=hitWireEx(x,y,WIRE_HIT_R);
+    const d=hw?null:findDevice(x,y);
+    const h=hw?{type:'wire',id:hw.id}:(d?{type:'dev',id:d.id}:null);
+    const changed=(!!h)!==(!!state.hover)||(h&&state.hover&&(h.type!==state.hover.type||h.id!==state.hover.id));
+    state.hover=h;
+    canvas.style.cursor=h?'not-allowed':'default';
+    if(changed)scheduleRender();
+  } else if(!downDevice){
+    /* 悬停接线柱高亮 + 文字提示：可从此处拉线 */
+    const t=findTerm(x,y,20);
+    if(t){
+      postRing.setAttribute('cx',t.x);postRing.setAttribute('cy',t.y);postRing.style.display='';
+      postTip.setAttribute('x',t.x);postTip.setAttribute('y',t.y-16);postTip.style.display='';
+    } else {postRing.style.display='none';postTip.style.display='none';}
+    canvas.style.cursor=t?'crosshair':(findDevice(x,y)?'move':'grab');
+  }
+}
+
+function onUp(e){
+  const [x,y]=svgPoint(e);
+  if(state.wiring){
+    const s=state.wiring;
+    /* 优先用磁吸到的接线柱，其次按松手位置判定 */
+    const target=s.snap||findTerm(x,y,SNAP_R);
+    const same=target&&target.devId===s.devId&&target.term===s.term;
+    if(target&&!same){
+      addWire(s,target);
+    } else if(!same&&Math.hypot(x-s.x,y-s.y)>12){
+      toast('导线要接到接线柱上：对准红/黑接线柱，出现绿圈后松手');
+    }
+    state.wiring=null;
+    updateRubber();
+    recompute();
+    downDevice=null;dragSlider=false;
+    return;
+  }
+  /* 点击（非拖动）触发设备交互 */
+  if(downDevice&&downPos&&Math.hypot(x-downPos[0],y-downPos[1])<5){
+    handleDeviceInteract(downDevice,x,y);
+  }
+  downDevice=null;
+  moveOffset=null;
+  downPos=null;
+  dragSlider=false;
+  if(panning){
+    panning=false;
+    canvas.style.cursor='grab';
+  }
+}
+function onWheel(e){
+  e.preventDefault();
+  const delta=e.deltaY>0?-0.05:0.05;
+  setZoom(delta);
+}
+
+function getDev(id){return find(state.devices,d=>d.id===id);}
+function addWire(from,to){
+  if(!from||!to)return;
+  if(from.devId===to.devId&&from.term===to.term)return;   // 同一接线柱不连
+  const keyF=from.devId+':'+from.term, keyT=to.devId+':'+to.term;
+  const dup=state.wires.some(w=>(w.from===keyF&&w.to===keyT)||(w.from===keyT&&w.to===keyF));
+  if(dup){toast('这两端已有导线连接');return;}
+  state.wires.push({id:nid(),from:keyF,to:keyT});
+}
+
+/* ================================================================
+   设备操作（双击/右键属性）
+   ================================================================ */
+function setTool(t){
+  state.tool=t;
+  state.hover=null;
+  document.querySelectorAll('.toolbtn').forEach(b=>b.classList.remove('active'));
+  const id={move:'tb-move',wire:'tb-wire',delete:'tb-del'}[t];
+  if(id)document.getElementById(id).classList.add('active');
+  setHint();
+  if(sceneLayer)render();
+}
+function setHint(){
+  const h=document.getElementById('hint');
+  if(!h)return;
+  const m={move:'拖设备 · 选中后按 Q/E 旋转 · 按住接线柱拖到另一柱（绿圈磁吸）· 点开关通断 · 右键设参数/旋转/删线 · 拖空白平移画布 · 滚轮缩放',wire:'按住接线柱拖到另一接线柱，出现绿圈后松手',delete:'点导线或设备即可删除（悬停有高亮）'};
+  h.textContent=m[state.tool]||'';
+}
+function applyView(){
+  const ox=-((W*state.zoom-W)/2)+state.pan.x;
+  const oy=-((H*state.zoom-H)/2)+state.pan.y;
+  canvas.setAttribute('viewBox',`${ox} ${oy} ${W*state.zoom} ${H*state.zoom}`);
+}
+function setZoom(delta){
+  /* delta>0=放大。viewBox 宽度= W*zoom，zoom 值越大画面越小，
+     因此放大要减小 zoom 值——此处取反，滚轮与 ＋/− 按钮共用此语义 */
+  state.zoom=clamp(state.zoom-delta,0.5,2);
+  applyView();
+}
+function resetView(){
+  state.zoom=1;
+  state.pan={x:0,y:0};
+  applyView();
+}
+
+/* ================================================================
+   实验 API（供 experiments.js 使用）
+   ================================================================ */
+const api={
+  reset(){clearAll();},
+  // dev(kind,x,y) -> {dev, term:{...,p1,p2}} 每个端子一个端点对象
+  dev(kind,x,y){
+    const d=makeDevice(kind,x,y);
+    state.devices.push(d);
+    const term={};
+    for(const nm of (TERM_NAMES[kind]||[])){
+      const p=termPos(d,nm);
+      term[nm]={x:p[0],y:p[1],axis:termAxis(d,nm),key:d.id+':'+nm,devId:d.id,term:nm};
+    }
+    return {dev:d,term};
+  },
+  // batt(kind,x,y,v)：电源
+  batt(kind,x,y,v){
+    const r=this.dev(kind,x,y);
+    r.dev.v=v;
+    return r;
+  },
+  // wire(a,b)：a,b 端点对象（{x,y,axis,key,open?} 或 dev 返回的 .term.xx）
+  wire(a,b){
+    const A=normEP(a),B=normEP(b);
+    if(!A||!B)return;
+    state.wires.push({id:nid(),from:A.key||(A.devId+':'+A.term),to:B.key||(B.devId+':'+B.term),
+      x1:A.x,y1:A.y,ax1:A.axis,x2:B.x,y2:B.y,ax2:B.axis});
+  },
+  // node(x,y): 开放连接点，返回端点对象
+  node(x,y){
+    const k='n'+Math.round(x)+'_'+Math.round(y);
+    let n=find(state.nodes,n=>n.key===k);
+    if(!n){n={x,y,key:k,axis:'v',open:true}; state.nodes.push(n);}
+    return {x:n.x,y:n.y,axis:'v',key:n.key,open:true};
+  },
+  clue(t){toast(t);},
+};
+function normEP(ep){
+  if(!ep)return null;
+  if(ep.devId!==undefined&&ep.term){const d=getDev(ep.devId);if(!d)return null;const p=termPos(d,ep.term);return {x:p[0],y:p[1],axis:termAxis(d,ep.term),key:d.id+':'+ep.term};}
+  if(ep.x!==undefined&&ep.y!==undefined)return {x:ep.x,y:ep.y,axis:ep.axis||'v',key:ep.key};
+  return null;
+}
+window.EXPApi=api;
+
+/* ================================================================
+   辅助：toast, 清空, 实验菜单, 帮助
+   ================================================================ */
+const toastEl=document.getElementById('toast');
+let toastTimer=null;
+function toast(msg){
+  if(!toastEl)return;
+  toastEl.textContent=msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2600);
+}
+function clearAll(){
+  state.devices.length=0;
+  state.wires.length=0;
+  state.nodes.length=0;
+  state.result=null;
+  state.wiring=null;
+  state.hover=null;
+  downDevice=null;
+  state.selectedDev=null;
+  render();
+}
+function toggleExp(){
+  const m=document.getElementById('expmenu');
+  m.classList.toggle('open');
+  if(m.classList.contains('open'))buildExpMenu();
+}
+function buildExpMenu(){
+  const m=document.getElementById('expmenu');
+  clearNode(m);
+  const exps=window.EXP||[];
+  el('h4',{},m).textContent='典型实验（人教版九年级）';
+  const groups={
+    '15章 电流和电路':[], '16章 电压和电阻':[], '17章 欧姆定律':[],
+  };
+  // 依据 id 前缀分配章
+  for(const e of exps){
+    let g='16章 电压和电阻';
+    if(e.id.startsWith('sw1')||e.id.startsWith('sw2')||e.id.startsWith('sw3')||e.id.startsWith('sw4'))g='15章 电流和电路';
+    if(e.id.startsWith('sw9')||e.id.startsWith('sw10')||e.id.startsWith('sw11')||e.id.startsWith('sw12'))g='17章 欧姆定律';
+    (groups[g]=groups[g]||[]).push(e);
+  }
+  for(const gname in groups){
+    const list=groups[gname];
+    if(!list.length)continue;
+    const dg=el('div',{class:'expgroup'},m);
+    el('div',{class:'gt'},dg).textContent=gname;
+    for(const e of list){
+      const row=el('div',{class:'expi',onclick:'loadExp("'+e.id+'")'},dg);
+      el('span',{class:'ic'},row).textContent=e.ic||'🧪';
+      const tw=el('div',{},row);
+      el('div',{class:'t'},tw).textContent=e.title;
+      el('div',{class:'d'},tw).textContent=e.desc||'';
+    }
+  }
+}
+function loadExp(id,openMenu){
+  const e=find(window.EXP||[],x=>x.id===id);
+  if(!e)return;
+  if(openMenu!==false)toggleExp();
+  e.build(api);
+  recompute();
+  toast('已加载：'+e.title);
+}
+function showHelp(){
+  toast('【玩法】右侧拖设备入画布→从红/黑接线柱拖到另一接线柱连线→点开关通断。点开关/双掷切换状态；按住变阻器滑片左右拖动调阻值；右键设备设参数；删除工具可删导线和设备。实验菜单一键载入典型电路。');
+}
+
+/* ================================================================
+   设备栏构建 & 初始化
+   ================================================================ */
+function buildDeviceBar(){
+  const list=document.getElementById('device-list');
+  clearNode(list);
+  const cats=['电源','控制器件','用电器','测量仪表'];
+  for(const cat of cats){
+    const items=DEV_ORDER.filter(k=>DEV_TYPES[k].cat===cat);
+    if(!items.length)continue;
+    el('div',{class:'devcate'},list).textContent=cat;
+    for(const k of items){
+      const card=el('div',{class:'devcard','data-kind':k,title:'拖入画布'},list);
+      const temp={id:'t',kind:k,x:0,y:0,w:DEV_TYPES[k].size[0],h:DEV_TYPES[k].size[1],closed:true,sel:'A',pos:0.5,r:10,rmax:20,v:1.5};
+      if(k==='batteryPack')temp.v=3.0;
+      // 用 <svg viewBox> 包裹局部坐标图形，保证缩略图可见且不被裁剪
+      const sv=document.createElementNS(NS,'svg');
+      sv.setAttribute('viewBox','-62 -42 124 84');
+      sv.setAttribute('preserveAspectRatio','xMidYMid meet');
+      sv.setAttribute('width','90');sv.setAttribute('height','52');
+      addGradientDefs(sv);
+      sv.appendChild(drawSprite(temp,false));
+      card.appendChild(sv);
+      el('div',{class:'dname'},card).textContent=DEV_TYPES[k].name;
+    }
+  }
+}
+let dragFromBar=false, dragKind=null;
+const deviceList=document.getElementById('device-list');
+deviceList.addEventListener('mousedown',e=>{
+  const card=e.target.closest('.devcard');
+  if(card){dragFromBar=true;dragKind=card.getAttribute('data-kind');}
+});
+document.addEventListener('mousemove',e=>{
+  // 从设备栏拖拽到画布：简化处理-点击式放入
+});
+document.addEventListener('mouseup',e=>{
+  if(dragFromBar){
+    dragFromBar=false;
+    // 判断是否落点在画布内
+    const rect=canvas.getBoundingClientRect();
+    if(!cursorInCanvas(e,rect))return;
+    const [x,y]=svgPoint(e);
+    state.devices.push(makeDevice(dragKind,x,y));
+    recompute();
+    dragKind=null;
+  }
+});
+function cursorInCanvas(e,rect){
+  return e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom;
+}
+
+/* ---------- 设置面板（右键打开；设置项与参考视频一致） ---------- */
+let ctxDevId=null;
+/* 面板内小组件 */
+function ctxRow(m,label){const row=el('div',{class:'row'},m);if(label)el('label',{},row).textContent=label;return row;}
+function ctxText(row,val,cb,w){
+  const inp=el('input',{type:'text',value:val||''},row);
+  inp.style.width=(w||64)+'px';inp.style.background='#1f232c';inp.style.border='1px solid #3a4150';
+  inp.style.borderRadius='5px';inp.style.color='#e8ecf3';inp.style.padding='3px 6px';inp.style.fontSize='12px';
+  inp.addEventListener('change',()=>cb(inp.value.trim()));
+  return inp;
+}
+function ctxSelect(row,opts,cur,cb){
+  const s=el('select',{},row);
+  s.style.width='96px';s.style.background='#1f232c';s.style.border='1px solid #3a4150';
+  s.style.borderRadius='5px';s.style.color='#e8ecf3';s.style.padding='3px';s.style.fontSize='12px';
+  for(const o of opts){const op=el('option',{value:String(o.v)},s);op.textContent=o.t;if(String(o.v)===String(cur))op.selected=true;}
+  s.addEventListener('change',()=>cb(s.value));
+  return s;
+}
+function ctxSeg(row,opts,cur,cb){
+  const seg=el('div',{class:'seg'},row);
+  for(const o of opts){
+    const b=el('button',{},seg);b.textContent=o.t;
+    if(String(o.v)===String(cur))b.classList.add('on');
+    b.addEventListener('click',()=>{seg.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');cb(o.v);});
+  }
+  return seg;
+}
+function ctxToggle(row,on,cb){
+  const b=el('button',{},row);
+  const paint=()=>{b.textContent=on?'开':'关';b.style.background=on?'#ffb400':'#2a2f3a';b.style.color=on?'#1a1d24':'#e8ecf3';b.style.minWidth='36px';};
+  paint();
+  b.addEventListener('click',()=>{on=!on;cb(on);paint();});
+}
+/* 状态按钮（断路/短路等）：高亮表示生效中 */
+function ctxBtn(row,text,isActive,cb){
+  const b=el('button',{},row);b.textContent=text;
+  const paint=()=>b.classList.toggle('on',!!isActive());
+  paint();
+  b.addEventListener('click',()=>{cb();paint();});
+}
+function ctxWarn(m,text){el('div',{style:'font-size:11px;color:#f87171;margin-top:4px;line-height:1.4'},m).textContent=text;}
+function ctxHint(m,text){el('div',{style:'font-size:11px;color:#8a93a3;margin-top:4px;line-height:1.5'},m).textContent=text;}
+
+/* 名称行：两段输入（文字 + 下标，如 M + 1 → M₁），与视频一致 */
+function ctxNameRow(m,d){
+  const row=ctxRow(m,'名称');
+  ctxText(row,d.labelText||'',v=>{const dd=getDev(ctxDevId);if(dd){dd.labelText=v;render();}},40);
+  ctxText(row,d.labelSub||'',v=>{const dd=getDev(ctxDevId);if(dd){dd.labelSub=v;render();}},30);
+}
+function ctxRotRow(m,d){
+  const row=ctxRow(m,'旋转角度');
+  ctxText(row,String(Math.round(d.rot||0)),v=>{const dd=getDev(ctxDevId);if(dd){dd.rot=clamp(parseFloat(v)||0,0,360);render();}},44);
+}
+/* 恢复出厂参数（名称/位置/旋转保留） */
+function applyFactory(d){
+  if(d.kind==='battery'){d.v=1.5;d.ri=0.03;}
+  else if(d.kind==='batteryPack'){d.v=3.0;d.ri=0.03;}
+  else if(d.kind==='bulb'){d.ratedV=3;d.ratedP=0.9;d.r=10;d.fault=null;}
+  else if(d.kind==='motor'){d.ratedV=3;d.mr=20;}
+  else if(d.kind==='rheostat'){d.rmax=20;d.pos=0.5;d.fuseOn=false;d.fuseBlown=false;d.fuseI=2;}
+  else if(d.kind==='ammeter'){d.burnOn=false;d.burned=false;d.amR=0;d.digits=2;d.showImage=true;}
+  else if(d.kind==='voltmeter'){d.vmR=-1;d.digits=1;d.showImage=true;}
+  else if(d.kind==='resistor'){d.r=10;}
+}
+function ctxFooter(m,d,x,y){
+  const row=el('div',{style:'display:flex;gap:8px;margin-top:10px'},m);
+  const b1=el('button',{style:'flex:1'},row);b1.textContent='存为默认';
+  const b2=el('button',{style:'flex:1'},row);b2.textContent='使用默认值';
+  b1.addEventListener('click',()=>{
+    const cur=getDev(ctxDevId);if(!cur)return;
+    const props={};
+    for(const k of (DEF_KEYS[d.kind]||[]))props[k]=cur[k];
+    saveDefaults(d.kind,props);
+    toast('已存为'+DEV_TYPES[d.kind].name+'默认设置');
+  });
+  b2.addEventListener('click',()=>{
+    const dd=getDev(ctxDevId);if(!dd)return;
+    applyFactory(dd);
+    recompute();toast('已恢复默认设置');
+    const old=document.getElementById('ctxmenu');if(old)old.remove();
+    openCtx(dd,x,y);
+  });
+}
+
+function openCtx(d,x,y){
+  const old=document.getElementById('ctxmenu');
+  if(old)old.remove();
+  const m=el('div',{class:'pop',id:'ctxmenu',style:`left:${Math.min(x+10,window.innerWidth-220)}px;top:${Math.min(y+10,window.innerHeight-320)}px`},document.body);
+  const K=d.kind;
+  el('h4',{},m).textContent=DEV_TYPES[K].name+' 设置';
+  ctxNameRow(m,d);
+  /* 通用：调换红黑接线柱位置（左右镜像，电池=正负极对调，导线自动跟随） */
+  {
+    const row=ctxRow(m,'调换红黑');
+    ctxToggle(row,!!d.swapPosts,on=>{const dd=getDev(ctxDevId);if(dd){dd.swapPosts=on;render();}});
+  }
+  if(K==='battery'||K==='batteryPack'){
+    let row=ctxRow(m,'内阻');
+    ctxSelect(row,[0,0.1,0.5,1,5,10].map(v=>({v,t:v+'Ω'})),d.ri??0.03,v=>{const dd=getDev(ctxDevId);if(dd){dd.ri=parseFloat(v);recompute();}});
+    row=ctxRow(m,'电压');
+    ctxSeg(row,[1.5,3,4.5,6].map(v=>({v,t:v+'V'})),d.v,v=>{const dd=getDev(ctxDevId);if(dd){dd.v=v;recompute();}});
+  } else if(K==='switch'){
+    const row=ctxRow(m,'断路设置');
+    ctxBtn(row,'断路',()=>{const dd=getDev(ctxDevId);return dd?!dd.closed:false;},()=>{const dd=getDev(ctxDevId);if(dd){dd.closed=!dd.closed;recompute();}});
+    ctxHint(m,'按钮高亮表示开关处于断开（断路）状态');
+  } else if(K==='bulb'){
+    let row=ctxRow(m,'额定电压');
+    ctxSelect(row,[2.5,3,4.5,6].map(v=>({v,t:v+'V'})),d.ratedV,v=>{const dd=getDev(ctxDevId);if(dd){dd.ratedV=parseFloat(v);dd.r=Math.round(dd.ratedV*dd.ratedV/dd.ratedP*100)/100;recompute();}});
+    row=ctxRow(m,'实际电压');
+    const live=el('span',{class:'val',id:'ctxLiveU'},row);
+    const rd=state.result&&state.result.readings[d.id];
+    live.textContent=(rd?rd.v:0).toFixed(2)+'V';
+    row=ctxRow(m,'额定功率');
+    ctxSelect(row,[0.9,1.2,2.5,3.6].map(v=>({v,t:v+'W'})),d.ratedP,v=>{const dd=getDev(ctxDevId);if(dd){dd.ratedP=parseFloat(v);dd.r=Math.round(dd.ratedV*dd.ratedV/dd.ratedP*100)/100;recompute();}});
+    row=ctxRow(m,'断路设置');
+    ctxBtn(row,'断路',()=>{const dd=getDev(ctxDevId);return dd?dd.fault==='open':false;},()=>{const dd=getDev(ctxDevId);if(dd){dd.fault=dd.fault==='open'?null:'open';recompute();}});
+    row=ctxRow(m,'短路设置');
+    ctxBtn(row,'短路',()=>{const dd=getDev(ctxDevId);return dd?dd.fault==='short':false;},()=>{const dd=getDev(ctxDevId);if(dd){dd.fault=dd.fault==='short'?null:'short';recompute();}});
+    ctxHint(m,'灯泡电阻 = 额定电压² ÷ 额定功率，改变额定参数后自动换算');
+  } else if(K==='motor'){
+    let row=ctxRow(m,'额定电压');
+    ctxSelect(row,[2.5,3,6,12].map(v=>({v,t:v+'V'})),d.ratedV,v=>{const dd=getDev(ctxDevId);if(dd){dd.ratedV=parseFloat(v);render();}});
+    row=ctxRow(m,'内阻');
+    ctxSelect(row,[5,10,20,50].map(v=>({v,t:v+'Ω'})),d.mr,v=>{const dd=getDev(ctxDevId);if(dd){dd.mr=parseFloat(v);recompute();}});
+    ctxHint(m,'通电后转子转动，电流越大转得越快');
+  } else if(K==='rheostat'){
+    let row=ctxRow(m,'最大阻值');
+    ctxSelect(row,[5,10,20,50,100,200].map(v=>({v,t:v+'Ω'})),d.rmax,v=>{const dd=getDev(ctxDevId);if(dd){dd.rmax=parseFloat(v);recompute();}});
+    row=ctxRow(m,'滑块位置');
+    ctxSelect(row,[0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1].map(v=>({v,t:Math.round(v*100)+'%'})),d.pos,v=>{const dd=getDev(ctxDevId);if(dd){dd.pos=parseFloat(v);recompute();}});
+    row=ctxRow(m,'是否允许熔断');
+    ctxToggle(row,!!d.fuseOn,on=>{const dd=getDev(ctxDevId);if(dd){dd.fuseOn=on;dd.fuseBlown=false;recompute();}});
+    row=ctxRow(m,'熔断电流');
+    ctxSelect(row,[0.5,1,2,3].map(v=>({v,t:v+'A'})),d.fuseI??2,v=>{const dd=getDev(ctxDevId);if(dd){dd.fuseI=parseFloat(v);recompute();}});
+    if(d.fuseBlown)ctxWarn(m,'变阻器已熔断！关闭"是否允许熔断"或点"使用默认值"可复位');
+    else{
+      ctxHint(m,'开启熔断后，电流超过熔断电流的瞬间变阻器将烧断（断路）');
+      ctxHint(m,'接入阻值 = 滑片与所接下柱之间的电阻丝：接 A+C 时滑片右移阻值变大；接 B+C 时右移阻值变小。设备上实时显示当前接入阻值 R');
+    }
+  } else if(K==='ammeter'){
+    let row=ctxRow(m,'过载瞬间损坏');
+    ctxToggle(row,!!d.burnOn,on=>{const dd=getDev(ctxDevId);if(dd){dd.burnOn=on;dd.burned=false;recompute();}});
+    row=ctxRow(m,'图像');
+    ctxToggle(row,d.showImage!==false,on=>{const dd=getDev(ctxDevId);if(dd){dd.showImage=on;render();}});
+    row=ctxRow(m,'小量程内阻');
+    ctxSelect(row,[0,0.1,0.5,1,5,10].map(v=>({v,t:v+'Ω'})),d.amR??0,v=>{const dd=getDev(ctxDevId);if(dd){dd.amR=parseFloat(v);recompute();}});
+    row=ctxRow(m,'保留小数位');
+    ctxSeg(row,[1,2,3].map(v=>({v,t:String(v)})),d.digits||2,v=>{const dd=getDev(ctxDevId);if(dd){dd.digits=parseInt(v);render();}});
+    if(d.burned)ctxWarn(m,'电流表已烧毁！关闭"过载瞬间损坏"或点"使用默认值"可复位');
+    else ctxHint(m,'开启后电流超过量程的瞬间电流表将烧毁（内部断路）');
+    ctxHint(m,'红柱"+"= 电流流入（接电源正极方向），黑柱"−"= 电流流出；应"红进黑出"，接反指针会反偏（读数为负并标"反接"）');
+  } else if(K==='voltmeter'){
+    let row=ctxRow(m,'图像');
+    ctxToggle(row,d.showImage!==false,on=>{const dd=getDev(ctxDevId);if(dd){dd.showImage=on;render();}});
+    row=ctxRow(m,'小量程内阻');
+    ctxSelect(row,[{v:-1,t:'理想'},{v:1000,t:'1000Ω'},{v:2000,t:'2000Ω'},{v:5000,t:'5000Ω'},{v:10000,t:'10000Ω'},{v:100000,t:'100kΩ'}],d.vmR??-1,v=>{const dd=getDev(ctxDevId);if(dd){dd.vmR=parseFloat(v);recompute();}});
+    row=ctxRow(m,'保留小数位');
+    ctxSeg(row,[1,2,3].map(v=>({v,t:String(v)})),d.digits||1,v=>{const dd=getDev(ctxDevId);if(dd){dd.digits=parseInt(v);render();}});
+    ctxHint(m,'"理想"= 内阻无穷大；选有限内阻可演示电压表分流的误差');
+    ctxHint(m,'红柱"+"= 电流流入（接电源正极方向），黑柱"−"= 电流流出；应"红进黑出"，接反指针会反偏（读数为负并标"反接"）');
+  } else if(K==='resistor'){
+    const row=ctxRow(m,'电阻 (Ω)');
+    ctxText(row,String(d.r),v=>{const dd=getDev(ctxDevId);if(dd){dd.r=clamp(parseFloat(v)||10,1,1000);recompute();}},54);
+  }
+  if(K!=='ammeter'&&K!=='voltmeter')ctxRotRow(m,d);   // 电表无旋转项，与视频一致
+  ctxFooter(m,d,x,y);
+}
+
+/* 导线设置（右键导线）：电阻 / 颜色 / 断路 */
+function openWireCtx(w,x,y){
+  const old=document.getElementById('ctxmenu');
+  if(old)old.remove();
+  const m=el('div',{class:'pop',id:'ctxmenu',style:`left:${Math.min(x+10,window.innerWidth-220)}px;top:${Math.min(y+10,window.innerHeight-300)}px`},document.body);
+  el('h4',{},m).textContent='导线 设置';
+  const rowN=ctxRow(m,'名称');
+  ctxText(rowN,w.labelText||'',v=>{w.labelText=v;},40);
+  ctxText(rowN,w.labelSub||'',v=>{w.labelSub=v;},30);
+  let row=ctxRow(m,'电阻');
+  ctxSelect(row,[0,0.1,0.5,1,5,10].map(v=>({v,t:v+'Ω'})),w.res??0,v=>{w.res=parseFloat(v);recompute();});
+  row=ctxRow(m,'导线颜色');
+  const seg=el('div',{class:'seg'},row);
+  const colors=[{v:null,t:'默认'},{v:'#e05252',t:'红'},{v:'#4d6bd6',t:'蓝'},{v:'#4ade80',t:'绿'},{v:'#2b2f36',t:'黑'}];
+  for(const c of colors){
+    const b=el('button',{},seg);b.textContent=c.t;
+    if(String(w.color??'null')===String(c.v??'null'))b.classList.add('on');
+    b.addEventListener('click',()=>{seg.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');w.color=c.v;recompute();});
+  }
+  row=ctxRow(m,'断路设置');
+  ctxBtn(row,'断路',()=>!!w.open,()=>{w.open=!w.open;recompute();});
+  row=ctxRow(m,'');
+  const del=el('button',{style:'color:#fda4af'},row);del.textContent='删除导线';
+  del.addEventListener('click',()=>{state.wires=state.wires.filter(q=>q.id!==w.id);closeCtx();toast('已删除导线');recompute();});
+  ctxHint(m,'电阻默认 0Ω（理想导线）；设为断路后导线以灰色虚线显示且不导通');
+  const rowF=el('div',{style:'display:flex;gap:8px;margin-top:10px'},m);
+  const b1=el('button',{style:'flex:1'},rowF);b1.textContent='存为默认';
+  const b2=el('button',{style:'flex:1'},rowF);b2.textContent='使用默认值';
+  b1.addEventListener('click',()=>{saveDefaults('wire',{res:w.res??0,color:w.color??null});toast('已存为导线默认设置');});
+  b2.addEventListener('click',()=>{w.res=0;w.color=null;w.open=false;recompute();toast('已恢复默认设置');});
+}
+
+function closeCtx(){const m=document.getElementById('ctxmenu');if(m)m.remove();}
+/* 点击面板外部时关闭（面板内点击不受影响） */
+document.addEventListener('mousedown',e=>{
+  const m=document.getElementById('ctxmenu');
+  if(m&&!m.contains(e.target))closeCtx();
+});
+
+/* ================================================================
+   初始化
+   ================================================================ */
+function init(){
+  buildStaticLayers();
+  buildDeviceBar();
+  buildExpMenu();
+  setTool('move');
+  // 预置一个示例电路：串联（不自动弹出实验菜单）
+  loadExp('sw1',false);
+  requestAnimationFrame(pulse);
+}
+init();
+
+/* 暴露全局供 HTML onclick 使用 */
+window.clearAll=clearAll;
+window.setTool=setTool;
+window.toggleExp=toggleExp;
+window.showHelp=showHelp;
+window.loadExp=loadExp;
+window.setZoom=setZoom;
+window.resetView=resetView;
+window.togglePlay=togglePlay;
+window.closeCtx=closeCtx;
+/* 测试钩子（自动化验证用，不影响正常使用） */
+window.__sim={state,findTerm,findDevice,getDev,hitWire,hitWireEx,removeDevice,addWire,wireEnds,wirePts,termPos,termLocal,rheostatHasC,recompute,meterScaleOf,get renderCount(){return renderCount;}};
+
+})();
+
+
+
+
+</script>
+
+  <nav class="el-nav">
+    <ul class="el-nav-list">
+      <li><a class="el-nav-item" href="../index.html"><span class="el-nav-icon">◈</span><span class="el-nav-text"><span class="el-nav-zh">万物联动</span><span class="el-nav-en">Digital Twin World</span></span></a></li>
+      <li><a class="el-nav-item" href="../park/index.html"><span class="el-nav-icon">▣</span><span class="el-nav-text"><span class="el-nav-zh">万里科技园</span><span class="el-nav-en">Plant Sandbox</span></span></a></li>
+      <li><a class="el-nav-item" href="../energy/index.html"><span class="el-nav-icon">⚡</span><span class="el-nav-text"><span class="el-nav-zh">数智能源</span><span class="el-nav-en">Energy Mgmt</span></span></a></li>
+      <li><a class="el-nav-item" href="../crystal/index.html"><span class="el-nav-icon">❖</span><span class="el-nav-text"><span class="el-nav-zh">晶体共振</span><span class="el-nav-en">Crystal</span></span></a></li>
+      <li><a class="el-nav-item" href="../gears/index.html"><span class="el-nav-icon">⧗</span><span class="el-nav-text"><span class="el-nav-zh">齿轮轴</span><span class="el-nav-en">Gear Axis</span></span></a></li>
+      <li><a class="el-nav-item" href="../quantum/index.html"><span class="el-nav-icon">❋</span><span class="el-nav-text"><span class="el-nav-zh">纠缠之隙</span><span class="el-nav-en">Quantum</span></span></a></li>
+      <li><a class="el-nav-item" href="../city/index.html"><span class="el-nav-icon">⬡</span><span class="el-nav-text"><span class="el-nav-zh">万象织网</span><span class="el-nav-en">City</span></span></a></li>
+      <li><a class="el-nav-item" href="../aiot/index.html"><span class="el-nav-icon">▦</span><span class="el-nav-text"><span class="el-nav-zh">AIoT 联动</span><span class="el-nav-en">AIoT World</span></span></a></li>
+      <li><a class="el-nav-item is-active" href="../electric/index.html"><span class="el-nav-icon">🔌</span><span class="el-nav-text"><span class="el-nav-zh">电学实验</span><span class="el-nav-en">Electric Lab</span></span></a></li>
+    </ul>
+  </nav>
+  </body>
+</html>
