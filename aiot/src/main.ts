@@ -234,10 +234,33 @@ function orbitCamera(cam: CameraState, dyaw: number, dpitch: number): CameraStat
   };
 }
 
-async function main() {
-  if (!("gpu" in navigator)) throw new Error("WebGPU is not available. Please use a recent Chrome/Edge/Safari with WebGPU enabled.");
+function showFatal(title: string, detail: string) {
+  errorEl.style.display = "grid";
+  const titleEl = document.getElementById("error-title");
+  if (titleEl) titleEl.textContent = title;
+  errorText.textContent = detail;
+}
 
-  const gpu = await init();
+async function main() {
+  if (!("gpu" in navigator)) {
+    showFatal(
+      "需要 WebGPU 支持",
+      "当前浏览器未提供 WebGPU（navigator.gpu 不存在）。本场景基于 VGPU / WebGPU 渲染，无法回退到 WebGL。请使用 Chrome / Edge 113+ 或 Safari 18+（macOS）打开。",
+    );
+    return;
+  }
+
+  let gpu: Gpu;
+  try {
+    gpu = await init();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    showFatal(
+      "WebGPU 初始化失败",
+      "已检测到 WebGPU 接口，但初始化失败。常见原因：GPU 被浏览器黑名单禁用、处于虚拟机 / 远程桌面，或驱动不支持。\n\n技术信息：" + msg,
+    );
+    return;
+  }
   const screen = surface(gpu, canvas, { dpr: [1, 2] });
 
   const [initialWidth, initialHeight] = screen.size;
@@ -559,6 +582,5 @@ async function main() {
 
 main().catch((err) => {
   console.error(err);
-  errorEl.style.display = "grid";
-  errorText.textContent = String(err?.stack ?? err);
+  showFatal("场景运行出错", String((err as Error)?.stack ?? err));
 });

@@ -155,9 +155,44 @@
       /* ---------- WebGPU 不可用兜底 ---------- */
       #error {
         position: fixed; inset: 0; display: none; place-items: center;
-        color: #d8e6ff; background: #020306; padding: 32px; text-align: center; z-index: 100;
+        padding: 32px; text-align: center; z-index: 100;
+        background:
+          radial-gradient(120% 120% at 50% 0%, rgba(8, 26, 64, 0.55) 0%, rgba(2, 3, 6, 0.94) 62%),
+          #020306;
       }
-      #error div { max-width: 720px; line-height: 1.6; font-size: 14px; }
+      .ai-error-card {
+        max-width: 560px; padding: 34px 38px;
+        border: 1px solid rgba(120, 190, 255, 0.22);
+        border-radius: 18px;
+        background: rgba(6, 18, 44, 0.66);
+        backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+        box-shadow: 0 0 60px rgba(0, 60, 140, 0.35), inset 0 0 30px rgba(0, 120, 255, 0.06);
+        color: #d8e6ff;
+      }
+      .ai-error-kicker {
+        font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase;
+        color: rgba(120, 200, 255, 0.72);
+      }
+      .ai-error-title {
+        margin: 14px 0 12px; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.06em;
+        background: linear-gradient(180deg, #ffffff, #7fc4ff);
+        -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      }
+      .ai-error-text {
+        font-size: 13px; line-height: 1.8; color: rgba(190, 220, 252, 0.82);
+        white-space: pre-wrap; text-align: left;
+      }
+      .ai-error-tips {
+        margin: 18px 0 0; padding: 16px 0 0; list-style: none;
+        border-top: 1px solid rgba(120, 190, 255, 0.16);
+        text-align: left; font-size: 12px; line-height: 2; color: rgba(170, 208, 248, 0.72);
+      }
+      .ai-error-tips code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        color: #9fe0ff; background: rgba(0, 120, 255, 0.12);
+        padding: 1px 6px; border-radius: 5px; font-size: 11px;
+      }
+      .ai-error-tips b { color: #dff2ff; font-weight: 600; }
 
       @media (max-width: 900px) {
         .ai-brand h1 { font-size: 1.55rem; }
@@ -297,7 +332,18 @@
     <i class="ai-corner bl"></i>
     <i class="ai-corner br"></i>
 
-    <div id="error"><div id="error-text"></div></div>
+    <div id="error" role="alert">
+      <div class="ai-error-card">
+        <div class="ai-error-kicker">AIoT 联动世界 · AIoT Connected World</div>
+        <h2 class="ai-error-title" id="error-title">需要 WebGPU 支持</h2>
+        <p class="ai-error-text" id="error-text"></p>
+        <ul class="ai-error-tips">
+          <li>使用 <b>Chrome / Edge 113+</b> 或 <b>Safari 18+</b>（macOS）打开本页面</li>
+          <li>Firefox 需在 <code>about:config</code> 开启 <code>dom.webgpu.enabled</code></li>
+          <li>虚拟机 / 远程桌面环境可能已被 GPU 黑名单禁用（可查看 <code>chrome://gpu</code> 的 WebGPU 状态）</li>
+        </ul>
+      </div>
+    </div>
 
     <script type="module" src="./src/main.ts"></script>
   </body>
