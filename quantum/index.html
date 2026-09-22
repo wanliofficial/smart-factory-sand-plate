@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN" data-page-node-id="6zA6bkKFvxDYWqQe1HzBQZ">
-  <head data-page-node-id="hpWNojt0umcDMg3E6J9ttD">
-    <meta charset="UTF-8" data-page-node-id="Qb0lrg4WezmGrYyZ7Igqag" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" data-page-node-id="aCFSyZaeR4m55JJRuWXfU8" />
-    <meta name="theme-color" content="#04030c" data-page-node-id="Tb64Vt31wstCOqrTvmCMjP" />
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#04030c" />
     <title>纠缠之隙：量子跃迁观测台 · Quantum Jump Observatory</title>
 
     <!-- CDN：three.js 0.186（ESM + 后期处理 addons）与 GSAP 3（全局 gsap） -->
@@ -99,8 +99,8 @@
       /* ---------- 站点导航（与 crystal / gears 同族） ---------- */
       .qm-nav { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 30; }
       .qm-nav-list {
-        display: flex; align-items: center; gap: 5px;
-        margin: 0; padding: 6px; list-style: none;
+        display: flex; align-items: center; gap: 4px;
+        margin: 0; padding: 5px 6px; list-style: none;
         border: 1px solid var(--qm-line);
         border-radius: 999px;
         background: rgba(5, 8, 24, 0.58);
@@ -109,8 +109,8 @@
         box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5), inset 0 0 22px rgba(0, 240, 255, 0.05);
       }
       .qm-nav-item {
-        display: flex; align-items: center; gap: 9px;
-        padding: 8px 17px;
+        display: flex; align-items: center; gap: 6px;
+        padding: 5px 9px;
         border: 1px solid transparent;
         border-radius: 999px;
         color: var(--qm-muted);
@@ -129,10 +129,10 @@
         background: linear-gradient(135deg, rgba(0, 240, 255, 0.16), rgba(176, 38, 255, 0.16));
         box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
       }
-      .qm-nav-icon { font-size: 12px; opacity: 0.9; }
+      .qm-nav-icon { font-size: 11px; opacity: 0.9; }
       .qm-nav-text { display: flex; flex-direction: column; line-height: 1.14; }
-      .qm-nav-zh { font-size: 11.5px; letter-spacing: 0.05em; }
-      .qm-nav-en { font-size: 7.5px; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.5; }
+      .qm-nav-zh { font-size: 10.5px; letter-spacing: 0.05em; }
+      .qm-nav-en { display: none; font-size: 7.5px; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.5; }
 
       /* ---------- 左上：标题 / 状态 ---------- */
       .qm-brand { position: fixed; top: 22px; left: 24px; z-index: 20; display: flex; gap: 13px; }
@@ -427,7 +427,7 @@
       }
       @media (max-width: 1240px) {
         .qm-nav-en { display: none; }
-        .qm-nav-item { padding: 8px 12px; }
+        .qm-nav-item { padding: 5px 9px; }
         .qm-brand { top: 84px; }
         .qm-panel { top: 84px; }
       }
@@ -451,72 +451,72 @@
       }
     </style>
   </head>
-  <body data-page-node-id="TVfLnmiQ6hMQIfVn1KbnSM">
-    <canvas id="qm-canvas" data-page-node-id="c3AVhrZpK3Cs69jNNqeBl5"></canvas>
+  <body>
+    <canvas id="qm-canvas"></canvas>
 
     <!-- 后期叠加层 -->
-    <div class="qm-fx qm-vignette" data-page-node-id="8zVTr34xUp6mMq2I03me5j"></div>
-    <div class="qm-fx qm-scan" data-page-node-id="17reBd5oF8waqu4Xgjibq2"></div>
-    <div class="qm-fx qm-grain" data-page-node-id="BF2VFqyE5CdxOO8wR7bJcM"></div>
-    <div id="qm-flash" class="qm-fx" data-page-node-id="dOi7B4FBHZC6v1GsOm7GDj"></div>
+    <div class="qm-fx qm-vignette"></div>
+    <div class="qm-fx qm-scan"></div>
+    <div class="qm-fx qm-grain"></div>
+    <div id="qm-flash" class="qm-fx"></div>
 
-    <i class="qm-corner tl" data-page-node-id="Fb7dtGFeSbkQ4z4HzOOKVo"></i><i class="qm-corner tr" data-page-node-id="JjGCPHYjYzOTEZ7asybm9i"></i>
-    <i class="qm-corner bl" data-page-node-id="LFYsG4ZBcPxnKsVNO3xly5"></i><i class="qm-corner br" data-page-node-id="fPALoxM59gxljBeYiNzec7"></i>
+    <i class="qm-corner tl"></i><i class="qm-corner tr"></i>
+    <i class="qm-corner bl"></i><i class="qm-corner br"></i>
 
     <!-- 站点导航（第六个场景） -->
-    <nav class="qm-nav" data-page-node-id="56Rc3Yd7NvhLuxYQtsNHhn">
-      <ul class="qm-nav-list" data-page-node-id="XMYouT1Yf4QzNb4c7VN3FY">
-        <li data-page-node-id="PS4GVMM5BuhAYYzzpo5fAG">
-          <a class="qm-nav-item" href="../index.html" data-page-node-id="J0dxVHC4hFiCmWunYr0H9H">
-            <span class="qm-nav-icon" data-page-node-id="ToUQ7BvaEWJ4lshBy1AdOn">◈</span>
-            <span class="qm-nav-text" data-page-node-id="1WGf0axp34XlrP1MG3Fij9">
-              <span class="qm-nav-zh" data-page-node-id="jWWAnLVfwuP54qV9BXwChC">万物联动</span>
-              <span class="qm-nav-en" data-page-node-id="pBPtTt3PwXrwoHvAM7isVU">Digital Twin World</span>
+    <nav class="qm-nav">
+      <ul class="qm-nav-list">
+        <li>
+          <a class="qm-nav-item" href="../index.html">
+            <span class="qm-nav-icon">◈</span>
+            <span class="qm-nav-text">
+              <span class="qm-nav-zh">万物联动</span>
+              <span class="qm-nav-en">Digital Twin World</span>
             </span>
           </a>
         </li>
-        <li data-page-node-id="2d9fjDVrQgn1uDQ2GHmd90">
-          <a class="qm-nav-item" href="../park/index.html" data-page-node-id="ljUkeXbuq3XfcLgiXbo4NU">
-            <span class="qm-nav-icon" data-page-node-id="emQ4ArOv3IwdV0nt3u2Sne">▣</span>
-            <span class="qm-nav-text" data-page-node-id="DqfWrmbhTBJQg0bKikHbEc">
-              <span class="qm-nav-zh" data-page-node-id="sFTL5yvRp8MFDrLSrPfOWt">万里科技园</span>
-              <span class="qm-nav-en" data-page-node-id="2gWkyUZWkHkI64Qdw2raGP">Smart Plant Sandbox</span>
+        <li>
+          <a class="qm-nav-item" href="../park/index.html">
+            <span class="qm-nav-icon">▣</span>
+            <span class="qm-nav-text">
+              <span class="qm-nav-zh">万里科技园</span>
+              <span class="qm-nav-en">Smart Plant Sandbox</span>
             </span>
           </a>
         </li>
-        <li data-page-node-id="GuxxNEXdhHl5YjiYd2le9e">
-          <a class="qm-nav-item" href="../energy/index.html" data-page-node-id="nGAyS6WD64tc9LR6vFBco6">
-            <span class="qm-nav-icon" data-page-node-id="gW9pN34nQhnvx4i3FLIEaL">⚡</span>
-            <span class="qm-nav-text" data-page-node-id="Q9Xrq9dLq5X8dOGW4S8eCq">
-              <span class="qm-nav-zh" data-page-node-id="7Ttg1HNK7482HWjzBYyxSt">数智能源管理平台</span>
-              <span class="qm-nav-en" data-page-node-id="CMf5pXwVERVE70u18Rhy3t">Energy Management</span>
+        <li>
+          <a class="qm-nav-item" href="../energy/index.html">
+            <span class="qm-nav-icon">⚡</span>
+            <span class="qm-nav-text">
+              <span class="qm-nav-zh">数智能源管理平台</span>
+              <span class="qm-nav-en">Energy Management</span>
             </span>
           </a>
         </li>
-        <li data-page-node-id="u1HFny2YjYaQTHZBtyYIYT">
-          <a class="qm-nav-item" href="../crystal/index.html" data-page-node-id="1RqVicUG9SDta1q8sDCLEN">
-            <span class="qm-nav-icon" data-page-node-id="wuYQJBc9Lngq80wCuQdYAn">❖</span>
-            <span class="qm-nav-text" data-page-node-id="so4Iq4t8iUyjk3rpKzMJNA">
-              <span class="qm-nav-zh" data-page-node-id="xbTlcSCbfoVV2yfReUuQZY">晶体共振矩阵</span>
-              <span class="qm-nav-en" data-page-node-id="4M8Uw5oRfHT4M3fdgBiwh3">Crystal Resonance</span>
+        <li>
+          <a class="qm-nav-item" href="../crystal/index.html">
+            <span class="qm-nav-icon">❖</span>
+            <span class="qm-nav-text">
+              <span class="qm-nav-zh">晶体共振矩阵</span>
+              <span class="qm-nav-en">Crystal Resonance</span>
             </span>
           </a>
         </li>
-        <li data-page-node-id="T6m6NNbNml3KoJDL06Dpow">
-          <a class="qm-nav-item" href="../gears/index.html" data-page-node-id="LSDOQ7vnbmiWoF1cauNGl6">
-            <span class="qm-nav-icon" data-page-node-id="ZiVxhefUOhfsYL5qrUgyZp">⧗</span>
-            <span class="qm-nav-text" data-page-node-id="K1i3tBa6Ik2GRXjVAUli2Y">
-              <span class="qm-nav-zh" data-page-node-id="sYtbTjxsVX6WGY1h3QlHgj">逆时空齿轮轴</span>
-              <span class="qm-nav-en" data-page-node-id="Kj0KnA1tFzR3jdzBcKRkay">Gear Axis</span>
+        <li>
+          <a class="qm-nav-item" href="../gears/index.html">
+            <span class="qm-nav-icon">⧗</span>
+            <span class="qm-nav-text">
+              <span class="qm-nav-zh">逆时空齿轮轴</span>
+              <span class="qm-nav-en">Gear Axis</span>
             </span>
           </a>
         </li>
-        <li data-page-node-id="fN0o5cD9mz5X1T0ux1O51N">
-          <a class="qm-nav-item is-active" href="./index.html" aria-current="page" data-page-node-id="1wMvUEH6SJDBVQnUE17UXF">
-            <span class="qm-nav-icon" data-page-node-id="LxEXt7zJAu7IieSR0QWYZ3">❋</span>
-            <span class="qm-nav-text" data-page-node-id="CAUuIRhp3NxlJJyCLE1fan">
-              <span class="qm-nav-zh" data-page-node-id="OPRFTbpzvpaWl88AfPedcX">纠缠之隙</span>
-              <span class="qm-nav-en" data-page-node-id="psEYuSbne9OhHNAju7zYuF">Quantum Observatory</span>
+        <li>
+          <a class="qm-nav-item is-active" href="./index.html" aria-current="page">
+            <span class="qm-nav-icon">❋</span>
+            <span class="qm-nav-text">
+              <span class="qm-nav-zh">纠缠之隙</span>
+              <span class="qm-nav-en">Quantum Observatory</span>
             </span>
           </a>
         </li>
@@ -551,115 +551,115 @@
     </nav>
 
     <!-- 左上：标题 -->
-    <header class="qm-brand" data-page-node-id="Al7an9L1DdnkYcaT7nixJ9">
-      <div class="qm-brand-mark" data-page-node-id="1scgxR5S6WmpAEkR5oW9dF">❋</div>
-      <div class="qm-brand-text" data-page-node-id="mndVcqKg0UaQ4R9z2zWsMt">
-        <div class="qm-kicker" data-page-node-id="up4R559gdDqddDM2LvRG1o">Scene 06 / Quantum Entanglement Observatory</div>
-        <h1 data-page-node-id="7mEC7Jff2enjFEvnDnEH5T">纠缠之隙</h1>
-        <p class="qm-sub" data-page-node-id="x0aHa0mxIUgxHR9TQIMp9x">ENTANGLEMENT GAP · 量子跃迁观测台 MK-VI</p>
-        <div id="qm-status" class="qm-status" data-page-node-id="Ae7UKIJdEgFZp9hmbvmnXm">待机 · STANDBY</div>
+    <header class="qm-brand">
+      <div class="qm-brand-mark">❋</div>
+      <div class="qm-brand-text">
+        <div class="qm-kicker">Scene 06 / Quantum Entanglement Observatory</div>
+        <h1>纠缠之隙</h1>
+        <p class="qm-sub">ENTANGLEMENT GAP · 量子跃迁观测台 MK-VI</p>
+        <div id="qm-status" class="qm-status">待机 · STANDBY</div>
       </div>
     </header>
 
     <!-- 右上：观测数据面板 -->
-    <section class="qm-panel" data-page-node-id="z4bDhNRdUgsqIJrN7Qk9eo">
-      <div class="qm-panel-title" data-page-node-id="3EcigI5r24BpfD9iA9T6WL"><span data-page-node-id="eFE13EqQJt3gYENNpFsQyk">观测数据 / OBSERVATION</span><b data-page-node-id="nzXzrDL8sVWQwI7ZscLCPK">S-06</b></div>
+    <section class="qm-panel">
+      <div class="qm-panel-title"><span>观测数据 / OBSERVATION</span><b>S-06</b></div>
 
-      <div class="qm-row" data-page-node-id="YoxD5gDmAjhTwyTbJZu6K6">
-        <span class="qm-row-label" data-page-node-id="nkM0uF3hLnmqb2Ta6KwhUH">自旋关联度 E(a,b)</span>
-        <span id="qm-corr" class="qm-row-value" data-page-node-id="eeT7fi7XWS5XBebUTMkkGB">0.000</span>
+      <div class="qm-row">
+        <span class="qm-row-label">自旋关联度 E(a,b)</span>
+        <span id="qm-corr" class="qm-row-value">0.000</span>
       </div>
-      <div class="qm-row" data-page-node-id="yzC4tmjh6iv8dmOR5ng7K0">
-        <span class="qm-row-label" data-page-node-id="aZMnpY4xqRH46KkOkxpOAo">测量基 a / b</span>
-        <span id="qm-basis" class="qm-row-value" data-page-node-id="m8JrOqqdvuxCoMyMVkZZaf">0° / 45°</span>
+      <div class="qm-row">
+        <span class="qm-row-label">测量基 a / b</span>
+        <span id="qm-basis" class="qm-row-value">0° / 45°</span>
       </div>
-      <div class="qm-row" data-page-node-id="ZU0QSSfgxAhlP5muHJcJOz">
-        <span class="qm-row-label" data-page-node-id="G1OUiwS9LFXOF0T1TKX0M8">能量弦震颤</span>
-        <span id="qm-tremble" class="qm-row-value" data-page-node-id="qYtxs7jpg9duKLBSQCQoU3">0.00</span>
-        <span class="qm-row-unit" data-page-node-id="HYXbLEhI9PKwBjAj4dqV5I">Hz·k</span>
-      </div>
-
-      <div class="qm-row" data-page-node-id="0qKbFOWQ8GjaXqAUnRm6hr">
-        <span class="qm-row-label" data-page-node-id="acI703m2KyRgqvGLAxtNoy">当前能级 n</span>
-        <span id="qm-level" class="qm-row-value" data-page-node-id="7fZa6VAg7K36x6Ic6DnJ1M">1</span>
-        <span id="qm-shell" class="qm-row-unit" data-page-node-id="ON2SCyX97tQhgayJ2hoceN">1.15 a₀</span>
-      </div>
-      <div id="qm-levels" class="qm-levels" data-page-node-id="aPcvzGc4VzX8AOs7jWA7qQ"></div>
-      <div class="qm-meter" data-page-node-id="m68KT2JoISUiiSXNQNWZAC"><div id="qm-energy-bar" class="qm-meter-fill" data-page-node-id="A1dtnQXFLDarR2w4BndzHA"></div></div>
-
-      <div class="qm-row qm-hide-sm" data-page-node-id="auBfOXiZiOvIgR8ubhcikJ">
-        <span class="qm-row-label" data-page-node-id="XGZtF59XxVowdECDXOFITP">注入能量</span>
-        <span id="qm-energy" class="qm-row-value" data-page-node-id="heProMOVknFs6ONZz6ADVB">0.0</span>
-        <span class="qm-row-unit" data-page-node-id="LGSLVJwTDADABvQ1mLkpYw">τ</span>
-      </div>
-      <div class="qm-row" data-page-node-id="gMpw0V4mmhq74fUEqA2uds">
-        <span class="qm-row-label" data-page-node-id="giFUXBHclLYloKOfne9SKo">光子释放</span>
-        <span class="qm-row-value" data-page-node-id="UHshClW0kmTjt4hsWW4sos"><span id="qm-photon-chip" class="qm-chip" data-page-node-id="ipxsMm0c8HmBAZE3KETszr"></span><span id="qm-photon-count" data-page-node-id="i06eUMmWJrR2EZUHuUSuc8">0</span></span>
-      </div>
-      <div class="qm-row qm-hide-sm" data-page-node-id="flmuGg86KWDAJILdBmwp4X">
-        <span class="qm-row-label" data-page-node-id="Q4ZezxTLfXLrrpclzsSw99">末次光子波长</span>
-        <span id="qm-photon-lambda" class="qm-row-value" data-page-node-id="7MwHa6PwjsDhaYXZGb9mKJ">—</span>
-        <span class="qm-row-unit" data-page-node-id="JD9MBgQW0AZIMR3zXcoURk">nm</span>
+      <div class="qm-row">
+        <span class="qm-row-label">能量弦震颤</span>
+        <span id="qm-tremble" class="qm-row-value">0.00</span>
+        <span class="qm-row-unit">Hz·k</span>
       </div>
 
-      <div class="qm-bell" data-page-node-id="41IT0qY2x12QirHOSmkWzi">
-        <div class="qm-bell-head" data-page-node-id="jtS4TOMRrXVF9uC6UuajBc"><span data-page-node-id="y7aDUBBkhGPL77jAJAobnx">贝尔不等式测试</span><span id="qm-measures" data-page-node-id="gv7dhDCBVSRLKsnEbPkRKM">N = 0</span></div>
-        <div class="qm-bell-track" data-page-node-id="h4EB4mGAe1im3AOJtccmpu">
-          <div id="qm-bell-fill" class="qm-bell-fill" data-page-node-id="zFlw0bg86F5VKrVR3ZPypH"></div>
-          <i class="qm-bell-mark" style="left: 70.71%" data-page-node-id="GsiuThfCUTgslGgAC2nsjy"><span data-page-node-id="HsPG8JLAjnRGgER7fnXkmC">|S|≤2 局域</span></i>
-          <i class="qm-bell-mark is-quantum" style="left: 100%" data-page-node-id="RBmrdduECS5MrTGkVwQTch"><span data-page-node-id="UVbkVpvOpsi8yaPAOqdj32">2√2</span></i>
-          <i id="qm-bell-needle" class="qm-bell-needle" data-page-node-id="NUTmovOvMwEozzeuFHphrz"></i>
+      <div class="qm-row">
+        <span class="qm-row-label">当前能级 n</span>
+        <span id="qm-level" class="qm-row-value">1</span>
+        <span id="qm-shell" class="qm-row-unit">1.15 a₀</span>
+      </div>
+      <div id="qm-levels" class="qm-levels"></div>
+      <div class="qm-meter"><div id="qm-energy-bar" class="qm-meter-fill"></div></div>
+
+      <div class="qm-row qm-hide-sm">
+        <span class="qm-row-label">注入能量</span>
+        <span id="qm-energy" class="qm-row-value">0.0</span>
+        <span class="qm-row-unit">τ</span>
+      </div>
+      <div class="qm-row">
+        <span class="qm-row-label">光子释放</span>
+        <span class="qm-row-value"><span id="qm-photon-chip" class="qm-chip"></span><span id="qm-photon-count">0</span></span>
+      </div>
+      <div class="qm-row qm-hide-sm">
+        <span class="qm-row-label">末次光子波长</span>
+        <span id="qm-photon-lambda" class="qm-row-value">—</span>
+        <span class="qm-row-unit">nm</span>
+      </div>
+
+      <div class="qm-bell">
+        <div class="qm-bell-head"><span>贝尔不等式测试</span><span id="qm-measures">N = 0</span></div>
+        <div class="qm-bell-track">
+          <div id="qm-bell-fill" class="qm-bell-fill"></div>
+          <i class="qm-bell-mark" style="left: 70.71%"><span>|S|≤2 局域</span></i>
+          <i class="qm-bell-mark is-quantum" style="left: 100%"><span>2√2</span></i>
+          <i id="qm-bell-needle" class="qm-bell-needle"></i>
         </div>
-        <canvas id="qm-bell-spark" width="560" height="88" data-page-node-id="dDKCqIry3kXcLDYQ5CjDK3"></canvas>
-        <div id="qm-verdict" class="qm-verdict" data-page-node-id="fBxdOBEoAlbNuTVlXBNi6R">等待测量 · 拖动粒子 A 后松开即完成一次联合测量</div>
+        <canvas id="qm-bell-spark" width="560" height="88"></canvas>
+        <div id="qm-verdict" class="qm-verdict">等待测量 · 拖动粒子 A 后松开即完成一次联合测量</div>
       </div>
 
-      <div class="qm-row qm-hide-sm" style="border-bottom: 0; padding-bottom: 0" data-page-node-id="Oi0CnnYzAKzAXMzTyDHIRx">
-        <span class="qm-row-label" data-page-node-id="80YvYV8CP7HD6Ja265h5xj">观测台帧率</span>
-        <span id="qm-fps" class="qm-row-value" data-page-node-id="NknPiHhTWZFonsRMoZSMsl">60</span>
-        <span class="qm-row-unit" data-page-node-id="CnQqDM4hg7jcMVKSgBGDWn">FPS</span>
+      <div class="qm-row qm-hide-sm" style="border-bottom: 0; padding-bottom: 0">
+        <span class="qm-row-label">观测台帧率</span>
+        <span id="qm-fps" class="qm-row-value">60</span>
+        <span class="qm-row-unit">FPS</span>
       </div>
     </section>
 
     <!-- 左下：操作提示 -->
-    <aside class="qm-hint" data-page-node-id="goIZJIwpMmE9y2t3FiSFd5">
-      <p data-page-node-id="yZUcwzHwWudUpKuCgyd4vE"><b data-page-node-id="TyycPhUbDhGbEf80x2VeIS">拖动粒子 A / B</b> → 设定自旋方向，另一颗粒子瞬时呈现相反自旋，能量弦随拖动速度震颤加亮</p>
-      <p data-page-node-id="ioptPDCPFA9BMwKQY2kCNP"><b data-page-node-id="hHrEHZ9eOsgfrFQD6PGpS1">按住</b>粒子 → 波函数坍缩（概率云 0.5s 内收成一个亮点），松开缓慢重新弥散</p>
-      <p data-page-node-id="ZxhqStv2IYIvnPHzBtLg2H"><b data-page-node-id="yydg1AJG3HVmMTYOrnytpW">拖动底部旋钮</b> → 顺时针注入能量、逆时针泄能；达阈值电子闪现跃迁，能量回落时释放光子</p>
-      <p data-page-node-id="VQmBGPXLZyGAbccLxe2whD"><b data-page-node-id="H1Rhuiawlf4bYV0lAQbFpG">拖拽空白处</b>环绕 · <b data-page-node-id="S2A6lwr4YXcQ6eHXCy1elN">滚轮</b>缩放 · <span class="qm-kbd" data-page-node-id="LjoiePu7TYED3SdRCxpPkZ">空格</span>观测坍缩 · <span class="qm-kbd" data-page-node-id="0oZGb0kBF50LJJUxHbB3BF">↑</span><span class="qm-kbd" data-page-node-id="nuAe7Z0dQaIHhyiGlKdUJ4">↓</span>注能/泄能 · <span class="qm-kbd" data-page-node-id="5OZXwWsy342RGRSbRLQ0QG">R</span>复位</p>
+    <aside class="qm-hint">
+      <p><b>拖动粒子 A / B</b> → 设定自旋方向，另一颗粒子瞬时呈现相反自旋，能量弦随拖动速度震颤加亮</p>
+      <p><b>按住</b>粒子 → 波函数坍缩（概率云 0.5s 内收成一个亮点），松开缓慢重新弥散</p>
+      <p><b>拖动底部旋钮</b> → 顺时针注入能量、逆时针泄能；达阈值电子闪现跃迁，能量回落时释放光子</p>
+      <p><b>拖拽空白处</b>环绕 · <b>滚轮</b>缩放 · <span class="qm-kbd">空格</span>观测坍缩 · <span class="qm-kbd">↑</span><span class="qm-kbd">↓</span>注能/泄能 · <span class="qm-kbd">R</span>复位</p>
     </aside>
 
     <!-- 底部中央：能量注入旋钮 -->
-    <div class="qm-knob-box" id="qm-knob-box" data-page-node-id="YGkwNBxanE4HlFAdRJoUgL">
-      <div class="qm-knob-halo" data-page-node-id="G2gMEKCjHaHzTGpeGGJijY"></div>
+    <div class="qm-knob-box" id="qm-knob-box">
+      <div class="qm-knob-halo"></div>
       <svg class="qm-knob" id="qm-knob" viewBox="0 0 240 240" role="slider"
-           aria-label="能量注入旋钮" aria-valuemin="0" aria-valuemax="150" aria-valuenow="0" data-page-node-id="9KR0sP2tWjBwbSyguVgjsk">
-        <g id="qm-knob-ticks" class="qm-knob-ticks" data-page-node-id="wiAyazQri41VVf1MZFHONk"></g>
-        <circle class="qm-knob-rim" cx="120" cy="120" r="94" data-page-node-id="fyNCcrRBl0bk0F7UdUMvtf"></circle>
-        <circle class="qm-knob-track" cx="120" cy="120" r="80" transform="rotate(-90 120 120)" data-page-node-id="EcIRisL3NQgAoTWkTTbHSU"></circle>
+           aria-label="能量注入旋钮" aria-valuemin="0" aria-valuemax="150" aria-valuenow="0">
+        <g id="qm-knob-ticks" class="qm-knob-ticks"></g>
+        <circle class="qm-knob-rim" cx="120" cy="120" r="94"></circle>
+        <circle class="qm-knob-track" cx="120" cy="120" r="80" transform="rotate(-90 120 120)"></circle>
         <circle id="qm-knob-arc" class="qm-knob-arc" cx="120" cy="120" r="80" transform="rotate(-90 120 120)"
-                style="stroke-dasharray: 0 502.7" data-page-node-id="PLKpCpDRaRy6bZ8Khdf8W2"></circle>
-        <circle class="qm-knob-core" cx="120" cy="120" r="52" data-page-node-id="C4g9UtD027S5wh9kPAg8Fc"></circle>
-        <line id="qm-knob-ptr" class="qm-knob-ptr" x1="120" y1="74" x2="120" y2="30" data-page-node-id="nz1SsznY9Lo0jkc7VBP4Me"></line>
+                style="stroke-dasharray: 0 502.7"></circle>
+        <circle class="qm-knob-core" cx="120" cy="120" r="52"></circle>
+        <line id="qm-knob-ptr" class="qm-knob-ptr" x1="120" y1="74" x2="120" y2="30"></line>
       </svg>
-      <div class="qm-knob-face" data-page-node-id="HbPD1UXWJLSMlVlSUaD9rK">
-        <span class="qm-knob-num" data-page-node-id="Lg804ppfG5E0EnMxxhsNI4"><span id="qm-knob-pct" data-page-node-id="fo5afAIryl4I2Ve1DXalJo">0</span><i data-page-node-id="vfn1y9UjlWhanqIg2R4hNw">%</i></span>
-        <small id="qm-knob-dir" data-page-node-id="B64HzsGIB5zQUVIQERDQbR">静止 · IDLE</small>
+      <div class="qm-knob-face">
+        <span class="qm-knob-num"><span id="qm-knob-pct">0</span><i>%</i></span>
+        <small id="qm-knob-dir">静止 · IDLE</small>
       </div>
-      <div class="qm-knob-cap" data-page-node-id="jOciBQn3BtCTeXdHZCONTo">能 量 注 入 · ENERGY INJECTION</div>
+      <div class="qm-knob-cap">能 量 注 入 · ENERGY INJECTION</div>
     </div>
 
     <!-- 科普气泡 -->
-    <div id="qm-tip" class="qm-tip" data-page-node-id="U1iMoXJRziQ5k9fYuaS5cU">
-      <div id="qm-tip-title" class="qm-tip-title" data-page-node-id="y3N1DjKWxClOAZBIgdfvVj"></div>
-      <div id="qm-tip-body" class="qm-tip-body" data-page-node-id="EIKWRVju6Qfz8UoFUwMePt"></div>
+    <div id="qm-tip" class="qm-tip">
+      <div id="qm-tip-title" class="qm-tip-title"></div>
+      <div id="qm-tip-body" class="qm-tip-body"></div>
     </div>
 
     <!-- 启动遮罩 -->
-    <div id="qm-boot" data-page-node-id="8cFAGNr6mzTY2g2CGfjkL5">
-      <div class="qm-boot-ring" data-page-node-id="yRyBSylv95sed9P4jN1ZhT"></div>
-      <p class="qm-boot-text" data-page-node-id="BNyXjhHLumKDCytFFsooa6">观测舱校准中 · CALIBRATING OBSERVATORY</p>
-      <p class="qm-boot-sub" data-page-node-id="sAbIzaX9HZPr2ZsvSBcNCg">BELL TEST · SPIN CORRELATION · QUANTUM JUMP</p>
+    <div id="qm-boot">
+      <div class="qm-boot-ring"></div>
+      <p class="qm-boot-text">观测舱校准中 · CALIBRATING OBSERVATORY</p>
+      <p class="qm-boot-sub">BELL TEST · SPIN CORRELATION · QUANTUM JUMP</p>
     </div>
 
     <script type="module">

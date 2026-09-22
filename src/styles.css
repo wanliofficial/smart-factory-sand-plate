@@ -454,9 +454,9 @@ body {
 .ec-sitenav-list {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   margin: 0;
-  padding: 6px;
+  padding: 5px 6px;
   list-style: none;
   background: rgba(6, 14, 30, 0.78);
   border: 1px solid var(--border);
@@ -469,8 +469,8 @@ body {
 .ec-sitenav-item {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 8px 18px;
+  gap: 6px;
+  padding: 5px 9px;
   border: 1px solid transparent;
   border-radius: 999px;
   color: var(--text-secondary);
@@ -494,7 +494,7 @@ body {
 }
 
 .ec-sitenav-icon {
-  font-size: 15px;
+  font-size: 11px;
   line-height: 1;
   color: var(--accent-cyan);
   text-shadow: 0 0 12px rgba(0, 224, 255, 0.5);
@@ -509,12 +509,13 @@ body {
 }
 
 .ec-sitenav-zh {
-  font-size: 13px;
+  font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.08em;
 }
 
 .ec-sitenav-en {
+  display: none;
   font-size: 8px;
   letter-spacing: 0.18em;
   color: var(--text-muted);

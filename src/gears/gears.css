@@ -112,9 +112,9 @@ body.is-rewinding #app { animation: ga-rewind-pulse 320ms ease-in-out infinite a
 .ga-sitenav-list {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   margin: 0;
-  padding: 5px;
+  padding: 5px 6px;
   list-style: none;
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(30, 20, 12, 0.86), rgba(12, 8, 5, 0.9));
@@ -125,8 +125,8 @@ body.is-rewinding #app { animation: ga-rewind-pulse 320ms ease-in-out infinite a
 .ga-sitenav-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 15px;
+  gap: 6px;
+  padding: 5px 9px;
   border-radius: 7px;
   text-decoration: none;
   color: var(--ga-text-dim);
@@ -144,10 +144,10 @@ body.is-rewinding #app { animation: ga-rewind-pulse 320ms ease-in-out infinite a
   border-color: rgba(255, 190, 110, 0.5);
   box-shadow: 0 0 18px rgba(255, 150, 60, 0.22);
 }
-.ga-sitenav-icon { font-size: 14px; color: var(--ga-amber); text-shadow: 0 0 10px rgba(255, 157, 60, 0.6); }
+.ga-sitenav-icon { font-size: 11px; color: var(--ga-amber); text-shadow: 0 0 10px rgba(255, 157, 60, 0.6); }
 .ga-sitenav-text { display: flex; flex-direction: column; line-height: 1.2; }
-.ga-sitenav-zh { font-size: 12.5px; font-weight: 600; letter-spacing: 0.06em; }
-.ga-sitenav-en { font-size: 8px; letter-spacing: 0.16em; opacity: 0.62; }
+.ga-sitenav-zh { font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; }
+.ga-sitenav-en { display: none; font-size: 8px; letter-spacing: 0.16em; opacity: 0.62; }
 
 /* ---------------- 标题 ---------------- */
 .ga-brand {
@@ -427,6 +427,6 @@ body.is-rewinding #app { animation: ga-rewind-pulse 320ms ease-in-out infinite a
   .ga-hint { display: none; }
   .ga-dial { width: 168px; height: 168px; }
   .ga-dial-wrap { bottom: 14px; }
-  .ga-sitenav-item { padding: 6px 10px; }
-  .ga-sitenav-zh { font-size: 11px; }
+  .ga-sitenav-item { padding: 5px 9px; }
+  .ga-sitenav-zh { font-size: 10.5px; }
 }

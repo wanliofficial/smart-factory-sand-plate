@@ -60,8 +60,8 @@
         z-index: 30;
       }
       .cr-nav-list {
-        display: flex; align-items: center; gap: 6px;
-        margin: 0; padding: 6px; list-style: none;
+        display: flex; align-items: center; gap: 4px;
+        margin: 0; padding: 5px 6px; list-style: none;
         border: 1px solid var(--line);
         border-radius: 999px;
         background: rgba(4, 14, 36, 0.55);
@@ -69,8 +69,8 @@
         -webkit-backdrop-filter: blur(14px);
       }
       .cr-nav-item {
-        display: flex; align-items: center; gap: 9px;
-        padding: 8px 18px;
+        display: flex; align-items: center; gap: 6px;
+        padding: 5px 9px;
         border: 1px solid transparent;
         border-radius: 999px;
         color: var(--muted);
@@ -89,11 +89,11 @@
         border-color: rgba(120, 210, 255, 0.5);
         box-shadow: 0 0 18px rgba(0, 190, 255, 0.25);
       }
-      .cr-nav-icon { font-size: 15px; line-height: 1; color: var(--neon); text-shadow: 0 0 12px rgba(53, 240, 255, 0.55); }
+      .cr-nav-icon { font-size: 11px; line-height: 1; color: var(--neon); text-shadow: 0 0 12px rgba(53, 240, 255, 0.55); }
       .cr-nav-item.is-active .cr-nav-icon { color: #b6f0ff; }
       .cr-nav-text { display: flex; flex-direction: column; line-height: 1.25; }
-      .cr-nav-zh { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; }
-      .cr-nav-en { font-size: 8px; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; }
+      .cr-nav-zh { font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; }
+      .cr-nav-en { display: none; font-size: 8px; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; }
       .cr-nav-item.is-active .cr-nav-en { color: rgba(182, 240, 255, 0.78); }
 
       /* ---------- 左上：标题 ---------- */
@@ -213,7 +213,7 @@
         .cr-brand h1 { font-size: 1.55rem; }
         .cr-brand .cr-desc, .cr-meter { display: none; }
         .cr-hint { font-size: 10px; letter-spacing: 0.18em; }
-        .cr-nav-item { padding: 7px 12px; }
+        .cr-nav-item { padding: 5px 9px; }
         .cr-nav-en { display: none; }
       }
     </style>
